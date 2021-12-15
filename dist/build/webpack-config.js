@@ -883,8 +883,8 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
             webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
             hashFunction: 'xxhash64',
             hashDigestLength: 16,
-            ...webServerRuntime && {
-                uniqueName: 'serveWeb'
+            ...(webServerRuntime || !isServer) && {
+                uniqueName: isServer ? 'serveWeb' : 'clientWeb'
             }
         },
         performance: false,
