@@ -21,7 +21,7 @@ function getOriginModuleFromDependency(compilation, dep) {
 function getChunkGroupFromBlock(compilation, block) {
     return compilation.chunkGraph.getBlockChunkGroup(block);
 }
-function buildManifest(_compiler, compilation, pagesDir) {
+function buildManifest(_compiler, compilation, pagesDir, dev) {
     let manifest = {
     };
     // This is allowed:
@@ -74,7 +74,7 @@ function buildManifest(_compiler, compilation, pagesDir) {
                 // but we assume that all parents are also imported by
                 // next/dynamic so they are loaded by the same technique
                 // add the id and files to the manifest
-                const id = getModuleId(compilation, module);
+                const id = dev ? key : getModuleId(compilation, module);
                 manifest[key] = {
                     id,
                     files: Array.from(files)
@@ -96,9 +96,10 @@ class ReactLoadablePlugin {
         this.filename = opts.filename;
         this.pagesDir = opts.pagesDir;
         this.runtimeAsset = opts.runtimeAsset;
+        this.dev = opts.dev;
     }
     createAssets(compiler, compilation, assets) {
-        const manifest = buildManifest(compiler, compilation, this.pagesDir);
+        const manifest = buildManifest(compiler, compilation, this.pagesDir, this.dev);
         // @ts-ignore: TODO: remove when webpack 5 is stable
         assets[this.filename] = new _webpack.sources.RawSource(JSON.stringify(manifest, null, 2));
         if (this.runtimeAsset) {

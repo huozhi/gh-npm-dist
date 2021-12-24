@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.missingDepsError = missingDepsError;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _oxfordCommaList = require("../oxford-comma-list");
 var _fatalError = require("../fatal-error");
 var _isYarn = require("../is-yarn");

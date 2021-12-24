@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.verifyTypeScriptSetup = verifyTypeScriptSetup;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _path = _interopRequireDefault(require("path"));
 var _hasNecessaryDependencies = require("./has-necessary-dependencies");
 var _semver = _interopRequireDefault(require("next/dist/compiled/semver"));

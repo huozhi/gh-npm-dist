@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.getScssError = getScssError;
 var _codeFrame = require("next/dist/compiled/babel/code-frame");
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _simpleWebpackError = require("./simpleWebpackError");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {

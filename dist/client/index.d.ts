@@ -1,4 +1,4 @@
-import '@next/polyfill-module';
+import '../build/polyfills/polyfill-module';
 import { MittEmitter } from '../shared/lib/mitt';
 import type Router from '../shared/lib/router/router';
 import { AppComponent, PrivateRouteInfo } from '../shared/lib/router/router';

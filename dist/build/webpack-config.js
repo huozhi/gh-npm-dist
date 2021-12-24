@@ -7,7 +7,7 @@ exports.resolveExternal = resolveExternal;
 exports.default = getBaseWebpackConfig;
 exports.nextImageLoaderRegex = exports.NODE_BASE_ESM_RESOLVE_OPTIONS = exports.NODE_ESM_RESOLVE_OPTIONS = exports.NODE_BASE_RESOLVE_OPTIONS = exports.NODE_RESOLVE_OPTIONS = void 0;
 var _reactRefreshWebpackPlugin = _interopRequireDefault(require("@next/react-refresh-utils/ReactRefreshWebpackPlugin"));
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _crypto = _interopRequireDefault(require("crypto"));
 var _querystring = require("querystring");
 var _semver = _interopRequireDefault(require("next/dist/compiled/semver"));
@@ -38,7 +38,7 @@ var _copyFilePlugin = require("./webpack/plugins/copy-file-plugin");
 var _flightManifestPlugin = require("./webpack/plugins/flight-manifest-plugin");
 var _telemetryPlugin = require("./webpack/plugins/telemetry-plugin");
 var _utils1 = require("./utils");
-var _browserslist = _interopRequireDefault(require("browserslist"));
+var _browserslist = _interopRequireDefault(require("next/dist/compiled/browserslist"));
 var _loadJsconfig = _interopRequireDefault(require("./load-jsconfig"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -284,8 +284,11 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
     });
     const isReactExperimental = Boolean(reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion));
     const hasReact18 = Boolean(reactDomVersion) && (_semver.default.gte(reactDomVersion, '18.0.0') || ((ref23 = _semver.default.coerce(reactDomVersion)) === null || ref23 === void 0 ? void 0 : ref23.version) === '18.0.0');
-    const hasReactPrerelease = Boolean(reactDomVersion) && _semver.default.prerelease(reactDomVersion) != null || isReactExperimental;
     const hasReactRoot = config.experimental.reactRoot || hasReact18 || isReactExperimental;
+    // Make sure reactRoot is enabled when react 18 is detected
+    if (hasReactRoot) {
+        config.experimental.reactRoot = true;
+    }
     // Only inform during one of the builds
     if (!isServer && config.experimental.reactRoot && !(hasReact18 || isReactExperimental)) {
         // It's fine to only mention React 18 here as we don't recommend people to try experimental.
@@ -300,15 +303,6 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
     const hasConcurrentFeatures = config.experimental.concurrentFeatures && hasReactRoot;
     const hasServerComponents = hasConcurrentFeatures && !!config.experimental.serverComponents;
     const targetWeb = webServerRuntime || !isServer;
-    // Only inform during one of the builds
-    if (!isServer) {
-        if (hasReactRoot) {
-            Log.info('Using the createRoot API for React');
-        }
-        if (hasReactPrerelease) {
-            Log.warn(`You are using an unsupported prerelease of 'react-dom' which may cause ` + `unexpected or broken application behavior. Continue at your own risk.`);
-        }
-    }
     if (webServerRuntime) {
         Log.warn('You are using the experimental Edge Runtime with `concurrentFeatures`.');
         if (hasServerComponents) {
@@ -483,30 +477,31 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
             // Full list of old polyfills is accessible here:
             // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
             fallback: {
-                assert: require.resolve('assert/'),
-                buffer: require.resolve('buffer/'),
-                constants: require.resolve('constants-browserify'),
-                crypto: require.resolve('crypto-browserify'),
-                domain: require.resolve('domain-browser'),
-                http: require.resolve('stream-http'),
-                https: require.resolve('https-browserify'),
-                os: require.resolve('os-browserify/browser'),
-                path: require.resolve('path-browserify'),
+                assert: require.resolve('next/dist/compiled/assert'),
+                buffer: require.resolve('next/dist/compiled/buffer/'),
+                constants: require.resolve('next/dist/compiled/constants-browserify'),
+                crypto: require.resolve('next/dist/compiled/crypto-browserify'),
+                domain: require.resolve('next/dist/compiled/domain-browser'),
+                http: require.resolve('next/dist/compiled/stream-http'),
+                https: require.resolve('next/dist/compiled/https-browserify'),
+                os: require.resolve('next/dist/compiled/os-browserify'),
+                path: require.resolve('next/dist/compiled/path-browserify'),
                 punycode: require.resolve('punycode'),
-                process: require.resolve('process/browser'),
+                process: require.resolve('next/dist/compiled/process'),
                 // Handled in separate alias
-                querystring: require.resolve('querystring-es3'),
+                querystring: require.resolve('next/dist/compiled/querystring-es3'),
+                // TODO: investigate ncc'ing stream-browserify
                 stream: require.resolve('stream-browserify'),
-                string_decoder: require.resolve('string_decoder'),
-                sys: require.resolve('util/'),
-                timers: require.resolve('timers-browserify'),
-                tty: require.resolve('tty-browserify'),
+                string_decoder: require.resolve('next/dist/compiled/string_decoder'),
+                sys: require.resolve('next/dist/compiled/util/'),
+                timers: require.resolve('next/dist/compiled/timers-browserify'),
+                tty: require.resolve('next/dist/compiled/tty-browserify'),
                 // Handled in separate alias
                 // url: require.resolve('url/'),
-                util: require.resolve('util/'),
-                vm: require.resolve('vm-browserify'),
-                zlib: require.resolve('browserify-zlib'),
-                events: require.resolve('events')
+                util: require.resolve('next/dist/compiled/util/'),
+                vm: require.resolve('next/dist/compiled/vm-browserify'),
+                zlib: require.resolve('next/dist/compiled/browserify-zlib'),
+                events: require.resolve('next/dist/compiled/events/')
             }
         } : undefined,
         mainFields: !targetWeb ? [
@@ -762,10 +757,10 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
             'next',
             ...webServerRuntime ? [
                 {
-                    etag: '{}',
-                    chalk: '{}',
+                    'next/dist/compiled/etag': '{}',
+                    'next/dist/compiled/chalk': '{}',
                     'react-dom': '{}'
-                }
+                }, 
             ] : [], 
         ] : !isServerless ? [
             ({ context , request , dependencyType , getResolve  })=>{
@@ -882,10 +877,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
             crossOriginLoading: crossOrigin,
             webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
             hashFunction: 'xxhash64',
-            hashDigestLength: 16,
-            ...(webServerRuntime || !isServer) && {
-                uniqueName: isServer ? 'serveWeb' : 'clientWeb'
-            }
+            hashDigestLength: 16
         },
         performance: false,
         resolve: resolveConfig,
@@ -1122,7 +1114,8 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
             !isServer && new _reactLoadablePlugin.ReactLoadablePlugin({
                 filename: _constants1.REACT_LOADABLE_MANIFEST,
                 pagesDir,
-                runtimeAsset: hasConcurrentFeatures ? `server/${_constants1.MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js` : undefined
+                runtimeAsset: hasConcurrentFeatures ? `server/${_constants1.MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js` : undefined,
+                dev
             }),
             targetWeb && new _nextDropClientPagePlugin.DropClientPage(),
             config.outputFileTracing && !isLikeServerless && isServer && !dev && new _nextTraceEntrypointsPlugin.TraceEntryPointsPlugin({
@@ -1185,7 +1178,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
             new _wellknownErrorsPlugin.WellKnownErrorsPlugin(),
             !isServer && new _copyFilePlugin.CopyFilePlugin({
                 filePath: require.resolve('./polyfills/polyfill-nomodule'),
-                cacheKey: "12.0.8-canary.5",
+                cacheKey: "12.0.8-canary.13",
                 name: `static/chunks/polyfills${dev ? '' : '-[hash]'}.js`,
                 minimize: false,
                 info: {
@@ -1307,14 +1300,17 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
         reactRoot: config.experimental.reactRoot,
         concurrentFeatures: config.experimental.concurrentFeatures,
         swcMinify: config.swcMinify,
-        swcLoader: useSWCLoader
+        swcLoader: useSWCLoader,
+        removeConsole: config.experimental.removeConsole,
+        reactRemoveProperties: config.experimental.reactRemoveProperties,
+        styledComponents: config.experimental.styledComponents
     });
     const cache = {
         type: 'filesystem',
         // Includes:
         //  - Next.js version
         //  - next.config.js keys that affect compilation
-        version: `${"12.0.8-canary.5"}|${configVars}`,
+        version: `${"12.0.8-canary.13"}|${configVars}`,
         cacheDirectory: _path.default.join(distDir, 'cache', 'webpack')
     };
     // Adds `next.config.js` as a buildDependency when custom webpack config is provided
@@ -1388,6 +1384,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
     webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${isDevFallback ? '-fallback' : ''}`;
     let originalDevtool = webpackConfig.devtool;
     if (typeof config.webpack === 'function') {
+        var ref, ref67;
         webpackConfig = config.webpack(webpackConfig, {
             dir,
             dev,
@@ -1404,6 +1401,16 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
         if (dev && originalDevtool !== webpackConfig.devtool) {
             webpackConfig.devtool = originalDevtool;
             devtoolRevertWarning(originalDevtool);
+        }
+        // eslint-disable-next-line no-shadow
+        const webpack5Config = webpackConfig;
+        // disable lazy compilation of entries as next.js has it's own method here
+        if (((ref = webpack5Config.experiments) === null || ref === void 0 ? void 0 : ref.lazyCompilation) === true) {
+            webpack5Config.experiments.lazyCompilation = {
+                entries: false
+            };
+        } else if (typeof ((ref67 = webpack5Config.experiments) === null || ref67 === void 0 ? void 0 : ref67.lazyCompilation) === 'object' && webpack5Config.experiments.lazyCompilation.entries !== false) {
+            webpack5Config.experiments.lazyCompilation.entries = false;
         }
         if (typeof webpackConfig.then === 'function') {
             console.warn('> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config');
@@ -1501,11 +1508,11 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
         }
         return false;
     }
-    var ref67;
-    const hasUserCssConfig = (ref67 = (ref5 = webpackConfig.module) === null || ref5 === void 0 ? void 0 : ref5.rules.some((rule)=>canMatchCss(rule.test) || canMatchCss(rule.include)
-    )) !== null && ref67 !== void 0 ? ref67 : false;
+    var ref90;
+    const hasUserCssConfig = (ref90 = (ref5 = webpackConfig.module) === null || ref5 === void 0 ? void 0 : ref5.rules.some((rule)=>canMatchCss(rule.test) || canMatchCss(rule.include)
+    )) !== null && ref90 !== void 0 ? ref90 : false;
     if (hasUserCssConfig) {
-        var ref, ref68, ref69, ref70;
+        var ref, ref91, ref92, ref93;
         // only show warning for one build
         if (isServer) {
             console.warn(_chalk.default.yellow.bold('Warning: ') + _chalk.default.bold('Built-in CSS support is being disabled due to custom CSS configuration being detected.\n') + 'See here for more info: https://nextjs.org/docs/messages/built-in-css-disabled\n');
@@ -1519,12 +1526,12 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
                 }
             });
         }
-        if ((ref68 = webpackConfig.plugins) === null || ref68 === void 0 ? void 0 : ref68.length) {
+        if ((ref91 = webpackConfig.plugins) === null || ref91 === void 0 ? void 0 : ref91.length) {
             // Disable CSS Extraction Plugin
             webpackConfig.plugins = webpackConfig.plugins.filter((p)=>p.__next_css_remove !== true
             );
         }
-        if ((ref69 = webpackConfig.optimization) === null || ref69 === void 0 ? void 0 : (ref70 = ref69.minimizer) === null || ref70 === void 0 ? void 0 : ref70.length) {
+        if ((ref92 = webpackConfig.optimization) === null || ref92 === void 0 ? void 0 : (ref93 = ref92.minimizer) === null || ref93 === void 0 ? void 0 : ref93.length) {
             // Disable CSS Minifier
             webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter((e)=>e.__next_css_remove !== true
             );

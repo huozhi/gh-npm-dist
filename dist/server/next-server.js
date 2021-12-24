@@ -127,6 +127,21 @@ class NextNodeServer extends _baseServer.default {
             ...userFilesStatic, 
         ]);
     }
+    getCacheFilesystem() {
+        return {
+            readFile: (f)=>_fs.default.promises.readFile(f, 'utf8')
+            ,
+            readFileSync: (f)=>_fs.default.readFileSync(f, 'utf8')
+            ,
+            writeFile: (f, d)=>_fs.default.promises.writeFile(f, d, 'utf8')
+            ,
+            mkdir: (dir)=>_fs.default.promises.mkdir(dir, {
+                    recursive: true
+                })
+            ,
+            stat: (f)=>_fs.default.promises.stat(f)
+        };
+    }
     constructor(...args){
         super(...args);
         this._validFilesystemPathSet = null;

@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.getTypeScriptConfiguration = getTypeScriptConfiguration;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _os = _interopRequireDefault(require("os"));
 var _path = _interopRequireDefault(require("path"));
 var _fatalError = require("../fatal-error");

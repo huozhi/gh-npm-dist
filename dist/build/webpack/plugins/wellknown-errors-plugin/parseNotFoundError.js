@@ -3,9 +3,9 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.getNotFoundError = getNotFoundError;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _simpleWebpackError = require("./simpleWebpackError");
-var _middleware = require("@next/react-dev-overlay/lib/middleware");
+var _middleware = require("next/dist/compiled/@next/react-dev-overlay/middleware");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj

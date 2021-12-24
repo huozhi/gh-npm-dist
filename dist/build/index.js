@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = build;
 var _env = require("@next/env");
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _crypto = _interopRequireDefault(require("crypto"));
 var _micromatch = require("next/dist/compiled/micromatch");
 var _fs = require("fs");
@@ -78,7 +78,7 @@ function _interopRequireWildcard(obj) {
 }
 async function build(dir, conf = null, reactProductionProfiling = false, debugOutput = false, runLint = true) {
     const nextBuildSpan = (0, _trace).trace('next-build', undefined, {
-        version: "12.0.8-canary.5"
+        version: "12.0.8-canary.13"
     });
     const buildResult = await nextBuildSpan.traceAsyncFn(async ()=>{
         // attempt to load global env values so they are available in next.config.js
@@ -488,6 +488,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         const sharedPool = config.experimental.sharedPool || false;
         const staticWorker = sharedPool ? require.resolve('./worker') : require.resolve('./utils');
         let infoPrinted = false;
+        process.env.NEXT_PHASE = _constants1.PHASE_PRODUCTION_BUILD;
         const staticWorkers = new _worker.Worker(staticWorker, {
             timeout: timeout * 1000,
             onRestart: (method, [arg], attempts)=>{
@@ -525,7 +526,6 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         const analysisBegin = process.hrtime();
         const staticCheckSpan = nextBuildSpan.traceChild('static-check');
         const { customAppGetInitialProps , namedExports , isNextImageImported , hasSsrAmpPages , hasNonStaticErrorPage ,  } = await staticCheckSpan.traceAsyncFn(async ()=>{
-            process.env.NEXT_PHASE = _constants1.PHASE_PRODUCTION_BUILD;
             const { configFileName , publicRuntimeConfig , serverRuntimeConfig  } = config;
             const runtimeEnvConfig = {
                 publicRuntimeConfig,
@@ -732,6 +732,8 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                 if (lockFiles.length > 0) {
                     const cacheHash = require('crypto').createHash('sha256');
                     cacheHash.update(require('next/package').version);
+                    cacheHash.update(hasSsrAmpPages + '');
+                    cacheHash.update(ciEnvironment.hasNextSupport + '');
                     await Promise.all(lockFiles.map(async (lockFile)=>{
                         cacheHash.update(await _fs.promises.readFile(lockFile));
                     }));
@@ -753,12 +755,18 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                     processCwd: dir,
                     ignore: [
                         '**/next/dist/pages/**/*',
-                        '**/next/dist/server/image-optimizer.js',
-                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                        '**/next/dist/server/lib/squoosh/**/*.wasm',
                         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                        '**/node_modules/sharp/**/*',
-                        '**/node_modules/webpack5/**/*', 
+                        '**/node_modules/webpack5/**/*',
+                        '**/next/dist/server/lib/squoosh/**/*.wasm',
+                        ...ciEnvironment.hasNextSupport ? [
+                            // only ignore image-optimizer code when
+                            // this is being handled outside of next-server
+                            '**/next/dist/server/image-optimizer.js',
+                            '**/node_modules/sharp/**/*', 
+                        ] : [],
+                        ...!hasSsrAmpPages ? [
+                            '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*'
+                        ] : [], 
                     ]
                 });
                 const tracedFiles = new Set();

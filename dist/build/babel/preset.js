@@ -142,7 +142,7 @@ var _default = (api, options = {
                     helpers: true,
                     regenerator: true,
                     useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
-                    absoluteRuntime: isBabelLoader ? (0, _path).dirname(require.resolve('@babel/runtime/package.json')) : undefined,
+                    absoluteRuntime: isBabelLoader ? (0, _path).dirname(require.resolve('next/dist/compiled/@babel/runtime/package.json')) : undefined,
                     ...options['transform-runtime']
                 }, 
             ],

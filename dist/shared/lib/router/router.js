@@ -383,7 +383,7 @@ class Router {
             const { pathname  } = (0, _parseRelativeUrl).parseRelativeUrl(url);
             // Make sure we don't re-render on initial load,
             // can be caused by navigating back from an external site
-            if (this.isSsr && as === this.asPath && pathname === this.pathname) {
+            if (this.isSsr && as === addBasePath(this.asPath) && pathname === addBasePath(this.pathname)) {
                 return;
             }
             // If the downstream application returns falsy, return.
@@ -671,10 +671,10 @@ class Router {
         }
         resolvedAs = delLocale(delBasePath(resolvedAs), this.locale);
         /**
-     * If the route update was triggered for client-side hydration then
-     * do not check the preflight request. Otherwise when rendering
-     * a page with refresh it might get into an infinite loop.
-     */ if (options._h !== 1) {
+     * If the route update was triggered for client-side hydration and
+     * the rendered route is not dynamic do not check the preflight
+     * request as it is not necessary.
+     */ if (options._h !== 1 || (0, _isDynamic).isDynamicRoute((0, _normalizeTrailingSlash).removePathTrailingSlash(pathname))) {
             const effect = await this._preflightRequest({
                 as,
                 cache: process.env.NODE_ENV === 'production',
@@ -697,7 +697,7 @@ class Router {
                 window.location.href = effect.destination;
                 return new Promise(()=>{
                 });
-            } else if (effect.type === 'refresh') {
+            } else if (effect.type === 'refresh' && as !== window.location.pathname) {
                 window.location.href = as;
                 return new Promise(()=>{
                 });
@@ -1123,15 +1123,8 @@ class Router {
         });
     }
     _getFlightData(dataHref) {
-        const { href: cacheKey  } = new URL(dataHref, window.location.href);
-        if (!this.isPreview && this.sdc[cacheKey]) {
-            return Promise.resolve({
-                fresh: false,
-                data: this.sdc[cacheKey]
-            });
-        }
+        // Do not cache RSC flight response since it's not a static resource
         return fetchNextData(dataHref, true, true, this.sdc, false).then((serialized)=>{
-            this.sdc[cacheKey] = serialized;
             return {
                 fresh: true,
                 data: serialized

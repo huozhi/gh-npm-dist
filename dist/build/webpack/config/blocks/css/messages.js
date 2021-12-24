@@ -6,7 +6,7 @@ exports.getGlobalImportError = getGlobalImportError;
 exports.getGlobalModuleImportError = getGlobalModuleImportError;
 exports.getLocalModuleImportError = getLocalModuleImportError;
 exports.getCustomDocumentError = getCustomDocumentError;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj

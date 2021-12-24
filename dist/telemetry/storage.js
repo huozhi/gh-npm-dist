@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _conf = _interopRequireDefault(require("next/dist/compiled/conf"));
 var _crypto = require("crypto");
 var _isDocker = _interopRequireDefault(require("next/dist/compiled/is-docker"));

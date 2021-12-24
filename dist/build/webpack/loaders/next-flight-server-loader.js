@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.isImageImport = isImageImport;
 exports.default = transformSource;
-var acorn = _interopRequireWildcard(require("acorn"));
+var acorn = _interopRequireWildcard(require("next/dist/compiled/acorn"));
 var _utils = require("../../utils");
 function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {

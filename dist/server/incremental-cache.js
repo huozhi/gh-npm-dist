@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-var _fs = require("fs");
 var _lruCache = _interopRequireDefault(require("next/dist/compiled/lru-cache"));
 var _path = _interopRequireDefault(require("path"));
 var _constants = require("../shared/lib/constants");
@@ -16,7 +15,8 @@ function toRoute(pathname) {
     return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/';
 }
 class IncrementalCache {
-    constructor({ max , dev , distDir , pagesDir , flushToDisk , locales  }){
+    constructor({ fs , max , dev , distDir , pagesDir , flushToDisk , locales  }){
+        this.fs = fs;
         this.incrementalOptions = {
             dev,
             distDir,
@@ -35,7 +35,8 @@ class IncrementalCache {
                 preview: null
             };
         } else {
-            this.prerenderManifest = JSON.parse((0, _fs).readFileSync(_path.default.join(distDir, _constants.PRERENDER_MANIFEST), 'utf8'));
+            const manifestJson = this.fs.readFileSync(_path.default.join(distDir, _constants.PRERENDER_MANIFEST));
+            this.prerenderManifest = JSON.parse(manifestJson);
         }
         if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
             // Allow cache size to be overridden for testing purposes
@@ -68,7 +69,7 @@ class IncrementalCache {
     }
     getFallback(page) {
         page = (0, _normalizePagePath).normalizePagePath(page);
-        return _fs.promises.readFile(this.getSeedPath(page, 'html'), 'utf8');
+        return this.fs.readFile(this.getSeedPath(page, 'html'));
     }
     // get data from cache if available
     async get(pathname) {
@@ -87,9 +88,10 @@ class IncrementalCache {
             }
             try {
                 const htmlPath = this.getSeedPath(pathname, 'html');
-                const html = await _fs.promises.readFile(htmlPath, 'utf8');
-                const { mtime  } = await _fs.promises.stat(htmlPath);
-                const pageData = JSON.parse(await _fs.promises.readFile(this.getSeedPath(pathname, 'json'), 'utf8'));
+                const jsonPath = this.getSeedPath(pathname, 'json');
+                const html = await this.fs.readFile(htmlPath);
+                const pageData = JSON.parse(await this.fs.readFile(jsonPath));
+                const { mtime  } = await this.fs.stat(htmlPath);
                 data = {
                     revalidateAfter: this.calculateRevalidate(pathname, mtime.getTime()),
                     value: {
@@ -141,12 +143,11 @@ class IncrementalCache {
         // `next build` output's manifest.
         if (this.incrementalOptions.flushToDisk && (data === null || data === void 0 ? void 0 : data.kind) === 'PAGE') {
             try {
-                const seedPath = this.getSeedPath(pathname, 'html');
-                await _fs.promises.mkdir(_path.default.dirname(seedPath), {
-                    recursive: true
-                });
-                await _fs.promises.writeFile(seedPath, data.html, 'utf8');
-                await _fs.promises.writeFile(this.getSeedPath(pathname, 'json'), JSON.stringify(data.pageData), 'utf8');
+                const seedHtmlPath = this.getSeedPath(pathname, 'html');
+                const seedJsonPath = this.getSeedPath(pathname, 'json');
+                await this.fs.mkdir(_path.default.dirname(seedHtmlPath));
+                await this.fs.writeFile(seedHtmlPath, data.html);
+                await this.fs.writeFile(seedJsonPath, JSON.stringify(data.pageData));
             } catch (error) {
                 // failed to flush to disk
                 console.warn('Failed to update prerender files for', pathname, error);

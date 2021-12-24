@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = transformSource;
-var acorn = _interopRequireWildcard(require("acorn"));
+var acorn = _interopRequireWildcard(require("next/dist/compiled/acorn"));
 function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;

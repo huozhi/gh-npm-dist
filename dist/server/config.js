@@ -23,7 +23,7 @@ Object.defineProperty(exports, "normalizeConfig", {
 exports.default = loadConfig;
 exports.isTargetLikeServerless = isTargetLikeServerless;
 exports.setHttpAgentOptions = setHttpAgentOptions;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
 var _path = require("path");
 var _url = require("url");
@@ -404,7 +404,14 @@ async function loadConfig(phase, dir, customConfig) {
             // `import()` expects url-encoded strings, so the path must be properly
             // escaped and (especially on Windows) absolute paths must pe prefixed
             // with the `file://` protocol
-            userConfigModule = await import((0, _url).pathToFileURL(path).href);
+            if (process.env.__NEXT_TEST_MODE === 'jest') {
+                // dynamic import does not currently work inside of vm which
+                // jest relies on so we fall back to require for this case
+                // https://github.com/nodejs/node/issues/35889
+                userConfigModule = require(path);
+            } else {
+                userConfigModule = await import((0, _url).pathToFileURL(path).href);
+            }
         } catch (err) {
             Log.error(`Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`);
             throw err;

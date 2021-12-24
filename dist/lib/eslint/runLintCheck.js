@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.runLintCheck = runLintCheck;
 var _fs = require("fs");
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _path = _interopRequireDefault(require("path"));
 var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
 var _semver = _interopRequireDefault(require("next/dist/compiled/semver"));

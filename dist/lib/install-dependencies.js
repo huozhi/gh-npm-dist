@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.installDependencies = installDependencies;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _path = _interopRequireDefault(require("path"));
 var _shouldUseYarn = require("./helpers/should-use-yarn");
 var _install = require("./helpers/install");

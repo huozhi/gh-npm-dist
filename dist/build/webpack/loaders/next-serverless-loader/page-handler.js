@@ -247,7 +247,7 @@ function getPageHandler(ctx) {
                         }
                         res.statusCode = statusCode;
                         res.setHeader('Location', redirect.destination);
-                        res.end();
+                        res.end(redirect.destination);
                         return null;
                     } else {
                         (0, _sendPayload).sendRenderResult({

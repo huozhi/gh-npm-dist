@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.formatResults = formatResults;
 exports.MessageSeverity = void 0;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _path = _interopRequireDefault(require("path"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {

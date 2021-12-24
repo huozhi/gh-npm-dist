@@ -5,13 +5,13 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = void 0;
 var _crypto = _interopRequireDefault(require("crypto"));
 var _fs = _interopRequireDefault(require("fs"));
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _jestWorker = require("jest-worker");
 var _amphtmlValidator = _interopRequireDefault(require("next/dist/compiled/amphtml-validator"));
 var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
 var _path = require("path");
 var _react = _interopRequireDefault(require("react"));
-var _watchpack = _interopRequireDefault(require("watchpack"));
+var _watchpack = _interopRequireDefault(require("next/dist/compiled/watchpack"));
 var _output = require("../../build/output");
 var _constants = require("../../lib/constants");
 var _fileExists = require("../../lib/file-exists");
@@ -32,8 +32,7 @@ var _utils1 = require("../lib/utils");
 var _coalescedFunction = require("../../lib/coalesced-function");
 var _loadComponents = require("../load-components");
 var _utils2 = require("../../shared/lib/utils");
-var _parseStack = require("@next/react-dev-overlay/lib/internal/helpers/parseStack");
-var _middleware = require("@next/react-dev-overlay/lib/middleware");
+var _middleware = require("next/dist/compiled/@next/react-dev-overlay/middleware");
 var Log = _interopRequireWildcard(require("../../build/output/log"));
 var _isError = _interopRequireDefault(require("../../lib/is-error"));
 var _getMiddlewareRegex = require("../../shared/lib/router/utils/get-middleware-regex");
@@ -70,7 +69,7 @@ function _interopRequireWildcard(obj) {
 let ReactDevOverlayImpl;
 const ReactDevOverlay = (props)=>{
     if (ReactDevOverlayImpl === undefined) {
-        ReactDevOverlayImpl = require('@next/react-dev-overlay/lib/client').ReactDevOverlay;
+        ReactDevOverlayImpl = require('next/dist/compiled/@next/react-dev-overlay/client').ReactDevOverlay;
     }
     return ReactDevOverlayImpl(props);
 };
@@ -462,7 +461,7 @@ class DevServer extends _nextServer.default {
         let usedOriginalStack = false;
         if ((0, _isError).default(err) && err.name && err.stack && err.message) {
             try {
-                const frames = (0, _parseStack).parseStack(err.stack);
+                const frames = (0, _middleware).parseStack(err.stack);
                 const frame = frames[0];
                 if (frame.lineNumber && (frame === null || frame === void 0 ? void 0 : frame.file)) {
                     var ref, ref1, ref2, ref3, ref4, ref5;

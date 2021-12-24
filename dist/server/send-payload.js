@@ -6,7 +6,7 @@ exports.setRevalidateHeaders = setRevalidateHeaders;
 exports.sendRenderResult = sendRenderResult;
 exports.sendEtagResponse = sendEtagResponse;
 var _utils = require("../shared/lib/utils");
-var _etag = _interopRequireDefault(require("etag"));
+var _etag = _interopRequireDefault(require("next/dist/compiled/etag"));
 var _fresh = _interopRequireDefault(require("next/dist/compiled/fresh"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {

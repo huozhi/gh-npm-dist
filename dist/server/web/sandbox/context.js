@@ -10,6 +10,7 @@ var _require = require("./require");
 var _webStreamsPolyfill = require("next/dist/compiled/web-streams-polyfill");
 var _cookie = _interopRequireDefault(require("next/dist/compiled/cookie"));
 var polyfills = _interopRequireWildcard(require("./polyfills"));
+var _abortController = require("next/dist/compiled/abort-controller");
 var _vm = _interopRequireDefault(require("vm"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -182,6 +183,8 @@ function getModuleContext(options) {
             timeLog: console.timeLog.bind(console),
             warn: console.warn.bind(console)
         },
+        AbortController: _abortController.AbortController,
+        AbortSignal: _abortController.AbortSignal,
         CryptoKey: polyfills.CryptoKey,
         Crypto: polyfills.Crypto,
         crypto: new polyfills.Crypto(),

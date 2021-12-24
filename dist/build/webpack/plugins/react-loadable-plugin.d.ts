@@ -23,10 +23,12 @@ export declare class ReactLoadablePlugin {
     private filename;
     private pagesDir;
     private runtimeAsset?;
+    private dev;
     constructor(opts: {
         filename: string;
         pagesDir: string;
         runtimeAsset?: string;
+        dev: boolean;
     });
     createAssets(compiler: any, compilation: any, assets: any): any;
     apply(compiler: webpack.Compiler): void;

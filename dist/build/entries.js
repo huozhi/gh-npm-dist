@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.createPagesMapping = createPagesMapping;
 exports.createEntrypoints = createEntrypoints;
 exports.finalizeEntrypoint = finalizeEntrypoint;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _path = require("path");
 var _querystring = require("querystring");
 var _constants = require("../lib/constants");
@@ -69,7 +69,6 @@ function createEntrypoints(pages, target, buildId, previewMode, config, loadedEn
         absoluteDocumentPath: pages['/_document'],
         absoluteErrorPath: pages['/_error'],
         absolute404Path: pages['/404'] || '',
-        // noop
         distDir: _constants.DOT_NEXT_ALIAS,
         buildId,
         assetPrefix: config.assetPrefix,

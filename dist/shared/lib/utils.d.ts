@@ -265,4 +265,13 @@ export declare const ST: boolean;
 export declare class DecodeError extends Error {
 }
 export declare const HtmlContext: import("react").Context<HtmlProps>;
+export interface CacheFs {
+    readFile(f: string): Promise<string>;
+    readFileSync(f: string): string;
+    writeFile(f: string, d: any): Promise<void>;
+    mkdir(dir: string): Promise<void>;
+    stat(f: string): Promise<{
+        mtime: Date;
+    }>;
+}
 export {};

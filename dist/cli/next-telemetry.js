@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.nextTelemetry = void 0;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _indexJs = _interopRequireDefault(require("next/dist/compiled/arg/index.js"));
 var _utils = require("../server/lib/utils");
 var _storage = require("../telemetry/storage");

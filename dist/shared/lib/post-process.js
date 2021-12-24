@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 var _escapeStringRegexp = _interopRequireDefault(require("next/dist/compiled/escape-string-regexp"));
-var _nodeHtmlParser = require("node-html-parser");
+var _nodeHtmlParser = require("next/dist/compiled/node-html-parser");
 var _constants = require("./constants");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {

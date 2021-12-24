@@ -14,6 +14,7 @@ import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url';
 import type { ParsedUrlQuery } from 'querystring';
 import type { PrerenderManifest } from '../build';
 import type { UrlWithParsedQuery } from 'url';
+import type { CacheFs } from '../shared/lib/utils';
 import { getRouteMatcher } from '../shared/lib/router/utils';
 import Router from './router';
 import './node-polyfill-fetch';
@@ -197,6 +198,7 @@ export default abstract class Server {
     private customErrorNo404Warn;
     private renderErrorToResponse;
     renderErrorToHTML(err: Error | null, req: IncomingMessage, res: ServerResponse, pathname: string, query?: ParsedUrlQuery): Promise<string | null>;
+    protected getCacheFilesystem(): CacheFs;
     protected getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null>;
     render404(req: IncomingMessage, res: ServerResponse, parsedUrl?: NextUrlWithParsedQuery, setHeaders?: boolean): Promise<void>;
     serveStatic(req: IncomingMessage, res: ServerResponse, path: string, parsedUrl?: UrlWithParsedQuery): Promise<void>;

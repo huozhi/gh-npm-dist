@@ -6,10 +6,9 @@ exports.initNext = initNext;
 exports.render = render;
 exports.renderError = renderError;
 exports.emitter = exports.router = exports.version = void 0;
-require("@next/polyfill-module");
+require("../build/polyfills/polyfill-module");
 var _react = _interopRequireWildcard(require("react"));
 var _reactDom = _interopRequireDefault(require("react-dom"));
-var _styledJsx = require("styled-jsx");
 var _headManagerContext = require("../shared/lib/head-manager-context");
 var _mitt = _interopRequireDefault(require("../shared/lib/mitt"));
 var _routerContext = require("../shared/lib/router-context");
@@ -26,7 +25,7 @@ var _routeAnnouncer = require("./route-announcer");
 var _router1 = require("./router");
 var _isError = _interopRequireDefault(require("../lib/is-error"));
 var _vitals = require("./vitals");
-var _rsc = require("./rsc");
+var _refresh = require("./rsc/refresh");
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -115,7 +114,7 @@ function _objectSpread(target) {
 }
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent);
 window.__NEXT_DATA__ = data;
-const version = "12.0.8-canary.5";
+const version = "12.0.8-canary.13";
 exports.version = version;
 const looseToArray = (input)=>[].slice.call(input)
 ;
@@ -237,7 +236,7 @@ class Container extends _react.default.Component {
         if (process.env.NODE_ENV === 'production') {
             return this.props.children;
         } else {
-            const { ReactDevOverlay  } = require('@next/react-dev-overlay/lib/client');
+            const { ReactDevOverlay ,  } = require('next/dist/compiled/@next/react-dev-overlay/client');
             return(/*#__PURE__*/ _react.default.createElement(ReactDevOverlay, null, this.props.children));
         }
     }
@@ -298,7 +297,7 @@ function _initNext() {
             initialErr = (0, _isError).default(error) ? error : new Error(error + '');
         }
         if (process.env.NODE_ENV === 'development') {
-            const { getNodeError  } = require('@next/react-dev-overlay/lib/client');
+            const { getNodeError ,  } = require('next/dist/compiled/@next/react-dev-overlay/client');
             // Server-side runtime errors need to be re-thrown on the client-side so
             // that the overlay is rendered.
             if (initialErr) {
@@ -543,7 +542,7 @@ function AppContainer({ children  }) {
         value: (0, _router1).makePublicRouterInstance(router)
     }, /*#__PURE__*/ _react.default.createElement(_headManagerContext.HeadManagerContext.Provider, {
         value: headManager
-    }, /*#__PURE__*/ _react.default.createElement(_styledJsx.StyleRegistry, null, children)))));
+    }, children))));
 }
 const wrapApp = (App)=>(wrappedAppProps)=>{
         const appProps = _objectSpread({
@@ -558,13 +557,17 @@ const wrapApp = (App)=>(wrappedAppProps)=>{
 ;
 let RSCComponent;
 if (process.env.__NEXT_RSC) {
+    const getCacheKey = ()=>{
+        const { pathname , search  } = location;
+        return pathname + search;
+    };
     const { createFromFetch ,  } = require('next/dist/compiled/react-server-dom-webpack');
     const encoder = new TextEncoder();
     const serverDataBuffer = new Map();
     const serverDataWriter = new Map();
-    const ssrCacheKey = location ? location.href : '';
+    const serverDataCacheKey = getCacheKey();
     function nextServerDataCallback(seg) {
-        const key = ssrCacheKey + ',' + seg[1];
+        const key = serverDataCacheKey + ',' + seg[1];
         if (seg[0] === 0) {
             serverDataBuffer.set(key, []);
         } else {
@@ -612,21 +615,18 @@ if (process.env.__NEXT_RSC) {
         }
         return fetch(url.toString());
     }
-    const getCacheKey = ()=>{
-        const { pathname , search  } = location;
-        return pathname + search;
-    };
     function useServerResponse(cacheKey, serialized) {
         const id = _react.default.useId();
         let response = rscCache.get(cacheKey);
         if (response) return response;
-        if (serverDataBuffer.has(cacheKey + ',' + id)) {
+        const bufferCacheKey = cacheKey + ',' + id;
+        if (serverDataBuffer.has(bufferCacheKey)) {
             const t = new TransformStream();
             const writer = t.writable.getWriter();
             response = createFromFetch(Promise.resolve({
                 body: t.readable
             }));
-            nextServerDataRegisterWriter(cacheKey + ',' + id, writer);
+            nextServerDataRegisterWriter(bufferCacheKey, writer);
         } else {
             response = createFromFetch(serialized ? (()=>{
                 const t = new TransformStream();
@@ -641,14 +641,15 @@ if (process.env.__NEXT_RSC) {
     }
     const ServerRoot = ({ cacheKey , serialized , _fresh  })=>{
         const response = useServerResponse(cacheKey, serialized);
-        return response.readRoot();
+        const root = response.readRoot();
+        rscCache.delete(cacheKey);
+        return root;
     };
     RSCComponent = (props)=>{
         const cacheKey = getCacheKey();
         const { __flight_serialized__ , __flight_fresh__  } = props;
         const [, dispatch] = (0, _react).useState({
         });
-        // @ts-ignore TODO: remove when react 18 types are supported
         const startTransition = _react.default.startTransition;
         const renrender = ()=>dispatch({
             })
@@ -658,12 +659,11 @@ if (process.env.__NEXT_RSC) {
             startTransition(()=>{
                 const currentCacheKey = getCacheKey();
                 const response = createFromFetch(fetchFlight(currentCacheKey, nextProps));
-                // FIXME: router.asPath can be different from current location due to navigation
                 rscCache.set(currentCacheKey, response);
                 renrender();
             });
         }
-        return(/*#__PURE__*/ _react.default.createElement(_rsc.RefreshContext.Provider, {
+        return(/*#__PURE__*/ _react.default.createElement(_refresh.RefreshContext.Provider, {
             value: refreshCache
         }, /*#__PURE__*/ _react.default.createElement(_react.default.Suspense, {
             fallback: null

@@ -76,9 +76,10 @@ class NextResponse extends Response {
         if (!REDIRECTS.has(status)) {
             throw new RangeError('Failed to execute "redirect" on "response": Invalid status code');
         }
-        return new NextResponse(null, {
+        const destination = typeof url === 'string' ? url : url.toString();
+        return new NextResponse(destination, {
             headers: {
-                Location: typeof url === 'string' ? url : url.toString()
+                Location: destination
             },
             status
         });

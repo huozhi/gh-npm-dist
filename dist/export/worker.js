@@ -124,8 +124,10 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
             const getHtmlFilename = (_path1)=>subFolders ? `${_path1}${_path.sep}index.html` : `${_path1}.html`
             ;
             let htmlFilename = getHtmlFilename(filePath);
-            const pageExt = (0, _path).extname(page);
-            const pathExt = (0, _path).extname(path);
+            // dynamic routes can provide invalid extensions e.g. /blog/[...slug] returns an
+            // extension of `.slug]`
+            const pageExt = isDynamic ? '' : (0, _path).extname(page);
+            const pathExt = isDynamic ? '' : (0, _path).extname(path);
             // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
             if (pageExt !== pathExt && pathExt !== '') {
                 const isBuiltinPaths = [
@@ -347,7 +349,7 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
                 await _fs.promises.writeFile(htmlFilepath, html, 'utf8');
             }
         } catch (error) {
-            console.error(`\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` + ((0, _isError).default(error) ? error.stack : error));
+            console.error(`\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` + ((0, _isError).default(error) && error.stack ? error.stack : error));
             results.error = true;
         }
         return {

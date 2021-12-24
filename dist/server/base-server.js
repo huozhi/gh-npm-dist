@@ -142,6 +142,7 @@ class Server {
         this.router = new _router.default(this.generateRoutes());
         this.setAssetPrefix(assetPrefix);
         this.incrementalCache = new _incrementalCache.IncrementalCache({
+            fs: this.getCacheFilesystem(),
             dev,
             distDir: this.distDir,
             pagesDir: (0, _path).join(this.distDir, this._isLikeServerless ? _constants.SERVERLESS_DIRECTORY : _constants.SERVER_DIRECTORY, 'pages'),
@@ -313,7 +314,7 @@ class Server {
             if ((ref5 = url.locale) === null || ref5 === void 0 ? void 0 : ref5.redirect) {
                 res.setHeader('Location', url.locale.redirect);
                 res.statusCode = _constants.TEMPORARY_REDIRECT_STATUS;
-                res.end();
+                res.end(url.locale.redirect);
                 return;
             }
             res.statusCode = 200;
@@ -889,7 +890,7 @@ class Server {
                         if (res.statusCode === 308) {
                             res.setHeader('Refresh', `0;url=${location}`);
                         }
-                        res.end();
+                        res.end(location);
                         return {
                             finished: true
                         };
@@ -1327,7 +1328,7 @@ class Server {
             }
             res.statusCode = statusCode;
             res.setHeader('Location', redirect.destination);
-            res.end();
+            res.end(redirect.destination);
         };
         // remove /_next/data prefix from urlPathname so it matches
         // for direct page visit and /_next/data visit
@@ -1738,6 +1739,21 @@ class Server {
             pathname,
             query
         });
+    }
+    getCacheFilesystem() {
+        return {
+            readFile: ()=>Promise.resolve('')
+            ,
+            readFileSync: ()=>''
+            ,
+            writeFile: ()=>Promise.resolve()
+            ,
+            mkdir: ()=>Promise.resolve()
+            ,
+            stat: ()=>Promise.resolve({
+                    mtime: new Date()
+                })
+        };
     }
     async getFallbackErrorComponents() {
         // The development server will provide an implementation for this

@@ -9,7 +9,7 @@ exports.minify = minify;
 exports.minifySync = minifySync;
 exports.bundle = bundle;
 var _os = require("os");
-var _triples = require("@napi-rs/triples");
+var _triples = require("next/dist/compiled/@napi-rs/triples");
 var Log = _interopRequireWildcard(require("../output/log"));
 function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {

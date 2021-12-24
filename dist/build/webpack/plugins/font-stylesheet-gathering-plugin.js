@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 var _webpack = require("next/dist/compiled/webpack/webpack");
 var _fontUtils = require("../../../server/font-utils");
 var _postcss = _interopRequireDefault(require("postcss"));
-var _cssnanoSimple = _interopRequireDefault(require("cssnano-simple"));
+var _cssnanoSimple = _interopRequireDefault(require("next/dist/compiled/cssnano-simple"));
 var _constants = require("../../../shared/lib/constants");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {

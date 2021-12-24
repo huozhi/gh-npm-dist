@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.getRequiredConfiguration = getRequiredConfiguration;
 exports.writeConfigurationDefaults = writeConfigurationDefaults;
 var _fs = require("fs");
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var CommentJson = _interopRequireWildcard(require("next/dist/compiled/comment-json"));
 var _semver = _interopRequireDefault(require("next/dist/compiled/semver"));
 var _os = _interopRequireDefault(require("os"));

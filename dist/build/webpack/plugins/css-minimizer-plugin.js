@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-var _cssnanoSimple = _interopRequireDefault(require("cssnano-simple"));
+var _cssnanoSimple = _interopRequireDefault(require("next/dist/compiled/cssnano-simple"));
 var _postcssScss = _interopRequireDefault(require("next/dist/compiled/postcss-scss"));
 var _postcss = _interopRequireDefault(require("postcss"));
 var _webpack = require("next/dist/compiled/webpack/webpack");

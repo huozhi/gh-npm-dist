@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = exportApp;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
 var _fs = require("fs");
 var _worker = require("../lib/worker");

@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.renderScriptError = renderScriptError;
 exports.default = void 0;
-var _middleware = require("@next/react-dev-overlay/lib/middleware");
+var _middleware = require("next/dist/compiled/@next/react-dev-overlay/middleware");
 var _hotMiddleware = require("./hot-middleware");
 var _path = require("path");
 var _webpack = require("next/dist/compiled/webpack/webpack");
@@ -154,7 +154,7 @@ class HotReloader {
         this.previewProps = previewProps;
         this.rewrites = rewrites;
         this.hotReloaderSpan = (0, _trace).trace('hot-reloader', undefined, {
-            version: "12.0.8-canary.5"
+            version: "12.0.8-canary.13"
         });
         // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
         // of the current `next dev` invocation.

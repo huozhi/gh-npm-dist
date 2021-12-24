@@ -10,26 +10,37 @@ const createHeaders = (args)=>({
         'x-middleware-ssr': '1'
     })
 ;
+function sendError(req, error) {
+    const defaultMessage = 'An error occurred while rendering ' + req.url + '.';
+    return new Response(error && error.message || defaultMessage, {
+        status: 500,
+        headers: createHeaders()
+    });
+}
 function getRender({ App , Document , pageMod , errorMod , rscManifest , buildManifest , reactLoadableManifest , isServerComponent , restRenderOpts  }) {
     return async function render(request) {
         const { nextUrl: url , cookies , headers  } = request;
         const { pathname , searchParams  } = url;
         const query = Object.fromEntries(searchParams);
+        const req = {
+            url: pathname,
+            cookies,
+            headers: (0, _utils).toNodeHeaders(headers)
+        };
         // Preflight request
         if (request.method === 'HEAD') {
             return new Response(null, {
                 headers: createHeaders()
             });
         }
+        if (Document.getInitialProps) {
+            const err = new Error('`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.');
+            return sendError(req, err);
+        }
         const renderServerComponentData = isServerComponent ? query.__flight__ !== undefined : false;
         const serverComponentProps = isServerComponent && query.__props__ ? JSON.parse(query.__props__) : undefined;
         delete query.__flight__;
         delete query.__props__;
-        const req = {
-            url: pathname,
-            cookies,
-            headers: (0, _utils).toNodeHeaders(headers)
-        };
         const renderOpts = {
             ...restRenderOpts,
             // Locales are not supported yet.
@@ -62,34 +73,33 @@ function getRender({ App , Document , pageMod , errorMod , rscManifest , buildMa
         const writer = transformStream.writable.getWriter();
         const encoder = new TextEncoder();
         let result;
+        let renderError;
         try {
             result = await (0, _render).renderToHTML(req, {
             }, pathname, query, renderOpts);
         } catch (err) {
+            console.error('An error occurred while rendering the initial result:', err);
             const errorRes = {
                 statusCode: 500,
                 err
             };
+            renderError = err;
             try {
+                req.url = '/_error';
                 result = await (0, _render).renderToHTML(req, errorRes, '/_error', query, {
                     ...renderOpts,
+                    err,
                     Component: errorMod.default,
                     getStaticProps: errorMod.getStaticProps,
                     getServerSideProps: errorMod.getServerSideProps,
                     getStaticPaths: errorMod.getStaticPaths
                 });
             } catch (err2) {
-                return new Response((err2 || 'An error occurred while rendering ' + pathname + '.').toString(), {
-                    status: 500,
-                    headers: createHeaders()
-                });
+                return sendError(req, err2);
             }
         }
         if (!result) {
-            return new Response('An error occurred while rendering ' + pathname + '.', {
-                status: 500,
-                headers: createHeaders()
-            });
+            return sendError(req, new Error('No result returned from render.'));
         }
         result.pipe({
             write: (str)=>writer.write(encoder.encode(str))
@@ -98,7 +108,7 @@ function getRender({ App , Document , pageMod , errorMod , rscManifest , buildMa
         });
         return new Response(transformStream.readable, {
             headers: createHeaders(),
-            status: 200
+            status: renderError ? 500 : 200
         });
     };
 }

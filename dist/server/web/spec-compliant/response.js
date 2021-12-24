@@ -37,7 +37,7 @@ class BaseResponse extends _body.Body {
         if (!REDIRECTS.has(status)) {
             throw new RangeError('Failed to execute "redirect" on "response": Invalid status code');
         }
-        return new Response(null, {
+        return new Response(url, {
             headers: {
                 Location: url
             },

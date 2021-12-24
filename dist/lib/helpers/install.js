@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.install = install;
-var _chalk = _interopRequireDefault(require("chalk"));
+var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _crossSpawn = _interopRequireDefault(require("next/dist/compiled/cross-spawn"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {

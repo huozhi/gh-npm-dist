@@ -14,12 +14,12 @@ exports.sendError = sendError;
 exports.setLazyProp = setLazyProp;
 exports.SYMBOL_PREVIEW_DATA = void 0;
 var _contentType = require("next/dist/compiled/content-type");
-var _rawBody = _interopRequireDefault(require("raw-body"));
+var _rawBody = _interopRequireDefault(require("next/dist/compiled/raw-body"));
 var _stream = require("stream");
 var _utils = require("../shared/lib/utils");
 var _cryptoUtils = require("./crypto-utils");
 var _sendPayload = require("./send-payload");
-var _etag = _interopRequireDefault(require("etag"));
+var _etag = _interopRequireDefault(require("next/dist/compiled/etag"));
 var _isError = _interopRequireDefault(require("../lib/is-error"));
 var _interopDefault = require("../lib/interop-default");
 function _interopRequireDefault(obj) {
