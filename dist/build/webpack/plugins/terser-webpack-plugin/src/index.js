@@ -72,8 +72,6 @@ class TerserPlugin {
         const terserSpan = compilationSpan.traceChild('terser-webpack-plugin-optimize');
         terserSpan.setAttribute('compilationName', compilation.name);
         return terserSpan.traceAsyncFn(async ()=>{
-            let webpackAsset = '';
-            let hasMiddleware = false;
             let numberOfAssetsForMinify = 0;
             const assetsList = Object.keys(assets);
             const assetsForMinify = await Promise.all(assetsList.filter((name)=>{
@@ -87,15 +85,6 @@ class TerserPlugin {
                 if (!res) {
                     console.log(name);
                     return false;
-                }
-                // remove below if we start minifying middleware chunks
-                if (name.startsWith('static/chunks/webpack-')) {
-                    webpackAsset = name;
-                }
-                // don't minify _middleware as it can break in some cases
-                // and doesn't provide too much of a benefit as it's server-side
-                if (name.match(/(middleware-chunks|_middleware\.js$)/)) {
-                    hasMiddleware = true;
                 }
                 const { info  } = res;
                 // Skip double minimize assets from child compilation
@@ -127,13 +116,6 @@ class TerserPlugin {
                     eTag
                 };
             }));
-            if (hasMiddleware && webpackAsset) {
-                // emit a separate version of the webpack
-                // runtime for the middleware
-                const asset = compilation.getAsset(webpackAsset);
-                compilation.emitAsset(webpackAsset.replace('webpack-', 'webpack-middleware-'), asset.source, {
-                });
-            }
             const numberOfWorkers = Math.min(numberOfAssetsForMinify, optimizeOptions.availableNumberOfCores);
             let initializedWorker;
             // eslint-disable-next-line consistent-return

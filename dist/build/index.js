@@ -159,6 +159,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             invocationCount: shouldLint ? 1 : 0
         };
         telemetry.record({
+            // noop
             eventName: _events.EVENT_BUILD_FEATURE_USAGE,
             payload: buildLintEvent
         });

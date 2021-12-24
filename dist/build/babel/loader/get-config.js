@@ -71,13 +71,6 @@ function getCacheCharacteristics(loaderOptions, source, filename) {
     ], {
         type: 'plugin'
     }) : null;
-    const noAnonymousDefaultExportItem = hasReactRefresh && !isServer ? (0, _core).createConfigItem([
-        require('../plugins/no-anonymous-default-export'),
-        {
-        }
-    ], {
-        type: 'plugin'
-    }) : null;
     const pageConfigItem = !isServer && isPageFile ? (0, _core).createConfigItem([
         require('../plugins/next-page-config')
     ], {
@@ -108,7 +101,6 @@ function getCacheCharacteristics(loaderOptions, source, filename) {
         type: 'plugin'
     }) : null;
     return [
-        noAnonymousDefaultExportItem,
         reactRefreshItem,
         pageConfigItem,
         disallowExportAllItem,
