@@ -1,1 +1,1 @@
-export declare function shouldUseYarn(): boolean;
+export declare function shouldUseYarn(baseDir: string): boolean;

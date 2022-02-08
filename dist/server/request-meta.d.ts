@@ -1,12 +1,13 @@
 /// <reference types="node" />
-import type { ParsedUrlQuery } from 'querystring';
 import type { IncomingMessage } from 'http';
+import type { ParsedUrlQuery } from 'querystring';
 import type { UrlWithParsedQuery } from 'url';
-declare const NEXT_REQUEST_META: unique symbol;
-interface NextIncomingMessage extends IncomingMessage {
+import { BaseNextRequest } from './base-http';
+export declare const NEXT_REQUEST_META: unique symbol;
+export declare type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
     [NEXT_REQUEST_META]?: RequestMeta;
-}
-interface RequestMeta {
+};
+export interface RequestMeta {
     __NEXT_INIT_QUERY?: ParsedUrlQuery;
     __NEXT_INIT_URL?: string;
     __nextHadTrailingSlash?: boolean;
@@ -20,16 +21,19 @@ export declare function getRequestMeta(req: NextIncomingMessage, key?: undefined
 export declare function getRequestMeta<K extends keyof RequestMeta>(req: NextIncomingMessage, key: K): RequestMeta[K];
 export declare function setRequestMeta(req: NextIncomingMessage, meta: RequestMeta): RequestMeta;
 export declare function addRequestMeta<K extends keyof RequestMeta>(request: NextIncomingMessage, key: K, value: RequestMeta[K]): RequestMeta;
-export declare type NextParsedUrlQuery = ParsedUrlQuery & {
+declare type NextQueryMetadata = {
     __nextDefaultLocale?: string;
     __nextFallback?: 'true';
     __nextLocale?: string;
     __nextSsgPath?: string;
     _nextBubbleNoFallback?: '1';
     _nextDataReq?: '1';
+};
+export declare type NextParsedUrlQuery = ParsedUrlQuery & NextQueryMetadata & {
     amp?: '1';
 };
 export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
     query: NextParsedUrlQuery;
 }
+export declare function getNextInternalQuery(query: NextParsedUrlQuery): NextQueryMetadata;
 export {};

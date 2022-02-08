@@ -6,7 +6,7 @@ export declare type ManifestItem = {
     id: number | string;
     files: string[];
 };
-declare type ReactLoadableManifest = {
+export declare type ReactLoadableManifest = {
     [moduleId: string]: ManifestItem;
 };
 export declare type LoadComponentsReturnType = {
@@ -31,4 +31,3 @@ export declare function loadDefaultErrorComponents(distDir: string): Promise<{
     ComponentMod: any;
 }>;
 export declare function loadComponents(distDir: string, pathname: string, serverless: boolean): Promise<LoadComponentsReturnType>;
-export {};

@@ -4,6 +4,7 @@ import { GetStaticPaths } from 'next/types';
 import { BuildManifest } from '../server/get-page-files';
 import { UnwrapPromise } from '../lib/coalesced-function';
 import { NextConfigComplete } from '../server/config-shared';
+import { MiddlewareManifest } from './webpack/plugins/middleware-plugin';
 export declare function collectPages(directory: string, pageExtensions: string[]): Promise<string[]>;
 export interface PageInfo {
     isHybridAmp?: boolean;
@@ -62,13 +63,12 @@ export declare function isPageStatic(page: string, distDir: string, serverless: 
 export declare function hasCustomGetInitialProps(page: string, distDir: string, isLikeServerless: boolean, runtimeEnvConfig: any, checkingApp: boolean): Promise<boolean>;
 export declare function getNamedExports(page: string, distDir: string, isLikeServerless: boolean, runtimeEnvConfig: any): Promise<Array<string>>;
 export declare function detectConflictingPaths(combinedPages: string[], ssgPages: Set<string>, additionalSsgPaths: Map<string, string[]>): void;
-export declare function getCssFilePaths(buildManifest: BuildManifest): string[];
 export declare function getRawPageExtensions(pageExtensions: string[]): string[];
 export declare function isFlightPage(nextConfig: NextConfigComplete, pagePath: string): boolean;
 export declare function getUnresolvedModuleFromError(error: string): string | undefined;
 export declare function copyTracedFiles(dir: string, distDir: string, pageKeys: string[], tracingRoot: string, serverConfig: {
     [key: string]: any;
-}): Promise<void>;
+}, middlewareManifest: MiddlewareManifest): Promise<void>;
 export declare function isReservedPage(page: string): boolean;
 export declare function isCustomErrorPage(page: string): boolean;
 export {};

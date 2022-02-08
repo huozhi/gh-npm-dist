@@ -28,6 +28,7 @@ interface NextHistoryState {
     options: TransitionOptions;
 }
 interface PreflightData {
+    cache?: string | null;
     redirect?: string | null;
     refresh?: boolean;
     rewrite?: string | null;
@@ -119,10 +120,6 @@ interface NextDataCache {
     [asPath: string]: Promise<object>;
 }
 export default class Router implements BaseRouter {
-    route: string;
-    pathname: string;
-    query: ParsedUrlQuery;
-    asPath: string;
     basePath: string;
     /**
      * Map of all components loaded in `Router`
@@ -142,16 +139,14 @@ export default class Router implements BaseRouter {
     events: MittEmitter<RouterEvent>;
     _wrapApp: (App: AppComponent) => any;
     isSsr: boolean;
-    isFallback: boolean;
     _inFlightRoute?: string;
     _shallow?: boolean;
-    locale?: string;
     locales?: string[];
     defaultLocale?: string;
     domainLocales?: DomainLocale[];
     isReady: boolean;
-    isPreview: boolean;
     isLocaleDomain: boolean;
+    private state;
     private _idx;
     static events: MittEmitter<RouterEvent>;
     constructor(pathname: string, query: ParsedUrlQuery, as: string, { initialProps, pageLoader, App, wrapApp, Component, err, subscription, isFallback, locale, locales, defaultLocale, domainLocales, isPreview, }: {
@@ -195,11 +190,8 @@ export default class Router implements BaseRouter {
         code?: any;
         cancelled?: boolean;
     }, pathname: string, query: ParsedUrlQuery, as: string, routeProps: RouteProperties, loadErrorFail?: boolean): Promise<CompletePrivateRouteInfo>;
-    getRouteInfo(route: string, pathname: string, query: any, as: string, resolvedAs: string, routeProps: RouteProperties): Promise<PrivateRouteInfo>;
-    set(route: string, pathname: string, query: ParsedUrlQuery, as: string, data: PrivateRouteInfo, resetScroll: {
-        x: number;
-        y: number;
-    } | null): Promise<void>;
+    getRouteInfo(route: string, pathname: string, query: any, as: string, resolvedAs: string, routeProps: RouteProperties, locale: string | undefined, isPreview: boolean): Promise<PrivateRouteInfo>;
+    private set;
     /**
      * Callback to execute before replacing router state
      * @param cb callback to be executed
@@ -224,16 +216,22 @@ export default class Router implements BaseRouter {
         pages: string[];
         pathname: string;
         query: ParsedUrlQuery;
+        locale: string | undefined;
+        isPreview: boolean;
     }): Promise<PreflightEffect>;
     _getPreflightData(params: {
         preflightHref: string;
         shouldCache?: boolean;
+        isPreview: boolean;
     }): Promise<PreflightData>;
     getInitialProps(Component: ComponentType, ctx: NextPageContext): Promise<any>;
     abortComponentLoad(as: string, routeProps: RouteProperties): void;
-    notify(data: PrivateRouteInfo, resetScroll: {
-        x: number;
-        y: number;
-    } | null): Promise<void>;
+    get route(): string;
+    get pathname(): string;
+    get query(): ParsedUrlQuery;
+    get asPath(): string;
+    get locale(): string | undefined;
+    get isFallback(): boolean;
+    get isPreview(): boolean;
 }
 export {};

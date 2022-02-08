@@ -11,4 +11,5 @@ export default function resolveRewrites(asPath: string, pages: string[], rewrite
     parsedAs: ReturnType<typeof parseRelativeUrl>;
     asPath: string;
     resolvedHref?: string;
+    externalDest?: boolean;
 };

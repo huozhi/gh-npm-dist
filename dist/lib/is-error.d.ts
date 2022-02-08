@@ -5,3 +5,4 @@ export interface NextError extends Error {
     cancelled?: boolean;
 }
 export default function isError(err: unknown): err is NextError;
+export declare function getProperError(err: unknown): Error;

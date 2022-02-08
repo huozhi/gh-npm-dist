@@ -269,7 +269,7 @@ export interface CacheFs {
     readFile(f: string): Promise<string>;
     readFileSync(f: string): string;
     writeFile(f: string, d: any): Promise<void>;
-    mkdir(dir: string): Promise<void>;
+    mkdir(dir: string): Promise<void | string>;
     stat(f: string): Promise<{
         mtime: Date;
     }>;

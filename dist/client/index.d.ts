@@ -25,18 +25,8 @@ export declare let router: Router;
 export declare const emitter: MittEmitter<string>;
 export declare function initNext(opts?: {
     webpackHMR?: any;
-}): Promise<MittEmitter<string> | {
-    emitter: MittEmitter<string>;
-    renderCtx: Omit<import("../shared/lib/router/router").CompletePrivateRouteInfo, "styleSheets"> & {
-        initial: true;
-    } & {
-        App: AppComponent;
-        scroll?: {
-            x: number;
-            y: number;
-        } | null | undefined;
-    };
-}>;
+    beforeRender?: () => Promise<void>;
+}): Promise<void>;
 export declare function render(renderingProps: RenderRouteInfo): Promise<void>;
 export declare function renderError(renderErrorProps: RenderErrorProps): Promise<any>;
 export {};

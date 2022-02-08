@@ -1,10 +1,8 @@
 /// <reference types="node" />
 import type { ServerResponse } from 'http';
-import type { Writable } from 'stream';
-export declare type NodeWritablePiper = (res: Writable, next: (err?: Error) => void) => void;
 export default class RenderResult {
-    _result: string | NodeWritablePiper;
-    constructor(response: string | NodeWritablePiper);
+    _result: string | ReadableStream;
+    constructor(response: string | ReadableStream);
     toUnchunkedString(): string;
     pipe(res: ServerResponse): Promise<void>;
     isDynamic(): boolean;

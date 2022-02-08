@@ -8,6 +8,7 @@ declare type ObjectValue<T> = T extends {
 export declare type PagesMapping = {
     [page: string]: string;
 };
+export declare function getPageFromPath(pagePath: string, extensions: string[]): string;
 export declare function createPagesMapping(pagePaths: string[], extensions: string[], { isDev, hasServerComponents, hasConcurrentFeatures, }: {
     isDev: boolean;
     hasServerComponents: boolean;

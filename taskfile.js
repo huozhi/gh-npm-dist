@@ -778,6 +778,7 @@ const babelCorePackages = {
   '@babel/generator': 'next/dist/compiled/babel/generator',
   '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/types': 'next/dist/compiled/babel/types',
+  '@babel/parser': 'next/dist/compiled/babel/parser',
   '@babel/core': 'next/dist/compiled/babel/core',
   '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
   '@babel/core/lib/transformation/normalize-file':

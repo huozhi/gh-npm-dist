@@ -5,9 +5,9 @@ declare const localEndpoint: {
 };
 declare type Event = {
     traceId: string;
-    parentId?: string;
+    parentId?: number;
     name: string;
-    id: string;
+    id: number;
     timestamp: number;
     duration: number;
     localEndpoint?: typeof localEndpoint;
@@ -19,6 +19,6 @@ export declare function batcher(reportEvents: (evts: Event[]) => Promise<void>):
 };
 declare const _default: {
     flushAll: () => Promise<void> | undefined;
-    report: (name: string, duration: number, timestamp: number, id: string, parentId?: string | undefined, attrs?: Object | undefined) => void;
+    report: (name: string, duration: number, timestamp: number, id: number, parentId?: number | undefined, attrs?: Object | undefined) => void;
 };
 export default _default;
