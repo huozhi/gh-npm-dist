@@ -42,8 +42,7 @@ function prettyBytes(number, options) {
     if (!Number.isFinite(number)) {
         throw new TypeError(`Expected a finite number, got ${typeof number}: ${number}`);
     }
-    options = Object.assign({
-    }, options);
+    options = Object.assign({}, options);
     if (options.signed && number === 0) {
         return ' 0 B';
     }

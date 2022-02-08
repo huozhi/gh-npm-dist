@@ -29,8 +29,7 @@ module.exports = function(useSourceMap) {
                 ]
             ];
         }
-        var alreadyImportedModules = {
-        };
+        var alreadyImportedModules = {};
         if (dedupe) {
             for(var i = 0; i < this.length; i++){
                 // eslint-disable-next-line prefer-destructuring

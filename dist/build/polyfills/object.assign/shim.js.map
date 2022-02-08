@@ -1,1 +1,1 @@
-{"version":3,"sources":["../../../../build/polyfills/object.assign/shim.js"],"names":["module","exports","Object","assign"],"mappings":";AAAA,MAAM,CAAC,OAAO,GAAG,QAAQ,GAAI,CAAC;IAC5B,MAAM,CAAC,MAAM,CAAC,MAAM;AACtB,CAAC"}
+{"version":3,"sources":["../../../../build/polyfills/object.assign/shim.js"],"sourcesContent":["module.exports = function () {\n  return Object.assign\n}\n"],"names":["module","exports","Object","assign"],"mappings":";AAAAA,MAAM,CAACC,OAAO,GAAG,QAAQ,GAAI,CAAC;IAC5B,MAAM,CAACC,MAAM,CAACC,MAAM;AACtB,CAAC"}

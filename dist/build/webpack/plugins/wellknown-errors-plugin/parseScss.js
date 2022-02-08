@@ -36,8 +36,7 @@ function getScssError(fileName, fileContent, err) {
                 }, {
                     forceColor: true
                 });
-            } catch  {
-            }
+            } catch  {}
         }
         return new _simpleWebpackError.SimpleWebpackError(`${chalk.cyan(fileName)}:${chalk.yellow(lineNumber.toString())}:${chalk.yellow(column.toString())}`, chalk.red.bold('Syntax error').concat(`: ${reason}\n\n${frame !== null && frame !== void 0 ? frame : backupFrame}`));
     }

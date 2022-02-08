@@ -10,9 +10,15 @@ Object.defineProperty(exports, "CryptoKey", {
         return _webcrypto.CryptoKey;
     }
 });
+Object.defineProperty(exports, "ReadableStream", {
+    enumerable: true,
+    get: function() {
+        return _readableStream.ReadableStream;
+    }
+});
 var _webcrypto = require("next/dist/compiled/@peculiar/webcrypto");
-var _webStreamsPolyfill = require("next/dist/compiled/web-streams-polyfill");
 var _uuid = require("next/dist/compiled/uuid");
+var _readableStream = require("./readable-stream");
 var _crypto = _interopRequireDefault(require("crypto"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -33,62 +39,5 @@ class Crypto extends _webcrypto.Crypto {
     }
 }
 exports.Crypto = Crypto;
-class ReadableStream {
-    constructor(opts = {
-    }){
-        let closed = false;
-        let pullPromise;
-        let transformController;
-        const { readable , writable  } = new _webStreamsPolyfill.TransformStream({
-            start: (controller)=>{
-                transformController = controller;
-            }
-        }, undefined, {
-            highWaterMark: 1
-        });
-        const writer = writable.getWriter();
-        const encoder = new TextEncoder();
-        const controller = {
-            get desiredSize () {
-                return transformController.desiredSize;
-            },
-            close: ()=>{
-                if (!closed) {
-                    closed = true;
-                    writer.close();
-                }
-            },
-            enqueue: (chunk)=>{
-                writer.write(typeof chunk === 'string' ? encoder.encode(chunk) : chunk);
-                pull();
-            },
-            error: (reason)=>{
-                transformController.error(reason);
-            }
-        };
-        const pull = ()=>{
-            if (opts.pull) {
-                if (!pullPromise) {
-                    pullPromise = Promise.resolve().then(()=>{
-                        pullPromise = 0;
-                        opts.pull(controller);
-                    });
-                }
-            }
-        };
-        if (opts.start) {
-            opts.start(controller);
-        }
-        if (opts.cancel) {
-            readable.cancel = (reason)=>{
-                opts.cancel(reason);
-                return readable.cancel(reason);
-            };
-        }
-        pull();
-        return readable;
-    }
-}
-exports.ReadableStream = ReadableStream;
 
 //# sourceMappingURL=polyfills.js.map

@@ -72,8 +72,7 @@ async function load(module, imports) {
     }
 }
 async function init(input) {
-    const imports = {
-    };
+    const imports = {};
     if (typeof input === 'string' || typeof Request === 'function' && input instanceof Request || typeof URL === 'function' && input instanceof URL) {
         input = fetch(input);
     }

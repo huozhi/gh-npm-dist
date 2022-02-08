@@ -12,14 +12,14 @@ function _interopRequireDefault(obj) {
 const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED';
 function hasBabelConfig(dir) {
     try {
-        var ref, ref1, ref2, ref3;
+        var ref4, ref1, ref2, ref3;
         const noopFile = _path.default.join(dir, 'noop.js');
         const res = require('next/dist/compiled/babel/core').loadPartialConfig({
             cwd: dir,
             filename: noopFile,
             sourceFileName: noopFile
         });
-        const isForTooling = ((ref = res.options) === null || ref === void 0 ? void 0 : (ref1 = ref.presets) === null || ref1 === void 0 ? void 0 : ref1.every((e)=>{
+        const isForTooling = ((ref4 = res.options) === null || ref4 === void 0 ? void 0 : (ref1 = ref4.presets) === null || ref1 === void 0 ? void 0 : ref1.every((e)=>{
             var ref;
             return (e === null || e === void 0 ? void 0 : (ref = e.file) === null || ref === void 0 ? void 0 : ref.request) === 'next/babel';
         })) && ((ref2 = res.options) === null || ref2 === void 0 ? void 0 : (ref3 = ref2.plugins) === null || ref3 === void 0 ? void 0 : ref3.length) === 0;
@@ -30,13 +30,12 @@ function hasBabelConfig(dir) {
 }
 function eventCliSession(dir, nextConfig, event) {
     // This should be an invariant, if it fails our build tooling is broken.
-    if (typeof "12.0.8-canary.13" !== 'string') {
+    if (typeof "12.0.11-canary.7" !== 'string') {
         return [];
     }
-    const { images , i18n  } = nextConfig || {
-    };
+    const { images , i18n  } = nextConfig || {};
     const payload = {
-        nextVersion: "12.0.8-canary.13",
+        nextVersion: "12.0.11-canary.7",
         nodeVersion: process.version,
         cliCommand: event.cliCommand,
         isSrcDir: event.isSrcDir,

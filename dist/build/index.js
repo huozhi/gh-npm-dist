@@ -10,11 +10,11 @@ var _micromatch = require("next/dist/compiled/micromatch");
 var _fs = require("fs");
 var _worker = require("../lib/worker");
 var _devalue = _interopRequireDefault(require("next/dist/compiled/devalue"));
-var _escapeStringRegexp = _interopRequireDefault(require("next/dist/compiled/escape-string-regexp"));
+var _escapeRegexp = require("../shared/lib/escape-regexp");
 var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
 var _indexCjs = require("next/dist/compiled/nanoid/index.cjs");
 var _pathToRegexp = require("next/dist/compiled/path-to-regexp");
-var _path = _interopRequireDefault(require("path"));
+var _path = _interopRequireWildcard(require("path"));
 var _formatWebpackMessages = _interopRequireDefault(require("../client/dev/error-overlay/format-webpack-messages"));
 var _constants = require("../lib/constants");
 var _fileExists = require("../lib/file-exists");
@@ -26,8 +26,8 @@ var _verifyAndLint = require("../lib/verifyAndLint");
 var _verifyTypeScriptSetup = require("../lib/verifyTypeScriptSetup");
 var _constants1 = require("../shared/lib/constants");
 var _utils = require("../shared/lib/router/utils");
-var _config = _interopRequireWildcard(require("../server/config"));
-require("../server/node-polyfill-fetch");
+var _config = _interopRequireDefault(require("../server/config"));
+var _utils1 = require("../server/utils");
 var _normalizePagePath = require("../server/normalize-page-path");
 var _require = require("../server/require");
 var ciEnvironment = _interopRequireWildcard(require("../telemetry/ci-info"));
@@ -40,13 +40,12 @@ var _isWriteable = require("./is-writeable");
 var Log = _interopRequireWildcard(require("./output/log"));
 var _spinner = _interopRequireDefault(require("./spinner"));
 var _trace = require("../trace");
-var _utils1 = require("./utils");
+var _utils2 = require("./utils");
 var _webpackConfig = _interopRequireDefault(require("./webpack-config"));
 var _writeBuildId = require("./write-build-id");
 var _normalizeLocalePath = require("../shared/lib/i18n/normalize-locale-path");
 var _isError = _interopRequireDefault(require("../lib/is-error"));
 var _telemetryPlugin = require("./webpack/plugins/telemetry-plugin");
-var _middlewarePlugin = require("./webpack/plugins/middleware-plugin");
 var _recursiveCopy = require("../lib/recursive-copy");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -57,13 +56,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -78,7 +75,7 @@ function _interopRequireWildcard(obj) {
 }
 async function build(dir, conf = null, reactProductionProfiling = false, debugOutput = false, runLint = true) {
     const nextBuildSpan = (0, _trace).trace('next-build', undefined, {
-        version: "12.0.8-canary.13"
+        version: "12.0.11-canary.7"
     });
     const buildResult = await nextBuildSpan.traceAsyncFn(async ()=>{
         // attempt to load global env values so they are available in next.config.js
@@ -159,15 +156,14 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             invocationCount: shouldLint ? 1 : 0
         };
         telemetry.record({
-            // noop
             eventName: _events.EVENT_BUILD_FEATURE_USAGE,
             payload: buildLintEvent
         });
         const buildSpinner = (0, _spinner).default({
             prefixText: `${Log.prefixes.info} Creating an optimized production build`
         });
-        const isLikeServerless = (0, _config).isTargetLikeServerless(target);
-        const pagePaths = await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(()=>(0, _utils1).collectPages(pagesDir, config.pageExtensions)
+        const isLikeServerless = (0, _utils1).isTargetLikeServerless(target);
+        const pagePaths = await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(()=>(0, _utils2).collectPages(pagesDir, config.pageExtensions)
         );
         // needed for static exporting since we want to replace with HTML
         // files
@@ -241,8 +237,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                 ...type === 'redirect' ? {
                     statusCode: (0, _loadCustomRoutes).getRedirectStatus(r),
                     permanent: undefined
-                } : {
-                },
+                } : {},
                 regex: (0, _loadCustomRoutes).normalizeRouteRegex(regexSource)
             };
         };
@@ -257,7 +252,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                 ),
                 dynamicRoutes: (0, _utils).getSortedRoutes(pageKeys).filter((page)=>(0, _utils).isDynamicRoute(page) && !page.match(_constants.MIDDLEWARE_ROUTE)
                 ).map(pageToRoute),
-                staticRoutes: (0, _utils).getSortedRoutes(pageKeys).filter((page)=>!(0, _utils).isDynamicRoute(page) && !page.match(_constants.MIDDLEWARE_ROUTE) && !(0, _utils1).isReservedPage(page)
+                staticRoutes: (0, _utils).getSortedRoutes(pageKeys).filter((page)=>!(0, _utils).isDynamicRoute(page) && !page.match(_constants.MIDDLEWARE_ROUTE) && !(0, _utils2).isReservedPage(page)
                 ).map(pageToRoute),
                 dataRoutes: [],
                 i18n: config.i18n || undefined
@@ -309,7 +304,6 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                 version: 1,
                 config: {
                     ...config,
-                    compress: false,
                     configFile: undefined
                 },
                 appDir: dir,
@@ -441,7 +435,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             console.error(error);
             console.error();
             // When using the web runtime, common Node.js native APIs are not available.
-            const moduleName = (0, _utils1).getUnresolvedModuleFromError(error);
+            const moduleName = (0, _utils2).getUnresolvedModuleFromError(error);
             if (hasConcurrentFeatures && moduleName) {
                 const err = new Error(`Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n\n`);
                 err.code = 'EDGE_RUNTIME_UNSUPPORTED_API';
@@ -526,7 +520,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         });
         const analysisBegin = process.hrtime();
         const staticCheckSpan = nextBuildSpan.traceChild('static-check');
-        const { customAppGetInitialProps , namedExports , isNextImageImported , hasSsrAmpPages , hasNonStaticErrorPage ,  } = await staticCheckSpan.traceAsyncFn(async ()=>{
+        const { customAppGetInitialProps , namedExports , isNextImageImported: isNextImageImported1 , hasSsrAmpPages: hasSsrAmpPages1 , hasNonStaticErrorPage ,  } = await staticCheckSpan.traceAsyncFn(async ()=>{
             const { configFileName , publicRuntimeConfig , serverRuntimeConfig  } = config;
             const runtimeEnvConfig = {
                 publicRuntimeConfig,
@@ -536,8 +530,8 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             const errorPageHasCustomGetInitialProps = nonStaticErrorPageSpan.traceAsyncFn(async ()=>hasCustomErrorPage && await staticWorkers.hasCustomGetInitialProps('/_error', distDir, isLikeServerless, runtimeEnvConfig, false)
             );
             const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(async ()=>{
-                var ref, ref11;
-                return hasCustomErrorPage && staticWorkers.isPageStatic('/_error', distDir, isLikeServerless, configFileName, runtimeEnvConfig, config.httpAgentOptions, (ref = config.i18n) === null || ref === void 0 ? void 0 : ref.locales, (ref11 = config.i18n) === null || ref11 === void 0 ? void 0 : ref11.defaultLocale);
+                var ref, ref5;
+                return hasCustomErrorPage && staticWorkers.isPageStatic('/_error', distDir, isLikeServerless, configFileName, runtimeEnvConfig, config.httpAgentOptions, (ref = config.i18n) === null || ref === void 0 ? void 0 : ref.locales, (ref5 = config.i18n) === null || ref5 === void 0 ? void 0 : ref5.defaultLocale);
             });
             // we don't output _app in serverless mode so use _app export
             // from _error instead
@@ -548,25 +542,25 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             let isNextImageImported;
             // eslint-disable-next-line no-shadow
             let hasSsrAmpPages = false;
-            const computedManifestData = await (0, _utils1).computeFromManifest(buildManifest, distDir, config.experimental.gzipSize);
+            const computedManifestData = await (0, _utils2).computeFromManifest(buildManifest, distDir, config.experimental.gzipSize);
             await Promise.all(pageKeys.map(async (page)=>{
                 const checkPageSpan = staticCheckSpan.traceChild('check-page', {
                     page
                 });
                 return checkPageSpan.traceAsyncFn(async ()=>{
                     const actualPage = (0, _normalizePagePath).normalizePagePath(page);
-                    const [selfSize, allSize] = await (0, _utils1).getJsPageSizeInKb(actualPage, distDir, buildManifest, config.experimental.gzipSize, computedManifestData);
+                    const [selfSize, allSize] = await (0, _utils2).getJsPageSizeInKb(actualPage, distDir, buildManifest, config.experimental.gzipSize, computedManifestData);
                     let isSsg = false;
                     let isStatic = false;
                     let isHybridAmp = false;
                     let ssgPageRoutes = null;
                     let isMiddlewareRoute = !!page.match(_constants.MIDDLEWARE_ROUTE);
-                    if (!isMiddlewareRoute && !(0, _utils1).isReservedPage(page) && !hasConcurrentFeatures) {
+                    if (!isMiddlewareRoute && !(0, _utils2).isReservedPage(page) && !hasConcurrentFeatures) {
                         try {
                             let isPageStaticSpan = checkPageSpan.traceChild('is-page-static');
                             let workerResult = await isPageStaticSpan.traceAsyncFn(()=>{
-                                var ref, ref16;
-                                return staticWorkers.isPageStatic(page, distDir, isLikeServerless, configFileName, runtimeEnvConfig, config.httpAgentOptions, (ref = config.i18n) === null || ref === void 0 ? void 0 : ref.locales, (ref16 = config.i18n) === null || ref16 === void 0 ? void 0 : ref16.defaultLocale, isPageStaticSpan.id);
+                                var ref, ref6;
+                                return staticWorkers.isPageStatic(page, distDir, isLikeServerless, configFileName, runtimeEnvConfig, config.httpAgentOptions, (ref = config.i18n) === null || ref === void 0 ? void 0 : ref.locales, (ref6 = config.i18n) === null || ref6 === void 0 ? void 0 : ref6.defaultLocale, isPageStaticSpan.id);
                             });
                             if (config.outputFileTracing) {
                                 pageTraceIncludes.set(page, workerResult.traceIncludes || []);
@@ -615,7 +609,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                                 throw new Error(`\`pages${page}\` ${_constants.STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`);
                             }
                         } catch (err) {
-                            if ((0, _isError).default(err) && err.message !== 'INVALID_DEFAULT_EXPORT') throw err;
+                            if (!(0, _isError).default(err) || err.message !== 'INVALID_DEFAULT_EXPORT') throw err;
                             invalidPages.add(page);
                         }
                     }
@@ -624,7 +618,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                         totalSize: allSize,
                         static: isStatic,
                         isSsg,
-                        isWebSsr: hasConcurrentFeatures && !isMiddlewareRoute && !(0, _utils1).isReservedPage(page) && !(0, _utils1).isCustomErrorPage(page),
+                        isWebSsr: hasConcurrentFeatures && !isMiddlewareRoute && !(0, _utils2).isReservedPage(page) && !(0, _utils2).isCustomErrorPage(page),
                         isHybridAmp,
                         ssgPageRoutes,
                         initialRevalidateSeconds: false,
@@ -649,7 +643,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             console.warn(_chalk.default.bold.yellow(`Warning: `) + _chalk.default.yellow(`You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``));
             console.warn('Read more: https://nextjs.org/docs/messages/opt-out-auto-static-optimization\n');
         }
-        if (!hasSsrAmpPages) {
+        if (!hasSsrAmpPages1) {
             requiredServerFiles.ignore.push(_path.default.relative(dir, _path.default.join(_path.default.dirname(require.resolve('next/dist/compiled/@ampproject/toolbox-optimizer')), '**/*')));
         }
         if (config.outputFileTracing) {
@@ -733,7 +727,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                 if (lockFiles.length > 0) {
                     const cacheHash = require('crypto').createHash('sha256');
                     cacheHash.update(require('next/package').version);
-                    cacheHash.update(hasSsrAmpPages + '');
+                    cacheHash.update(hasSsrAmpPages1 + '');
                     cacheHash.update(ciEnvironment.hasNextSupport + '');
                     await Promise.all(lockFiles.map(async (lockFile)=>{
                         cacheHash.update(await _fs.promises.readFile(lockFile));
@@ -745,8 +739,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                             await _fs.promises.copyFile(cachedTracePath, nextServerTraceOutput);
                             return;
                         }
-                    } catch (_) {
-                    }
+                    } catch (_) {}
                 }
                 const root = _path.default.parse(dir).root;
                 const serverResult = await nodeFileTrace([
@@ -765,7 +758,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                             '**/next/dist/server/image-optimizer.js',
                             '**/node_modules/sharp/**/*', 
                         ] : [],
-                        ...!hasSsrAmpPages ? [
+                        ...!hasSsrAmpPages1 ? [
                             '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*'
                         ] : [], 
                     ]
@@ -781,10 +774,8 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                         ...tracedFiles
                     ]
                 }));
-                await _fs.promises.unlink(cachedTracePath).catch(()=>{
-                });
-                await _fs.promises.copyFile(nextServerTraceOutput, cachedTracePath).catch(()=>{
-                });
+                await _fs.promises.unlink(cachedTracePath).catch(()=>{});
+                await _fs.promises.copyFile(nextServerTraceOutput, cachedTracePath).catch(()=>{});
             });
         }
         if (serverPropsPages.size > 0 || ssgPages.size > 0) {
@@ -805,7 +796,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                     namedDataRouteRegex = routeRegex.namedRegex.replace(/\(\?:\/\)\?\$$/, `\\.json$`);
                     routeKeys = routeRegex.routeKeys;
                 } else {
-                    dataRouteRegex = (0, _loadCustomRoutes).normalizeRouteRegex(new RegExp(`^${_path.default.posix.join('/_next/data', (0, _escapeStringRegexp).default(buildId), `${pagePath}.json`)}$`).source);
+                    dataRouteRegex = (0, _loadCustomRoutes).normalizeRouteRegex(new RegExp(`^${_path.default.posix.join('/_next/data', (0, _escapeRegexp).escapeStringRegexp(buildId), `${pagePath}.json`)}$`).source);
                 }
                 return {
                     page,
@@ -829,8 +820,18 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         }
         await (0, _writeBuildId).writeBuildId(distDir, buildId);
         if (config.experimental.optimizeCss) {
-            const cssFilePaths = (0, _utils1).getCssFilePaths(buildManifest);
-            requiredServerFiles.files.push(...cssFilePaths.map((filePath)=>_path.default.join(config.distDir, filePath)
+            const globOrig = require('next/dist/compiled/glob');
+            const cssFilePaths = await new Promise((resolve, reject)=>{
+                globOrig('**/*.css', {
+                    cwd: (0, _path).join(distDir, 'static')
+                }, (err, files)=>{
+                    if (err) {
+                        return reject(err);
+                    }
+                    resolve(files);
+                });
+            });
+            requiredServerFiles.files.push(...cssFilePaths.map((filePath)=>_path.default.join(config.distDir, 'static', filePath)
             ));
         }
         const features = [
@@ -850,14 +851,14 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             };
         }));
         await _fs.promises.writeFile(_path.default.join(distDir, _constants1.SERVER_FILES_MANIFEST), JSON.stringify(requiredServerFiles), 'utf8');
+        const middlewareManifest = JSON.parse(await _fs.promises.readFile(_path.default.join(distDir, _constants1.SERVER_DIRECTORY, _constants1.MIDDLEWARE_MANIFEST), 'utf8'));
         const outputFileTracingRoot = config.experimental.outputFileTracingRoot || dir;
         if (config.experimental.outputStandalone) {
             await nextBuildSpan.traceChild('copy-traced-files').traceAsyncFn(async ()=>{
-                await (0, _utils1).copyTracedFiles(dir, distDir, pageKeys, outputFileTracingRoot, requiredServerFiles.config);
+                await (0, _utils2).copyTracedFiles(dir, distDir, pageKeys, outputFileTracingRoot, requiredServerFiles.config, middlewareManifest);
             });
         }
-        const finalPrerenderRoutes = {
-        };
+        const finalPrerenderRoutes = {};
         const tbdPrerenderRoutes = [];
         let ssgNotFoundPaths = [];
         if (postCompileSpinner) postCompileSpinner.stopAndPersist();
@@ -878,7 +879,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         if (!hasConcurrentFeatures && (combinedPages.length > 0 || useStatic404 || useDefaultStatic500)) {
             const staticGenerationSpan = nextBuildSpan.traceChild('static-generation');
             await staticGenerationSpan.traceAsyncFn(async ()=>{
-                (0, _utils1).detectConflictingPaths([
+                (0, _utils2).detectConflictingPaths([
                     ...combinedPages,
                     ...pageKeys.filter((page)=>!combinedPages.includes(page)
                     ), 
@@ -898,10 +899,8 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                 };
                 const exportConfig = {
                     ...config,
-                    initialPageRevalidationMap: {
-                    },
-                    pageDurationMap: {
-                    },
+                    initialPageRevalidationMap: {},
+                    pageDurationMap: {},
                     ssgNotFoundPaths: [],
                     // Default map will be the collection of automatic statically exported
                     // pages and incremental pages.
@@ -1009,8 +1008,8 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                 });
                 ssgNotFoundPaths = exportConfig.ssgNotFoundPaths;
                 // remove server bundles that were exported
-                for (const page of staticPages){
-                    const serverBundle = (0, _require).getPagePath(page, distDir, isLikeServerless);
+                for (const page2 of staticPages){
+                    const serverBundle = (0, _require).getPagePath(page2, distDir, isLikeServerless);
                     await _fs.promises.unlink(serverBundle);
                 }
                 const serverOutputDir = _path.default.join(distDir, isLikeServerless ? _constants1.SERVERLESS_DIRECTORY : _constants1.SERVER_DIRECTORY);
@@ -1168,7 +1167,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             });
         }
         const analysisEnd = process.hrtime(analysisBegin);
-        var ref;
+        var ref3;
         telemetry.record((0, _events).eventBuildOptimize(pagePaths, {
             durationInSeconds: analysisEnd[0],
             staticPageCount: staticPages.size,
@@ -1176,7 +1175,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             serverPropsPageCount: serverPropsPages.size,
             ssrPageCount: pagePaths.length - (staticPages.size + ssgPages.size + serverPropsPages.size),
             hasStatic404: useStatic404,
-            hasReportWebVitals: (ref = namedExports === null || namedExports === void 0 ? void 0 : namedExports.includes('reportWebVitals')) !== null && ref !== void 0 ? ref : false,
+            hasReportWebVitals: (ref3 = namedExports === null || namedExports === void 0 ? void 0 : namedExports.includes('reportWebVitals')) !== null && ref3 !== void 0 ? ref3 : false,
             rewritesCount: combinedRewrites.length,
             headersCount: headers.length,
             redirectsCount: redirects.length - 1,
@@ -1194,9 +1193,8 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             telemetry.record(events);
         }
         if (ssgPages.size > 0) {
-            var ref21;
-            const finalDynamicRoutes = {
-            };
+            var ref4;
+            const finalDynamicRoutes = {};
             tbdPrerenderRoutes.forEach((tbdRoute)=>{
                 const normalizedRoute = (0, _normalizePagePath).normalizePagePath(tbdRoute);
                 const dataRoute = _path.default.posix.join('/_next/data', buildId, `${normalizedRoute}.json`);
@@ -1218,26 +1216,17 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             await generateClientSsgManifest(prerenderManifest, {
                 distDir,
                 buildId,
-                locales: ((ref21 = config.i18n) === null || ref21 === void 0 ? void 0 : ref21.locales) || []
+                locales: ((ref4 = config.i18n) === null || ref4 === void 0 ? void 0 : ref4.locales) || []
             });
         } else {
             const prerenderManifest = {
                 version: 3,
-                routes: {
-                },
-                dynamicRoutes: {
-                },
+                routes: {},
+                dynamicRoutes: {},
                 preview: previewProps,
                 notFoundRoutes: []
             };
             await _fs.promises.writeFile(_path.default.join(distDir, _constants1.PRERENDER_MANIFEST), JSON.stringify(prerenderManifest), 'utf8');
-        }
-        const middlewareManifest = JSON.parse(await _fs.promises.readFile(_path.default.join(distDir, _constants1.SERVER_DIRECTORY, (0, _middlewarePlugin).getMiddlewareManifestName()), 'utf8'));
-        let serverWebMiddlewareManifest = null;
-        if (hasConcurrentFeatures) {
-            serverWebMiddlewareManifest = JSON.parse(await _fs.promises.readFile(_path.default.join(distDir, _constants1.SERVER_DIRECTORY, (0, _middlewarePlugin).getMiddlewareManifestName(true)), 'utf8'));
-            const mergedManifest = (0, _middlewarePlugin).mergeMiddlewareManifests(middlewareManifest, serverWebMiddlewareManifest);
-            await _fs.promises.writeFile(_path.default.join(distDir, _constants1.SERVER_DIRECTORY, _constants1.MIDDLEWARE_MANIFEST), JSON.stringify(mergedManifest), 'utf8');
         }
         await _fs.promises.writeFile(_path.default.join(distDir, _constants1.CLIENT_STATIC_FILES_PATH, buildId, '_middlewareManifest.js'), `self.__MIDDLEWARE_MANIFEST=${(0, _devalue).default(middlewareManifest.clientInfo)};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`);
         const images = {
@@ -1256,7 +1245,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             version: 1,
             hasExportPathMap: typeof config.exportPathMap === 'function',
             exportTrailingSlash: config.trailingSlash === true,
-            isNextImageImported: isNextImageImported === true
+            isNextImageImported: isNextImageImported1 === true
         }), 'utf8');
         await _fs.promises.unlink(_path.default.join(distDir, _constants1.EXPORT_DETAIL)).catch((err)=>{
             if (err.code === 'ENOENT') {
@@ -1272,14 +1261,16 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                 const filePath = _path.default.join(dir, file);
                 await _fs.promises.copyFile(filePath, _path.default.join(distDir, 'standalone', _path.default.relative(outputFileTracingRoot, filePath)));
             }
-            await (0, _recursiveCopy).recursiveCopy(_path.default.join(distDir, _constants1.SERVER_DIRECTORY, 'pages'), _path.default.join(distDir, 'standalone', _path.default.relative(outputFileTracingRoot, distDir), _constants1.SERVER_DIRECTORY, 'pages'));
+            await (0, _recursiveCopy).recursiveCopy(_path.default.join(distDir, _constants1.SERVER_DIRECTORY, 'pages'), _path.default.join(distDir, 'standalone', _path.default.relative(outputFileTracingRoot, distDir), _constants1.SERVER_DIRECTORY, 'pages'), {
+                overwrite: true
+            });
         }
         staticPages.forEach((pg)=>allStaticPages.add(pg)
         );
         pageInfos.forEach((info, key)=>{
             allPageInfos.set(key, info);
         });
-        await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(()=>(0, _utils1).printTreeView(Object.keys(mappedPages), allPageInfos, isLikeServerless, {
+        await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(()=>(0, _utils2).printTreeView(Object.keys(mappedPages), allPageInfos, isLikeServerless, {
                 distPath: distDir,
                 buildId: buildId,
                 pagesDir,
@@ -1290,7 +1281,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             })
         );
         if (debugOutput) {
-            nextBuildSpan.traceChild('print-custom-routes').traceFn(()=>(0, _utils1).printCustomRoutes({
+            nextBuildSpan.traceChild('print-custom-routes').traceFn(()=>(0, _utils2).printCustomRoutes({
                     redirects,
                     rewrites,
                     headers

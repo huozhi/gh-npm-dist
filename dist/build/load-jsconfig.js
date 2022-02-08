@@ -19,13 +19,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -44,8 +42,7 @@ function parseJsonFile(filePath) {
     const contents = (0, _fs).readFileSync(filePath, 'utf8');
     // Special case an empty file
     if (contents.trim() === '') {
-        return {
-        };
+        return {};
     }
     try {
         return JSON5.parse(contents);
@@ -72,8 +69,7 @@ async function loadJsConfig(dir, config) {
                 dir
             ]
         });
-    } catch (_) {
-    }
+    } catch (_) {}
     const tsConfigPath = _path.default.join(dir, config.typescript.tsconfigPath);
     const useTypeScript = Boolean(typeScriptPath && await (0, _fileExists).fileExists(tsConfigPath));
     let jsConfig;

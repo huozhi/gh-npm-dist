@@ -44,11 +44,11 @@ window.next = {
     renderError: _.renderError
 };
 (0, _).initNext({
-    webpackHMR
-}).then(({ renderCtx  })=>{
+    webpackHMR,
+    beforeRender: _fouc.displayContent
+}).then(()=>{
     (0, _onDemandEntriesClient).default();
-    let buildIndicatorHandler = ()=>{
-    };
+    let buildIndicatorHandler = ()=>{};
     function devPagesManifestListener(event) {
         if (event.data.indexOf('devPagesManifest') !== -1) {
             fetch(`${prefix}/_next/static/development/_devPagesManifest.json`).then((res)=>res.json()
@@ -81,10 +81,6 @@ window.next = {
             buildIndicatorHandler = handler;
         }, process.env.__NEXT_BUILD_INDICATOR_POSITION);
     }
-    // delay rendering until after styles have been applied in development
-    (0, _fouc).displayContent(()=>{
-        (0, _).render(renderCtx);
-    });
 }).catch((err)=>{
     console.error('Error was not caught', err);
 });

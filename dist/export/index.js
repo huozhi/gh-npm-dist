@@ -16,7 +16,8 @@ var _constants = require("../lib/constants");
 var _recursiveCopy = require("../lib/recursive-copy");
 var _recursiveDelete = require("../lib/recursive-delete");
 var _constants1 = require("../shared/lib/constants");
-var _config = _interopRequireWildcard(require("../server/config"));
+var _config = _interopRequireDefault(require("../server/config"));
+var _utils = require("../server/utils");
 var _events = require("../telemetry/events");
 var _ciInfo = require("../telemetry/ci-info");
 var _storage = require("../telemetry/storage");
@@ -32,13 +33,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -170,34 +169,32 @@ async function exportApp(dir, options, span, configuration) {
         let prerenderManifest = undefined;
         try {
             prerenderManifest = require((0, _path).join(distDir, _constants1.PRERENDER_MANIFEST));
-        } catch (_) {
-        }
+        } catch (_) {}
         const excludedPrerenderRoutes = new Set();
         const pages = options.pages || Object.keys(pagesManifest);
-        const defaultPathMap = {
-        };
+        const defaultPathMap = {};
         let hasApiRoutes = false;
-        for (const page of pages){
+        for (const page1 of pages){
             // _document and _app are not real pages
             // _error is exported as 404.html later on
             // API Routes are Node.js functions
-            if (page.match(_constants.API_ROUTE)) {
+            if (page1.match(_constants.API_ROUTE)) {
                 hasApiRoutes = true;
                 continue;
             }
-            if (page === '/_document' || page === '/_app' || page === '/_error') {
+            if (page1 === '/_document' || page1 === '/_app' || page1 === '/_error') {
                 continue;
             }
             // iSSG pages that are dynamic should not export templated version by
             // default. In most cases, this would never work. There is no server that
             // could run `getStaticProps`. If users make their page work lazily, they
             // can manually add it to the `exportPathMap`.
-            if (prerenderManifest === null || prerenderManifest === void 0 ? void 0 : prerenderManifest.dynamicRoutes[page]) {
-                excludedPrerenderRoutes.add(page);
+            if (prerenderManifest === null || prerenderManifest === void 0 ? void 0 : prerenderManifest.dynamicRoutes[page1]) {
+                excludedPrerenderRoutes.add(page1);
                 continue;
             }
-            defaultPathMap[page] = {
-                page
+            defaultPathMap[page1] = {
+                page: page1
             };
         }
         // Initialize the output directory
@@ -248,8 +245,7 @@ async function exportApp(dir, options, span, configuration) {
         }
         if (!options.buildExport) {
             const { isNextImageImported  } = await nextExportSpan.traceChild('is-next-image-imported').traceAsyncFn(()=>_fs.promises.readFile((0, _path).join(distDir, _constants1.EXPORT_MARKER), 'utf8').then((text)=>JSON.parse(text)
-                ).catch(()=>({
-                    })
+                ).catch(()=>({})
                 )
             );
             if (isNextImageImported && loader === 'default' && !_ciInfo.hasNextSupport) {
@@ -329,13 +325,11 @@ async function exportApp(dir, options, span, configuration) {
         }
         if (prerenderManifest && !options.buildExport) {
             const fallbackEnabledPages = new Set();
-            for (const key of Object.keys(prerenderManifest.dynamicRoutes)){
-                // only error if page is included in path map
-                if (!exportPathMap[key] && !excludedPrerenderRoutes.has(key)) {
-                    continue;
-                }
-                if (prerenderManifest.dynamicRoutes[key].fallback !== false) {
-                    fallbackEnabledPages.add(key);
+            for (const path of Object.keys(exportPathMap)){
+                const page = exportPathMap[path].page;
+                const prerenderInfo = prerenderManifest.dynamicRoutes[page];
+                if (prerenderInfo && prerenderInfo.fallback !== false) {
+                    fallbackEnabledPages.add(page);
                 }
             }
             if (fallbackEnabledPages.size) {
@@ -352,8 +346,7 @@ async function exportApp(dir, options, span, configuration) {
         }
         const progress = !options.silent && createProgress(filteredPaths.length, `${Log.prefixes.info} ${options.statusMessage || 'Exporting'}`);
         const pagesDataDir = options.buildExport ? outDir : (0, _path).join(outDir, '_next/data', buildId);
-        const ampValidations = {
-        };
+        const ampValidations = {};
         let hadValidationError = false;
         const publicDir = (0, _path).join(dir, _constants1.CLIENT_PUBLIC_FILES_PATH);
         // Copy public directory
@@ -419,7 +412,7 @@ async function exportApp(dir, options, span, configuration) {
                     serverRuntimeConfig,
                     subFolders,
                     buildExport: options.buildExport,
-                    serverless: (0, _config).isTargetLikeServerless(nextConfig.target),
+                    serverless: (0, _utils).isTargetLikeServerless(nextConfig.target),
                     optimizeFonts: nextConfig.optimizeFonts,
                     optimizeImages: nextConfig.experimental.optimizeImages,
                     optimizeCss: nextConfig.experimental.optimizeCss,
@@ -444,8 +437,7 @@ async function exportApp(dir, options, span, configuration) {
                     if (result.ssgNotFound === true) {
                         configuration.ssgNotFoundPaths.push(path);
                     }
-                    const durations = configuration.pageDurationMap[pathMap.page] = configuration.pageDurationMap[pathMap.page] || {
-                    };
+                    const durations = configuration.pageDurationMap[pathMap.page] = configuration.pageDurationMap[pathMap.page] || {};
                     durations[path] = result.duration;
                 }
                 if (progress) progress();

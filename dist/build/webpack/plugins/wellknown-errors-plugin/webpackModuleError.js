@@ -19,13 +19,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -59,8 +57,7 @@ function getFileData(compilation, m) {
         let content = null;
         try {
             content = (0, _fs).readFileSync(ctx ? path.resolve(ctx, resolved) : resolved, 'utf8');
-        } catch  {
-        }
+        } catch  {}
         return [
             resolved,
             content

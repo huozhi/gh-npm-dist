@@ -9,8 +9,7 @@ const isLoadIntentDevelopment = process.env.NODE_ENV === 'development';
 // Resolve styled-jsx plugins
 function styledJsxOptions(options) {
     if (!options) {
-        return {
-        };
+        return {};
     }
     if (!Array.isArray(options.plugins)) {
         return options;
@@ -31,8 +30,7 @@ function styledJsxOptions(options) {
 function supportsStaticESM(caller) {
     return !!(caller === null || caller === void 0 ? void 0 : caller.supportsStaticESM);
 }
-var _default = (api, options = {
-})=>{
+var _default = (api, options = {})=>{
     var ref, ref1;
     const supportsESM = api.caller(supportsStaticESM);
     const isServer = api.caller((caller)=>!!caller && caller.isServer
@@ -123,11 +121,11 @@ var _default = (api, options = {
                 }, 
             ],
             require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
+            require('next/dist/compiled/babel/plugin-syntax-import-assertions'),
             require('./plugins/react-loadable-plugin'),
             [
                 require('next/dist/compiled/babel/plugin-proposal-class-properties'),
-                options['class-properties'] || {
-                }, 
+                options['class-properties'] || {}, 
             ],
             [
                 require('next/dist/compiled/babel/plugin-proposal-object-rest-spread'),

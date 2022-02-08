@@ -18,10 +18,29 @@ class RenderResult {
             throw new Error('invariant: static responses cannot be piped. This is a bug in Next.js');
         }
         const response = this._result;
-        return new Promise((resolve, reject)=>{
-            response(res, (err)=>err ? reject(err) : resolve()
-            );
-        });
+        const flush = typeof res.flush === 'function' ? ()=>res.flush()
+         : ()=>{};
+        return (async ()=>{
+            const reader = response.getReader();
+            let fatalError = false;
+            try {
+                while(true){
+                    const { done , value  } = await reader.read();
+                    if (done) {
+                        res.end();
+                        return;
+                    }
+                    fatalError = true;
+                    res.write(value);
+                    flush();
+                }
+            } catch (err) {
+                if (fatalError) {
+                    res.destroy(err);
+                }
+                throw err;
+            }
+        })();
     }
     isDynamic() {
         return typeof this._result !== 'string';

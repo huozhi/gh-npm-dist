@@ -12,7 +12,6 @@ var _path = require("path");
 var _constants = require("../shared/lib/constants");
 var _normalizePagePath = require("./normalize-page-path");
 var _normalizeLocalePath = require("../shared/lib/i18n/normalize-locale-path");
-var _middlewarePlugin = require("../build/webpack/plugins/middleware-plugin");
 function pageNotFoundError(page) {
     const err = new Error(`Cannot find module for page: ${page}`);
     err.code = 'ENOENT';
@@ -29,8 +28,7 @@ function getPagePath(page, distDir, serverless, dev, locales) {
     }
     let pagePath = pagesManifest[page];
     if (!pagesManifest[page] && locales) {
-        const manifestNoLocales = {
-        };
+        const manifestNoLocales = {};
         for (const key of Object.keys(pagesManifest)){
             manifestNoLocales[(0, _normalizeLocalePath).normalizeLocalePath(key, locales).pathname] = pagesManifest[key];
         }
@@ -55,7 +53,7 @@ function requireFontManifest(distDir, serverless) {
 }
 function getMiddlewareInfo(params) {
     const serverBuildPath = (0, _path).join(params.distDir, params.serverless && !params.dev ? _constants.SERVERLESS_DIRECTORY : _constants.SERVER_DIRECTORY);
-    const middlewareManifest = (0, _middlewarePlugin).readMiddlewareManifest(serverBuildPath, params.ssr);
+    const middlewareManifest = require((0, _path).join(serverBuildPath, _constants.MIDDLEWARE_MANIFEST));
     let page;
     try {
         page = (0, _normalizePagePath).denormalizePagePath((0, _normalizePagePath).normalizePagePath(params.page));
@@ -66,10 +64,12 @@ function getMiddlewareInfo(params) {
     if (!pageInfo) {
         throw pageNotFoundError(page);
     }
+    var _env;
     return {
         name: pageInfo.name,
         paths: pageInfo.files.map((file)=>(0, _path).join(params.distDir, file)
-        )
+        ),
+        env: (_env = pageInfo.env) !== null && _env !== void 0 ? _env : []
     };
 }
 

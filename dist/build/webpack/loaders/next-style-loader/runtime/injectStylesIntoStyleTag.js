@@ -14,8 +14,7 @@ const isOldIE = function isOldIE() {
     };
 }();
 const getTarget = function getTarget() {
-    const memo = {
-    };
+    const memo = {};
     return function memorize(target) {
         if (typeof memo[target] === 'undefined') {
             let styleTarget = document.querySelector(target);
@@ -47,8 +46,7 @@ function getIndexByIdentifier(identifier) {
     return result;
 }
 function modulesToDom(list, options) {
-    const idCountMap = {
-    };
+    const idCountMap = {};
     const identifiers = [];
     for(let i = 0; i < list.length; i++){
         const item = list[i];
@@ -78,8 +76,7 @@ function modulesToDom(list, options) {
 }
 function insertStyleElement(options) {
     const style = document.createElement('style');
-    const attributes = options.attributes || {
-    };
+    const attributes = options.attributes || {};
     if (typeof attributes.nonce === 'undefined') {
         const nonce = // eslint-disable-next-line no-undef
         typeof __webpack_nonce__ !== 'undefined' ? __webpack_nonce__ : null;
@@ -186,8 +183,7 @@ function addStyle(obj, options) {
     };
 }
 module.exports = function(list, options) {
-    options = options || {
-    };
+    options = options || {};
     // Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
     // tags it will allow on a page
     if (!options.singleton && typeof options.singleton !== 'boolean') {

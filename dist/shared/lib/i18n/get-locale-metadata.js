@@ -44,8 +44,7 @@ function getAcceptPreferredLocale(i18n, headers) {
     if (i18n.localeDetection !== false && value && !Array.isArray(value)) {
         try {
             return (0, _acceptHeader).acceptLanguage(value, i18n.locales);
-        } catch (err) {
-        }
+        } catch (err) {}
     }
 }
 function getHostname(parsed, headers) {

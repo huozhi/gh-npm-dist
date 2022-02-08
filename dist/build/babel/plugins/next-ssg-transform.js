@@ -272,11 +272,11 @@ function nextTransformSsg({ types: t  }) {
                                     const beforeCount = count;
                                     const elements = pattern.get('elements');
                                     elements.forEach((e)=>{
-                                        var ref, ref6;
+                                        var ref, ref2;
                                         let local;
                                         if (((ref = e.node) === null || ref === void 0 ? void 0 : ref.type) === 'Identifier') {
                                             local = e;
-                                        } else if (((ref6 = e.node) === null || ref6 === void 0 ? void 0 : ref6.type) === 'RestElement') {
+                                        } else if (((ref2 = e.node) === null || ref2 === void 0 ? void 0 : ref2.type) === 'RestElement') {
                                             local = e.get('argument');
                                         } else {
                                             return;

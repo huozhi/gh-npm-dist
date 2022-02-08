@@ -10,8 +10,7 @@ var _utils = require("../utils");
 const INTERNALS = Symbol('internal request');
 exports.INTERNALS = INTERNALS;
 class BaseRequest extends _body.Body {
-    constructor(input, init = {
-    }){
+    constructor(input, init = {}){
         var ref;
         var ref1;
         const method = (ref1 = (ref = init.method) === null || ref === void 0 ? void 0 : ref.toUpperCase()) !== null && ref1 !== void 0 ? ref1 : 'GET';
@@ -25,8 +24,7 @@ class BaseRequest extends _body.Body {
             inputBody = (0, _body).cloneBody(input);
         }
         super(inputBody);
-        const headers = new _headers.Headers(init.headers || getProp(input, 'headers') || {
-        });
+        const headers = new _headers.Headers(init.headers || getProp(input, 'headers') || {});
         if (inputBody !== null) {
             const contentType = (0, _body).extractContentType(this);
             if (contentType !== null && !headers.has('Content-Type')) {

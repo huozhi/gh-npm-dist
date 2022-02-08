@@ -6,16 +6,10 @@ exports.matchHas = matchHas;
 exports.compileNonPath = compileNonPath;
 exports.prepareDestination = prepareDestination;
 var _pathToRegexp = require("next/dist/compiled/path-to-regexp");
-var _escapeStringRegexp = _interopRequireDefault(require("next/dist/compiled/escape-string-regexp"));
+var _escapeRegexp = require("../../escape-regexp");
 var _parseUrl = require("./parse-url");
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
 function matchHas(req, has, query) {
-    const params = {
-    };
+    const params = {};
     const allMatch = has.every((hasItem)=>{
         let value;
         let key = hasItem.key;
@@ -38,8 +32,7 @@ function matchHas(req, has, query) {
                 }
             case 'host':
                 {
-                    const { host  } = (req === null || req === void 0 ? void 0 : req.headers) || {
-                    };
+                    const { host  } = (req === null || req === void 0 ? void 0 : req.headers) || {};
                     // remove port from host if present
                     const hostname = host === null || host === void 0 ? void 0 : host.split(':')[0].toLowerCase();
                     value = hostname;
@@ -93,8 +86,7 @@ function compileNonPath(value, params) {
     })(params).substr(1);
 }
 function prepareDestination(args) {
-    const query = Object.assign({
-    }, args.query);
+    const query = Object.assign({}, args.query);
     delete query.__nextLocale;
     delete query.__nextDefaultLocale;
     let escapedDestination = args.destination;
@@ -130,14 +122,14 @@ function prepareDestination(args) {
         validate: false
     });
     // update any params in query values
-    for (const [key, strOrArray] of Object.entries(destQuery)){
+    for (const [key1, strOrArray] of Object.entries(destQuery)){
         // the value needs to start with a forward-slash to be compiled
         // correctly
         if (Array.isArray(strOrArray)) {
-            destQuery[key] = strOrArray.map((value)=>compileNonPath(unescapeSegments(value), args.params)
+            destQuery[key1] = strOrArray.map((value)=>compileNonPath(unescapeSegments(value), args.params)
             );
         } else {
-            destQuery[key] = compileNonPath(unescapeSegments(strOrArray), args.params);
+            destQuery[key1] = compileNonPath(unescapeSegments(strOrArray), args.params);
         }
     }
     // add path params to query if it's not a redirect and not
@@ -194,7 +186,7 @@ function prepareDestination(args) {
     return newParamName;
 }
 function escapeSegment(str, segmentName) {
-    return str.replace(new RegExp(`:${(0, _escapeStringRegexp).default(segmentName)}`, 'g'), `__ESC_COLON_${segmentName}`);
+    return str.replace(new RegExp(`:${(0, _escapeRegexp).escapeStringRegexp(segmentName)}`, 'g'), `__ESC_COLON_${segmentName}`);
 }
 function unescapeSegments(str) {
     return str.replace(/__ESC_COLON_/gi, ':');

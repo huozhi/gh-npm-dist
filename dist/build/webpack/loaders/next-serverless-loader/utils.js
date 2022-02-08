@@ -96,9 +96,9 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
                     // Simulate a RegExp match from the \`req.url\` input
                     exec: (str)=>{
                         const obj = (0, _querystring).parse(str);
+                        const matchesHasLocale = i18n && detectedLocale && obj['1'] === detectedLocale;
                         // favor named matches if available
-                        const routeKeyNames = Object.keys(routeKeys || {
-                        });
+                        const routeKeyNames = Object.keys(routeKeys || {});
                         const filterLocaleItem = (val)=>{
                             if (i18n) {
                                 // locale items can be included in route-matches
@@ -133,18 +133,20 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
                                     prev[groups[paramName].pos] = obj[keyName];
                                 }
                                 return prev;
-                            }, {
-                            });
+                            }, {});
                         }
                         return Object.keys(obj).reduce((prev, key)=>{
                             if (!filterLocaleItem(obj[key])) {
+                                let normalizedKey = key;
+                                if (matchesHasLocale) {
+                                    normalizedKey = parseInt(key, 10) - 1 + '';
+                                }
                                 return Object.assign(prev, {
-                                    [key]: obj[key]
+                                    [normalizedKey]: obj[key]
                                 });
                             }
                             return prev;
-                        }, {
-                        });
+                        }, {});
                     }
                 },
                 groups
@@ -221,8 +223,7 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
                 prev[key] = value;
             }
             return prev;
-        }, {
-        });
+        }, {});
         return {
             params,
             hasValidParams
@@ -239,8 +240,7 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
         } catch (_) {
             acceptPreferredLocale = detectedLocale;
         }
-        const { host  } = req.headers || {
-        };
+        const { host  } = req.headers || {};
         // remove port from host and remove port if present
         const hostname = host && host.split(':')[0].toLowerCase();
         const detectedDomain = (0, _detectDomainLocale).detectDomainLocale(i18n.domains, hostname);

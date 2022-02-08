@@ -73,10 +73,8 @@ async function load(module, imports) {
     }
 }
 async function init(input) {
-    const imports = {
-    };
-    imports.wbg = {
-    };
+    const imports = {};
+    imports.wbg = {};
     imports.wbg.__wbindgen_throw = function(arg0, arg1) {
         throw new Error(getStringFromWasm0(arg0, arg1));
     };

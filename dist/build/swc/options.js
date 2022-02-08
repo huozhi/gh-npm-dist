@@ -2,45 +2,57 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.getBaseSWCOptions = getBaseSWCOptions;
 exports.getJestSWCOptions = getJestSWCOptions;
 exports.getLoaderSWCOptions = getLoaderSWCOptions;
 const nextDistPath = /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/;
 const regeneratorRuntimePath = require.resolve('next/dist/compiled/regenerator-runtime');
-function getBaseSWCOptions({ filename , development , hasReactRefresh , globalWindow , nextConfig , resolvedBaseUrl , jsConfig ,  }) {
-    var ref, ref1, ref2, ref3, ref4, ref5;
+function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , globalWindow , nextConfig , resolvedBaseUrl , jsConfig ,  }) {
+    var ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7;
     const isTSFile = filename.endsWith('.ts');
     const isTypeScript = isTSFile || filename.endsWith('.tsx');
     const paths = jsConfig === null || jsConfig === void 0 ? void 0 : (ref = jsConfig.compilerOptions) === null || ref === void 0 ? void 0 : ref.paths;
     const enableDecorators = Boolean(jsConfig === null || jsConfig === void 0 ? void 0 : (ref1 = jsConfig.compilerOptions) === null || ref1 === void 0 ? void 0 : ref1.experimentalDecorators);
+    const emitDecoratorMetadata = Boolean(jsConfig === null || jsConfig === void 0 ? void 0 : (ref2 = jsConfig.compilerOptions) === null || ref2 === void 0 ? void 0 : ref2.emitDecoratorMetadata);
     return {
         jsc: {
             ...resolvedBaseUrl && paths ? {
                 baseUrl: resolvedBaseUrl,
                 paths
-            } : {
-            },
+            } : {},
             parser: {
                 syntax: isTypeScript ? 'typescript' : 'ecmascript',
                 dynamicImport: true,
+                importAssertions: true,
                 decorators: enableDecorators,
                 // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
                 [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true
             },
+            experimental: {
+                keepImportAssertions: true
+            },
             transform: {
+                // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
+                ...jest ? {
+                    hidden: {
+                        jest: true
+                    }
+                } : {},
                 legacyDecorator: enableDecorators,
+                decoratorMetadata: emitDecoratorMetadata,
                 react: {
-                    importSource: (jsConfig === null || jsConfig === void 0 ? void 0 : (ref2 = jsConfig.compilerOptions) === null || ref2 === void 0 ? void 0 : ref2.jsxImportSource) || 'react',
+                    importSource: (jsConfig === null || jsConfig === void 0 ? void 0 : (ref3 = jsConfig.compilerOptions) === null || ref3 === void 0 ? void 0 : ref3.jsxImportSource) || 'react',
                     runtime: 'automatic',
                     pragma: 'React.createElement',
                     pragmaFrag: 'React.Fragment',
                     throwIfNamespace: true,
-                    development: development,
+                    development: !!development,
                     useBuiltins: true,
-                    refresh: hasReactRefresh
+                    refresh: !!hasReactRefresh
                 },
                 optimizer: {
                     simplify: false,
-                    globals: {
+                    globals: jest ? null : {
                         typeofs: {
                             window: globalWindow ? 'object' : 'undefined'
                         },
@@ -54,16 +66,19 @@ function getBaseSWCOptions({ filename , development , hasReactRefresh , globalWi
                 }
             }
         },
-        styledComponents: (nextConfig === null || nextConfig === void 0 ? void 0 : (ref3 = nextConfig.experimental) === null || ref3 === void 0 ? void 0 : ref3.styledComponents) ? {
+        sourceMaps: jest ? 'inline' : undefined,
+        styledComponents: (nextConfig === null || nextConfig === void 0 ? void 0 : (ref4 = nextConfig.experimental) === null || ref4 === void 0 ? void 0 : ref4.styledComponents) ? {
             displayName: Boolean(development)
         } : null,
-        removeConsole: nextConfig === null || nextConfig === void 0 ? void 0 : (ref4 = nextConfig.experimental) === null || ref4 === void 0 ? void 0 : ref4.removeConsole,
-        reactRemoveProperties: nextConfig === null || nextConfig === void 0 ? void 0 : (ref5 = nextConfig.experimental) === null || ref5 === void 0 ? void 0 : ref5.reactRemoveProperties
+        removeConsole: nextConfig === null || nextConfig === void 0 ? void 0 : (ref5 = nextConfig.experimental) === null || ref5 === void 0 ? void 0 : ref5.removeConsole,
+        reactRemoveProperties: nextConfig === null || nextConfig === void 0 ? void 0 : (ref6 = nextConfig.experimental) === null || ref6 === void 0 ? void 0 : ref6.reactRemoveProperties,
+        relay: nextConfig === null || nextConfig === void 0 ? void 0 : (ref7 = nextConfig.experimental) === null || ref7 === void 0 ? void 0 : ref7.relay
     };
 }
 function getJestSWCOptions({ isServer , filename , esm , nextConfig , jsConfig ,  }) {
     let baseOptions = getBaseSWCOptions({
         filename,
+        jest: true,
         development: false,
         hasReactRefresh: false,
         globalWindow: !isServer,
@@ -77,7 +92,14 @@ function getJestSWCOptions({ isServer , filename , esm , nextConfig , jsConfig ,
             targets: {
                 // Targets the current version of Node.js
                 node: process.versions.node
-            }
+            },
+            // we always transpile optional chaining and nullish coalescing
+            // since it can cause issues with webpack even if the node target
+            // supports them
+            include: [
+                'proposal-optional-chaining',
+                'proposal-nullish-coalescing-operator', 
+            ]
         },
         module: {
             type: esm && !isNextDist ? 'es6' : 'commonjs'
@@ -110,7 +132,14 @@ function getLoaderSWCOptions({ filename , development , isServer , pagesDir , is
                 targets: {
                     // Targets the current version of Node.js
                     node: process.versions.node
-                }
+                },
+                // we always transpile optional chaining and nullish coalescing
+                // since it can cause issues with webpack even if the node target
+                // supports them
+                include: [
+                    'proposal-optional-chaining',
+                    'proposal-nullish-coalescing-operator', 
+                ]
             }
         };
     } else {
@@ -123,8 +152,7 @@ function getLoaderSWCOptions({ filename , development , isServer , pagesDir , is
                 module: {
                     type: 'commonjs'
                 }
-            } : {
-            },
+            } : {},
             disableNextSsg: !isPageFile,
             isDevelopment: development,
             isServer,

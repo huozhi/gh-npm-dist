@@ -8,6 +8,7 @@ exports.transformSync = transformSync;
 exports.minify = minify;
 exports.minifySync = minifySync;
 exports.bundle = bundle;
+exports.parse = parse;
 var _os = require("os");
 var _triples = require("next/dist/compiled/@napi-rs/triples");
 var Log = _interopRequireWildcard(require("../output/log"));
@@ -15,13 +16,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -92,6 +91,9 @@ async function loadWasm() {
                 },
                 minify (src, options) {
                     return Promise.resolve(bindings.minifySync(src.toString(), options));
+                },
+                parse (src, options) {
+                    return Promise.resolve(bindings.parse(src.toString(), options));
                 }
             };
             return wasmBindings;
@@ -119,8 +121,7 @@ function loadNative() {
             bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`);
             Log.info('Using locally built binary of @next/swc');
             break;
-        } catch (e) {
-        }
+        } catch (e) {}
     }
     if (!bindings) {
         for (const triple of triples){
@@ -144,8 +145,7 @@ function loadNative() {
             transform (src, options) {
                 var ref;
                 const isModule = typeof src !== undefined && typeof src !== 'string' && !Buffer.isBuffer(src);
-                options = options || {
-                };
+                options = options || {};
                 if (options === null || options === void 0 ? void 0 : (ref = options.jsc) === null || ref === void 0 ? void 0 : ref.parser) {
                     var _syntax;
                     options.jsc.parser.syntax = (_syntax = options.jsc.parser.syntax) !== null && _syntax !== void 0 ? _syntax : 'ecmascript';
@@ -160,8 +160,7 @@ function loadNative() {
                     throw new Error("transformSync doesn't implement taking the source code as Buffer");
                 }
                 const isModule = typeof src !== 'string';
-                options = options || {
-                };
+                options = options || {};
                 if (options === null || options === void 0 ? void 0 : (ref = options.jsc) === null || ref === void 0 ? void 0 : ref.parser) {
                     var _syntax;
                     options.jsc.parser.syntax = (_syntax = options.jsc.parser.syntax) !== null && _syntax !== void 0 ? _syntax : 'ecmascript';
@@ -169,15 +168,16 @@ function loadNative() {
                 return bindings.transformSync(isModule ? JSON.stringify(src) : src, isModule, toBuffer(options));
             },
             minify (src, options) {
-                return bindings.minify(toBuffer(src), toBuffer(options !== null && options !== void 0 ? options : {
-                }));
+                return bindings.minify(toBuffer(src), toBuffer(options !== null && options !== void 0 ? options : {}));
             },
             minifySync (src, options) {
-                return bindings.minifySync(toBuffer(src), toBuffer(options !== null && options !== void 0 ? options : {
-                }));
+                return bindings.minifySync(toBuffer(src), toBuffer(options !== null && options !== void 0 ? options : {}));
             },
             bundle (options) {
                 return bindings.bundle(toBuffer(options));
+            },
+            parse (src, options) {
+                return bindings.parse(src, toBuffer(options !== null && options !== void 0 ? options : {}));
             }
         };
         return nativeBindings;
@@ -210,6 +210,11 @@ function minifySync(src, options) {
 async function bundle(options) {
     let bindings = loadBindingsSync();
     return bindings.bundle(toBuffer(options));
+}
+async function parse(src, options) {
+    let bindings = loadBindingsSync();
+    return bindings.parse(src, options).then((astStr)=>JSON.parse(astStr)
+    );
 }
 
 //# sourceMappingURL=index.js.map

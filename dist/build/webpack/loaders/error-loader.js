@@ -13,8 +13,7 @@ function _interopRequireDefault(obj) {
 const ErrorLoader = function() {
     var ref, ref1, ref2;
     // @ts-ignore exists
-    const options = this.getOptions() || {
-    };
+    const options = this.getOptions() || {};
     const { reason ='An unknown error has occurred'  } = options;
     var ref3;
     const resource = (ref3 = (ref = this._module) === null || ref === void 0 ? void 0 : (ref1 = ref.issuer) === null || ref1 === void 0 ? void 0 : ref1.resource) !== null && ref3 !== void 0 ? ref3 : null;

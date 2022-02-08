@@ -53,16 +53,13 @@ function install(root, dependencies, { useYarn , isOnline , devDependencies  }) 
        */ args = [
                 'install'
             ];
-            if (useYarn) {
-                if (!isOnline) {
-                    console.log(_chalk.default.yellow('You appear to be offline.'));
+            if (!isOnline) {
+                console.log(_chalk.default.yellow('You appear to be offline.'));
+                if (useYarn) {
                     console.log(_chalk.default.yellow('Falling back to the local Yarn cache.'));
                     console.log();
                     args.push('--offline');
-                }
-            } else {
-                if (!isOnline) {
-                    console.log(_chalk.default.yellow('You appear to be offline.'));
+                } else {
                     console.log();
                 }
             }

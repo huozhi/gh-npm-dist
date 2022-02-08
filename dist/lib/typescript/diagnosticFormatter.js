@@ -19,8 +19,7 @@ exports.DiagnosticCategory = DiagnosticCategory;
     DiagnosticCategory[DiagnosticCategory["Error"] = 1] = "Error";
     DiagnosticCategory[DiagnosticCategory["Suggestion"] = 2] = "Suggestion";
     DiagnosticCategory[DiagnosticCategory["Message"] = 3] = "Message";
-})(DiagnosticCategory || (exports.DiagnosticCategory = DiagnosticCategory = {
-}));
+})(DiagnosticCategory || (exports.DiagnosticCategory = DiagnosticCategory = {}));
 async function getFormattedDiagnostic(ts, baseDir, diagnostic) {
     let message = '';
     const reason = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');

@@ -62,8 +62,7 @@ function initializeBuildWatcher(toggleCallback, position = 'bottom-right') {
         }
         try {
             handleMessage(event);
-        } catch (e) {
-        }
+        } catch (e) {}
     });
     function handleMessage(event) {
         const obj = typeof event === 'string' ? {

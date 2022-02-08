@@ -3,35 +3,12 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = transformSource;
-var acorn = _interopRequireWildcard(require("next/dist/compiled/acorn"));
-function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-        return obj;
-    } else {
-        var newObj = {
-        };
-        if (obj != null) {
-            for(var key in obj){
-                if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
-                    if (desc.get || desc.set) {
-                        Object.defineProperty(newObj, key, desc);
-                    } else {
-                        newObj[key] = obj[key];
-                    }
-                }
-            }
-        }
-        newObj.default = obj;
-        return newObj;
-    }
-}
-let stashedResolve = null;
+var _swc = require("../../swc");
+var _options = require("../../swc/options");
 function addExportNames(names, node) {
     switch(node.type){
         case 'Identifier':
-            names.push(node.name);
+            names.push(node.value);
             return;
         case 'ObjectPattern':
             for(let i = 0; i < node.properties.length; i++)addExportNames(names, node.properties[i]);
@@ -58,42 +35,20 @@ function addExportNames(names, node) {
             return;
     }
 }
-function resolveClientImport(specifier, parentURL) {
-    // Resolve an import specifier as if it was loaded by the client. This doesn't use
-    // the overrides that this loader does but instead reverts to the default.
-    // This resolution algorithm will not necessarily have the same configuration
-    // as the actual client loader. It should mostly work and if it doesn't you can
-    // always convert to explicit exported names instead.
-    const conditions = [
-        'node',
-        'import'
-    ];
-    if (stashedResolve === null) {
-        throw new Error('Expected resolve to have been called before transformSource');
-    }
-    return stashedResolve(specifier, {
-        conditions,
-        parentURL
-    }, stashedResolve);
-}
-async function parseExportNamesInto(transformedSource, names, parentURL, loadModule) {
-    const { body  } = acorn.parse(transformedSource, {
-        ecmaVersion: 11,
-        sourceType: 'module'
+async function parseExportNamesInto(resourcePath, transformedSource, names) {
+    const opts = (0, _options).getBaseSWCOptions({
+        filename: resourcePath,
+        globalWindow: true
+    });
+    const { body  } = await (0, _swc).parse(transformedSource, {
+        ...opts.jsc.parser,
+        isModule: true
     });
     for(let i = 0; i < body.length; i++){
         const node = body[i];
         switch(node.type){
-            case 'ExportAllDeclaration':
-                if (node.exported) {
-                    addExportNames(names, node.exported);
-                    continue;
-                } else {
-                    const { url  } = await resolveClientImport(node.source.value, parentURL);
-                    const source = '';
-                    parseExportNamesInto(source, names, url, loadModule);
-                    continue;
-                }
+            // TODO: support export * from module path
+            // case 'ExportAllDeclaration':
             case 'ExportDefaultDeclaration':
                 names.push('default');
                 continue;
@@ -129,7 +84,7 @@ async function transformSource(source) {
         throw new Error('Expected source to have been transformed to a string.');
     }
     const names = [];
-    await parseExportNamesInto(transformedSource, names, url + resourceQuery, this.loadModule);
+    await parseExportNamesInto(resourcePath, transformedSource, names);
     // next.js/packages/next/<component>.js
     if (/[\\/]next[\\/](link|image)\.js$/.test(url)) {
         names.push('default');

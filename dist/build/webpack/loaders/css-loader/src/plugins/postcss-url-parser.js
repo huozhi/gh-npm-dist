@@ -194,8 +194,7 @@ function parseDeclaration(declaration, key, result, isSupportDataURLInNewURL) {
     // eslint-disable-next-line consistent-return
     return parsedURLs;
 }
-const plugin = (options = {
-})=>{
+const plugin = (options = {})=>{
     return {
         postcssPlugin: 'postcss-url-parser',
         prepare (result) {

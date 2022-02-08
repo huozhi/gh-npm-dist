@@ -24,8 +24,7 @@ const reportToTelemetry = (spanName, duration)=>{
     });
 };
 var _default = {
-    flushAll: ()=>{
-    },
+    flushAll: ()=>{},
     report: reportToTelemetry
 };
 exports.default = _default;

@@ -9,8 +9,7 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
-const AmpStateContext = _react.default.createContext({
-});
+const AmpStateContext = _react.default.createContext({});
 exports.AmpStateContext = AmpStateContext;
 if (process.env.NODE_ENV !== 'production') {
     AmpStateContext.displayName = 'AmpStateContext';

@@ -18,9 +18,7 @@ async function eventNextPlugins(dir) {
         if (!packageJsonPath) {
             return [];
         }
-        const { dependencies ={
-        } , devDependencies ={
-        }  } = require(packageJsonPath);
+        const { dependencies ={} , devDependencies ={}  } = require(packageJsonPath);
         const deps = {
             ...devDependencies,
             ...dependencies

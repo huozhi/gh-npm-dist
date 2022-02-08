@@ -12,9 +12,8 @@ exports.sendJson = sendJson;
 exports.tryGetPreviewData = tryGetPreviewData;
 exports.sendError = sendError;
 exports.setLazyProp = setLazyProp;
-exports.SYMBOL_PREVIEW_DATA = void 0;
+exports.SYMBOL_CLEARED_COOKIES = exports.SYMBOL_PREVIEW_DATA = void 0;
 var _contentType = require("next/dist/compiled/content-type");
-var _rawBody = _interopRequireDefault(require("next/dist/compiled/raw-body"));
 var _stream = require("stream");
 var _utils = require("../shared/lib/utils");
 var _cryptoUtils = require("./crypto-utils");
@@ -37,8 +36,7 @@ async function apiResolver(req, res, query, resolverModule, apiContext, propagat
             res.end('Not Found');
             return;
         }
-        const config = resolverModule.config || {
-        };
+        const config = resolverModule.config || {};
         const bodyParser = ((ref = config.api) === null || ref === void 0 ? void 0 : ref.bodyParser) !== false;
         const externalResolver = ((ref1 = config.api) === null || ref1 === void 0 ? void 0 : ref1.externalResolver) || false;
         // Parsing of cookies
@@ -85,9 +83,7 @@ async function apiResolver(req, res, query, resolverModule, apiContext, propagat
         ;
         apiRes.redirect = (statusOrUrl, url)=>redirect(apiRes, statusOrUrl, url)
         ;
-        apiRes.setPreviewData = (data, options = {
-        })=>setPreviewData(apiRes, data, Object.assign({
-            }, apiContext, options))
+        apiRes.setPreviewData = (data, options = {})=>setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
         ;
         apiRes.clearPreviewData = ()=>clearPreviewData(apiRes)
         ;
@@ -132,7 +128,8 @@ async function parseBody(req, limit) {
     const encoding = parameters.charset || 'utf-8';
     let buffer;
     try {
-        buffer = await (0, _rawBody).default(req, {
+        const getRawBody = require('next/dist/compiled/raw-body');
+        buffer = await getRawBody(req, {
             encoding,
             limit
         });
@@ -159,8 +156,7 @@ async function parseBody(req, limit) {
  */ function parseJson(str) {
     if (str.length === 0) {
         // special-case empty json body, as it's a common client-side mistake
-        return {
-        };
+        return {};
     }
     try {
         return JSON.parse(str);
@@ -172,8 +168,7 @@ function getCookieParser(headers) {
     return function parseCookie() {
         const header = headers.cookie;
         if (!header) {
-            return {
-            };
+            return {};
         }
         const { parse: parseCookieFn  } = require('next/dist/compiled/cookie');
         return parseCookieFn(Array.isArray(header) ? header.join(';') : header);
@@ -257,6 +252,7 @@ const COOKIE_NAME_PRERENDER_DATA = `__next_preview_data`;
 const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA);
 exports.SYMBOL_PREVIEW_DATA = SYMBOL_PREVIEW_DATA;
 const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS);
+exports.SYMBOL_CLEARED_COOKIES = SYMBOL_CLEARED_COOKIES;
 function tryGetPreviewData(req, res, options) {
     // Read cached preview data if present
     if (SYMBOL_PREVIEW_DATA in req) {

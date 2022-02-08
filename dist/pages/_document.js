@@ -40,13 +40,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -92,8 +90,7 @@ function getPreNextScripts(context, props) {
     const { scriptLoader , disableOptimizedLoading , crossOrigin  } = context;
     return (scriptLoader.beforeInteractive || []).map((file, index)=>{
         const { strategy , ...scriptProps } = file;
-        return(/*#__PURE__*/ _react.default.createElement("script", Object.assign({
-        }, scriptProps, {
+        return(/*#__PURE__*/ _react.default.createElement("script", Object.assign({}, scriptProps, {
             key: scriptProps.src || index,
             defer: !disableOptimizedLoading,
             nonce: props.nonce,
@@ -152,8 +149,7 @@ exports.default = Document;
 function Html(props) {
     const { inAmpMode , docComponentsRendered , locale  } = (0, _react).useContext(_utils.HtmlContext);
     docComponentsRendered.Html = true;
-    return(/*#__PURE__*/ _react.default.createElement("html", Object.assign({
-    }, props, {
+    return(/*#__PURE__*/ _react.default.createElement("html", Object.assign({}, props, {
         lang: props.lang || locale || undefined,
         amp: inAmpMode ? '' : undefined,
         "data-ampdevmode": inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
@@ -318,20 +314,26 @@ class Head extends _react.Component {
     }
     makeStylesheetInert(node) {
         return _react.default.Children.map(node, (c)=>{
-            if (c.type === 'link' && c.props['href'] && _constants.OPTIMIZED_FONT_PROVIDERS.some(({ url  })=>c.props['href'].startsWith(url)
-            )) {
+            var ref4, ref2;
+            if ((c === null || c === void 0 ? void 0 : c.type) === 'link' && (c === null || c === void 0 ? void 0 : (ref4 = c.props) === null || ref4 === void 0 ? void 0 : ref4.href) && _constants.OPTIMIZED_FONT_PROVIDERS.some(({ url  })=>{
+                var ref, ref3;
+                return c === null || c === void 0 ? void 0 : (ref = c.props) === null || ref === void 0 ? void 0 : (ref3 = ref.href) === null || ref3 === void 0 ? void 0 : ref3.startsWith(url);
+            })) {
                 const newProps = {
-                    ...c.props || {
-                    }
+                    ...c.props || {},
+                    'data-href': c.props.href,
+                    href: undefined
                 };
-                newProps['data-href'] = newProps['href'];
-                newProps['href'] = undefined;
                 return(/*#__PURE__*/ _react.default.cloneElement(c, newProps));
-            } else if (c.props && c.props['children']) {
-                c.props['children'] = this.makeStylesheetInert(c.props['children']);
+            } else if (c === null || c === void 0 ? void 0 : (ref2 = c.props) === null || ref2 === void 0 ? void 0 : ref2.children) {
+                const newProps = {
+                    ...c.props || {},
+                    children: this.makeStylesheetInert(c.props.children)
+                };
+                return(/*#__PURE__*/ _react.default.cloneElement(c, newProps));
             }
             return c;
-        });
+        }).filter(Boolean);
     }
     render() {
         const { styles , ampPath , inAmpMode , hybridAmp , canonicalBase , __NEXT_DATA__ , dangerousAsPath , headTags , unstable_runtimeJS , unstable_JsPreload , disableOptimizedLoading , useMaybeDeferContent , optimizeCss , optimizeFonts , optimizeImages , concurrentFeatures ,  } = this.context;
@@ -358,10 +360,10 @@ class Head extends _react.Component {
                 var ref;
                 const isReactHelmet = child === null || child === void 0 ? void 0 : (ref = child.props) === null || ref === void 0 ? void 0 : ref['data-react-helmet'];
                 if (!isReactHelmet) {
-                    var ref6;
+                    var ref5;
                     if ((child === null || child === void 0 ? void 0 : child.type) === 'title') {
                         console.warn("Warning: <title> should not be used in _document.js's <Head>. https://nextjs.org/docs/messages/no-document-title");
-                    } else if ((child === null || child === void 0 ? void 0 : child.type) === 'meta' && (child === null || child === void 0 ? void 0 : (ref6 = child.props) === null || ref6 === void 0 ? void 0 : ref6.name) === 'viewport') {
+                    } else if ((child === null || child === void 0 ? void 0 : child.type) === 'meta' && (child === null || child === void 0 ? void 0 : (ref5 = child.props) === null || ref5 === void 0 ? void 0 : ref5.name) === 'viewport') {
                         console.warn("Warning: viewport meta tags should not be used in _document.js's <Head>. https://nextjs.org/docs/messages/no-document-viewport-meta");
                     }
                 }
@@ -429,8 +431,7 @@ class Head extends _react.Component {
                 return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, getDynamicHeadContent(), getDynamicScriptPreloads(), getDynamicScriptContent()));
             });
             var _nonce, _nonce1;
-            return(/*#__PURE__*/ _react.default.createElement("head", Object.assign({
-            }, this.props), !concurrentFeatures && this.context.isDevelopment && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("style", {
+            return(/*#__PURE__*/ _react.default.createElement("head", Object.assign({}, this.props), !concurrentFeatures && this.context.isDevelopment && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("style", {
                 "data-next-hide-fouc": true,
                 "data-ampdevmode": inAmpMode ? 'true' : undefined,
                 dangerouslySetInnerHTML: {
@@ -443,9 +444,9 @@ class Head extends _react.Component {
                 dangerouslySetInnerHTML: {
                     __html: `body{display:block}`
                 }
-            }))), children, optimizeFonts && /*#__PURE__*/ _react.default.createElement("meta", {
+            }))), !isDeferred && getDynamicHeadContent(), children, optimizeFonts && /*#__PURE__*/ _react.default.createElement("meta", {
                 name: "next-font-preconnect"
-            }), !isDeferred && getDynamicHeadContent(), inAmpMode && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("meta", {
+            }), inAmpMode && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("meta", {
                 name: "viewport",
                 content: "width=device-width,minimum-scale=1,initial-scale=1"
             }), !hasCanonicalRel && /*#__PURE__*/ _react.default.createElement("link", {
@@ -484,8 +485,7 @@ class Head extends _react.Component {
             // (by default, style-loader injects at the bottom of <head />)
             /*#__PURE__*/ _react.default.createElement("noscript", {
                 id: "__next_css__DO_NOT_USE__"
-            }), styles || null), /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, {
-            }, ...headTags || [])));
+            }), styles || null), /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, {}, ...headTags || [])));
         };
         return(/*#__PURE__*/ _react.default.createElement(DeferrableHead, null));
     }

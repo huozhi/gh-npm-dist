@@ -9,8 +9,7 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
-function buildTerserOptions(terserOptions = {
-}) {
+function buildTerserOptions(terserOptions = {}) {
     return {
         ...terserOptions,
         mangle: terserOptions.mangle == null ? true : typeof terserOptions.mangle === 'boolean' ? terserOptions.mangle : {

@@ -17,6 +17,7 @@ function _interopRequireDefault(obj) {
 const customRouteMatcher = (0, _pathMatch).default(true);
 function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
     let matchedPage = false;
+    let externalDest = false;
     let parsedAs = (0, _parseRelativeUrl).parseRelativeUrl(asPath);
     let fsPathname = (0, _normalizeTrailingSlash).removePathTrailingSlash((0, _normalizeLocalePath).normalizeLocalePath((0, _router).delBasePath(parsedAs.pathname), locales).pathname);
     let resolvedHref;
@@ -32,8 +33,7 @@ function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
                     const [key, ...value] = item.split('=');
                     acc[key] = value.join('=');
                     return acc;
-                }, {
-                })
+                }, {})
             }, rewrite.has, parsedAs.query);
             if (hasParams) {
                 Object.assign(params, hasParams);
@@ -44,6 +44,7 @@ function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
         if (params) {
             if (!rewrite.destination) {
                 // this is a proxied rewrite which isn't handled on the client
+                externalDest = true;
                 return true;
             }
             const destRes = (0, _prepareDestination).prepareDestination({
@@ -75,7 +76,7 @@ function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
     for(let i = 0; i < rewrites.beforeFiles.length; i++){
         // we don't end after match in beforeFiles to allow
         // continuing through all beforeFiles rewrites
-        handleRewrite(rewrites.beforeFiles[i]);
+        finished = handleRewrite(rewrites.beforeFiles[i]) || false;
     }
     matchedPage = pages.includes(fsPathname);
     if (!matchedPage) {
@@ -106,7 +107,8 @@ function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
         asPath,
         parsedAs,
         matchedPage,
-        resolvedHref
+        resolvedHref,
+        externalDest
     };
 }
 

@@ -14,13 +14,13 @@ function _interopRequireDefault(obj) {
     };
 }
 async function installDependencies(baseDir, deps, dev = false) {
-    const useYarn = (0, _shouldUseYarn).shouldUseYarn();
+    const useYarn = (0, _shouldUseYarn).shouldUseYarn(baseDir);
     const isOnline = !useYarn || await (0, _getOnline).getOnline();
     if (deps.length) {
         console.log();
         console.log(`Installing ${dev ? 'devDependencies' : 'dependencies'}:`);
-        for (const dep of deps){
-            console.log(`- ${_chalk.default.cyan(dep.pkg)}`);
+        for (const dep1 of deps){
+            console.log(`- ${_chalk.default.cyan(dep1.pkg)}`);
         }
         console.log();
         const devInstallFlags = {

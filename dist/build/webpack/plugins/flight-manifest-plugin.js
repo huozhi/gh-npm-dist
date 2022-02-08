@@ -29,8 +29,7 @@ class FlightManifestPlugin {
         });
     }
     createAsset(assets, compilation) {
-        const json = {
-        };
+        const json = {};
         const { clientComponentsRegex  } = this;
         compilation.chunkGroups.forEach((chunkGroup)=>{
             function recordModule(id, _chunk, mod) {
@@ -43,8 +42,7 @@ class FlightManifestPlugin {
                 if (!clientComponentsRegex.test(resource) && !isNextClientComponent) {
                     return;
                 }
-                const moduleExports = json[resource] || {
-                };
+                const moduleExports = json[resource] || {};
                 const exportsInfo = compilation.moduleGraph.getExportsInfo(mod);
                 const providedExports = exportsInfo.getProvidedExports();
                 const moduleExportedKeys = [

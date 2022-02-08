@@ -68,8 +68,7 @@ async function getNotFoundError(compilation, input, fileName) {
             column: loc.start.column,
             source: originalSource,
             rootDirectory: compilation.options.context,
-            frame: {
-            }
+            frame: {}
         });
         // If we could not result the original location we still need to show the existing error
         if (!result) {

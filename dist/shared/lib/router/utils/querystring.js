@@ -6,8 +6,7 @@ exports.searchParamsToUrlQuery = searchParamsToUrlQuery;
 exports.urlQueryToSearchParams = urlQueryToSearchParams;
 exports.assign = assign;
 function searchParamsToUrlQuery(searchParams) {
-    const query = {
-    };
+    const query = {};
     searchParams.forEach((value, key)=>{
         if (typeof query[key] === 'undefined') {
             query[key] = value;

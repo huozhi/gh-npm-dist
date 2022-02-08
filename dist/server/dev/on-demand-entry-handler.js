@@ -24,8 +24,7 @@ const BUILDING = Symbol('building');
 exports.BUILDING = BUILDING;
 const BUILT = Symbol('built');
 exports.BUILT = BUILT;
-const entries = {
-};
+const entries = {};
 exports.entries = entries;
 function onDemandEntryHandler(watcher, multiCompiler, { pagesDir , nextConfig , maxInactiveAge , pagesBufferLength  }) {
     const { compilers  } = multiCompiler;
@@ -118,8 +117,8 @@ function onDemandEntryHandler(watcher, multiCompiler, { pagesDir , nextConfig , 
             let normalizedPagePath;
             try {
                 normalizedPagePath = (0, _normalizePagePath).normalizePagePath(page);
-            } catch (err) {
-                console.error(err);
+            } catch (err1) {
+                console.error(err1);
                 throw (0, _require).pageNotFoundError(page);
             }
             let pagePath = await (0, _findPageFile).findPageFile(pagesDir, normalizedPagePath, nextConfig.pageExtensions);
@@ -203,8 +202,7 @@ function onDemandEntryHandler(watcher, multiCompiler, { pagesDir , nextConfig , 
                             event: 'pong'
                         }));
                     }
-                } catch (_) {
-                }
+                } catch (_) {}
             });
         }
     };

@@ -18,7 +18,7 @@ var _installDependencies = require("../install-dependencies");
 var _hasNecessaryDependencies = require("../has-necessary-dependencies");
 var _isYarn = require("../is-yarn");
 var Log = _interopRequireWildcard(require("../../build/output/log"));
-var _isError = _interopRequireDefault(require("../is-error"));
+var _isError = _interopRequireWildcard(require("../is-error"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -28,13 +28,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -81,7 +79,7 @@ async function cliPrompt() {
 }
 async function lint(baseDir, lintDirs, eslintrcFile, pkgJsonPath, lintDuringBuild = false, eslintOptions = null, reportErrorsOnly = false, maxWarnings = -1, formatter = null) {
     try {
-        var ref11, ref1;
+        var ref, ref1;
         // Load ESLint after we're sure it exists:
         const deps = await (0, _hasNecessaryDependencies).hasNecessaryDependencies(baseDir, requiredPackages);
         if (deps.missing.some((dep)=>dep.pkg === 'eslint'
@@ -92,14 +90,13 @@ async function lint(baseDir, lintDirs, eslintrcFile, pkgJsonPath, lintDuringBuil
         const mod = await Promise.resolve(require(deps.resolved.get('eslint')));
         const { ESLint  } = mod;
         var ref2;
-        let eslintVersion = (ref2 = ESLint === null || ESLint === void 0 ? void 0 : ESLint.version) !== null && ref2 !== void 0 ? ref2 : mod === null || mod === void 0 ? void 0 : (ref11 = mod.CLIEngine) === null || ref11 === void 0 ? void 0 : ref11.version;
+        let eslintVersion = (ref2 = ESLint === null || ESLint === void 0 ? void 0 : ESLint.version) !== null && ref2 !== void 0 ? ref2 : mod === null || mod === void 0 ? void 0 : (ref = mod.CLIEngine) === null || ref === void 0 ? void 0 : ref.version;
         if (!eslintVersion || _semver.default.lt(eslintVersion, '7.0.0')) {
             return `${_chalk.default.red('error')} - Your project has an older version of ESLint installed${eslintVersion ? ' (' + eslintVersion + ')' : ''}. Please upgrade to ESLint version 7 or above`;
         }
         let options = {
             useEslintrc: true,
-            baseConfig: {
-            },
+            baseConfig: {},
             errorOnUnmatchedPattern: false,
             extensions: [
                 '.js',
@@ -119,10 +116,10 @@ async function lint(baseDir, lintDirs, eslintrcFile, pkgJsonPath, lintDuringBuil
             eslintrcFile,
             pkgJsonPath
         ]){
-            var ref9;
+            var ref3;
             if (!configFile) continue;
             const completeConfig = await eslint.calculateConfigForFile(configFile);
-            if ((ref9 = completeConfig.plugins) === null || ref9 === void 0 ? void 0 : ref9.includes('@next/next')) {
+            if ((ref3 = completeConfig.plugins) === null || ref3 === void 0 ? void 0 : ref3.includes('@next/next')) {
                 nextEslintPluginIsEnabled = true;
                 break;
             }
@@ -131,11 +128,10 @@ async function lint(baseDir, lintDirs, eslintrcFile, pkgJsonPath, lintDuringBuil
         if (nextEslintPluginIsEnabled) {
             let updatedPagesDir = false;
             for (const rule of pagesDirRules){
-                var ref, ref9;
-                if (!((ref = options.baseConfig.rules) === null || ref === void 0 ? void 0 : ref[rule]) && !((ref9 = options.baseConfig.rules) === null || ref9 === void 0 ? void 0 : ref9[rule.replace('@next/next', '@next/babel-plugin-next')])) {
+                var ref4, ref5;
+                if (!((ref4 = options.baseConfig.rules) === null || ref4 === void 0 ? void 0 : ref4[rule]) && !((ref5 = options.baseConfig.rules) === null || ref5 === void 0 ? void 0 : ref5[rule.replace('@next/next', '@next/babel-plugin-next')])) {
                     if (!options.baseConfig.rules) {
-                        options.baseConfig.rules = {
-                        };
+                        options.baseConfig.rules = {};
                     }
                     options.baseConfig.rules[rule] = [
                         1,
@@ -179,7 +175,7 @@ async function lint(baseDir, lintDirs, eslintrcFile, pkgJsonPath, lintDuringBuil
             Log.error(`ESLint: ${(0, _isError).default(err) && err.message ? err.message.replace(/\n/g, ' ') : err}`);
             return null;
         } else {
-            throw new Error(err + '');
+            throw (0, _isError).getProperError(err);
         }
     }
 }
@@ -196,10 +192,10 @@ async function runLintCheck(baseDir, lintDirs, lintDuringBuild = false, eslintOp
         ], {
             cwd: baseDir
         })) !== null && ref !== void 0 ? ref : null;
-        var ref3;
-        const pkgJsonPath = (ref3 = await (0, _findUp).default('package.json', {
+        var ref6;
+        const pkgJsonPath = (ref6 = await (0, _findUp).default('package.json', {
             cwd: baseDir
-        })) !== null && ref3 !== void 0 ? ref3 : null;
+        })) !== null && ref6 !== void 0 ? ref6 : null;
         let packageJsonConfig = null;
         if (pkgJsonPath) {
             const pkgJsonContent = await _fs.promises.readFile(pkgJsonPath, {

@@ -46,12 +46,12 @@ function getFilesMapFromReasons(fileList, reasons, ignoreFn) {
             }
         }
     }
-    for (const file of fileList){
-        const reason = reasons.get(file);
+    for (const file1 of fileList){
+        const reason = reasons.get(file1);
         if (!reason || !reason.parents || reason.type === 'initial' && reason.parents.size === 0) {
             continue;
         }
-        propagateToParents(reason.parents, file);
+        propagateToParents(reason.parents, file1);
     }
     return parentFilesMap;
 }
@@ -79,8 +79,8 @@ class TraceEntryPointsPlugin {
                         chunksToTrace.add(filePath);
                         entryFiles.add(filePath);
                     }
-                    for (const file1 of chunk.auxiliaryFiles){
-                        const filePath = _path.default.join(outputPath, file1);
+                    for (const file2 of chunk.auxiliaryFiles){
+                        const filePath = _path.default.join(outputPath, file2);
                         chunksToTrace.add(filePath);
                         entryFiles.add(filePath);
                     }
@@ -266,10 +266,10 @@ class TraceEntryPointsPlugin {
                         });
                         if (curExtraEntries) {
                             for (const extraEntry of curExtraEntries.keys()){
-                                var ref7;
+                                var ref2;
                                 const normalizedExtraEntry = _path.default.relative(this.tracingRoot, extraEntry);
                                 finalDeps.add(extraEntry);
-                                (ref7 = parentFilesMap.get(normalizedExtraEntry)) === null || ref7 === void 0 ? void 0 : ref7.forEach((dep)=>{
+                                (ref2 = parentFilesMap.get(normalizedExtraEntry)) === null || ref2 === void 0 ? void 0 : ref2.forEach((dep)=>{
                                     finalDeps.add(_path.default.join(this.tracingRoot, dep));
                                 });
                             }
@@ -338,8 +338,7 @@ class TraceEntryPointsPlugin {
                     return (parent, request, job)=>{
                         return new Promise((resolve, reject)=>{
                             const context = _path.default.dirname(parent);
-                            curResolver.resolve({
-                            }, context, request, {
+                            curResolver.resolve({}, context, request, {
                                 fileDependencies: compilation.fileDependencies,
                                 missingDependencies: compilation.missingDependencies,
                                 contextDependencies: compilation.contextDependencies

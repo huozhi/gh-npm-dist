@@ -6,7 +6,7 @@ exports.default = void 0;
 var _crypto = _interopRequireDefault(require("crypto"));
 var _fs = _interopRequireDefault(require("fs"));
 var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
-var _jestWorker = require("jest-worker");
+var _jestWorker = require("next/dist/compiled/jest-worker");
 var _amphtmlValidator = _interopRequireDefault(require("next/dist/compiled/amphtml-validator"));
 var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
 var _path = require("path");
@@ -34,7 +34,7 @@ var _loadComponents = require("../load-components");
 var _utils2 = require("../../shared/lib/utils");
 var _middleware = require("next/dist/compiled/@next/react-dev-overlay/middleware");
 var Log = _interopRequireWildcard(require("../../build/output/log"));
-var _isError = _interopRequireDefault(require("../../lib/is-error"));
+var _isError = _interopRequireWildcard(require("../../lib/is-error"));
 var _getMiddlewareRegex = require("../../shared/lib/router/utils/get-middleware-regex");
 var _utils3 = require("../../build/utils");
 function _interopRequireDefault(obj) {
@@ -46,13 +46,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -140,8 +138,7 @@ class DevServer extends _nextServer.default {
         // So that the user doesn't have to define a custom server reading the exportPathMap
         if (this.nextConfig.exportPathMap) {
             console.log('Defining routes from exportPathMap');
-            const exportPathMap = await this.nextConfig.exportPathMap({
-            }, {
+            const exportPathMap = await this.nextConfig.exportPathMap({}, {
                 dev: true,
                 dir: this.dir,
                 outDir: null,
@@ -150,8 +147,7 @@ class DevServer extends _nextServer.default {
             }) // In development we can't give a default path mapping
             ;
             for(const path in exportPathMap){
-                const { page , query ={
-                }  } = exportPathMap[path];
+                const { page , query ={}  } = exportPathMap[path];
                 // We use unshift so that we're sure the routes is defined before Next's default routes
                 this.router.addFsRoute({
                     match: (0, _router).route(path),
@@ -166,7 +162,7 @@ class DevServer extends _nextServer.default {
                             ...urlQuery,
                             ...query
                         };
-                        await this.render(req, res, page, mergedQuery, parsedUrl);
+                        await this.render(req, res, page, mergedQuery, parsedUrl, true);
                         return {
                             finished: true
                         };
@@ -310,12 +306,10 @@ class DevServer extends _nextServer.default {
         // This is required by the tracing subsystem.
         (0, _trace).setGlobal('telemetry', telemetry);
         process.on('unhandledRejection', (reason)=>{
-            this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(()=>{
-            });
+            this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(()=>{});
         });
         process.on('uncaughtException', (err)=>{
-            this.logErrorWithOriginalStack(err, 'uncaughtException').catch(()=>{
-            });
+            this.logErrorWithOriginalStack(err, 'uncaughtException').catch(()=>{});
         });
     }
     async close() {
@@ -355,8 +349,7 @@ class DevServer extends _nextServer.default {
             if (await this.hasPage(pathname)) {
                 const err = new Error(`A conflicting public file and page file was found for path ${pathname} https://nextjs.org/docs/messages/conflicting-public-file-page`);
                 res.statusCode = 500;
-                await this.renderError(err, req, res, pathname, {
-                });
+                await this.renderError(err, req, res, pathname, {});
                 return true;
             }
             await this.servePublic(req, res, pathParts);
@@ -366,9 +359,9 @@ class DevServer extends _nextServer.default {
     }
     setupWebSocketHandler(server, _req) {
         if (!this.addedUpgradeListener) {
-            var ref;
+            var ref4;
             this.addedUpgradeListener = true;
-            server = server || ((ref = _req === null || _req === void 0 ? void 0 : _req.socket) === null || ref === void 0 ? void 0 : ref.server);
+            server = server || ((ref4 = _req === null || _req === void 0 ? void 0 : _req.originalRequest.socket) === null || ref4 === void 0 ? void 0 : ref4.server);
             if (!server) {
                 // this is very unlikely to happen but show an error in case
                 // it does somehow
@@ -387,8 +380,8 @@ class DevServer extends _nextServer.default {
                         assetPrefix = `/${assetPrefix}`;
                     }
                     if ((ref = req.url) === null || ref === void 0 ? void 0 : ref.startsWith(`${basePath || assetPrefix || ''}/_next/webpack-hmr`)) {
-                        var ref1;
-                        (ref1 = this.hotReloader) === null || ref1 === void 0 ? void 0 : ref1.onHMR(req, socket, head);
+                        var ref3;
+                        (ref3 = this.hotReloader) === null || ref3 === void 0 ? void 0 : ref3.onHMR(req, socket, head);
                     }
                 });
             }
@@ -407,7 +400,7 @@ class DevServer extends _nextServer.default {
             return result;
         } catch (error) {
             this.logErrorWithOriginalStack(error, undefined, 'client');
-            const err = (0, _isError).default(error) ? error : new Error(error + '');
+            const err = (0, _isError).getProperError(error);
             err.middleware = true;
             const { request , response , parsedUrl  } = params;
             this.renderError(err, request, response, parsedUrl.pathname);
@@ -431,7 +424,7 @@ class DevServer extends _nextServer.default {
                 throw new Error(_constants.PUBLIC_DIR_MIDDLEWARE_CONFLICT);
             }
         }
-        const { finished =false  } = await this.hotReloader.run(req, res, parsedUrl);
+        const { finished =false  } = await this.hotReloader.run(req.originalRequest, res.originalResponse, parsedUrl);
         if (finished) {
             return;
         }
@@ -444,16 +437,15 @@ class DevServer extends _nextServer.default {
             return await super.run(req, res, parsedUrl);
         } catch (error) {
             res.statusCode = 500;
-            const err = (0, _isError).default(error) ? error : error ? new Error(error + '') : null;
+            const err = (0, _isError).getProperError(error);
             try {
-                this.logErrorWithOriginalStack(err).catch(()=>{
-                });
+                this.logErrorWithOriginalStack(err).catch(()=>{});
                 return await this.renderError(err, req, res, pathname, {
                     __NEXT_PAGE: (0, _isError).default(err) && err.page || pathname || ''
                 });
             } catch (internalErr) {
                 console.error(internalErr);
-                res.end('Internal Server Error');
+                res.body('Internal Server Error').send();
             }
         }
     }
@@ -464,10 +456,10 @@ class DevServer extends _nextServer.default {
                 const frames = (0, _middleware).parseStack(err.stack);
                 const frame = frames[0];
                 if (frame.lineNumber && (frame === null || frame === void 0 ? void 0 : frame.file)) {
-                    var ref, ref1, ref2, ref3, ref4, ref5;
-                    const compilation = stats === 'client' ? (ref = this.hotReloader) === null || ref === void 0 ? void 0 : (ref1 = ref.clientStats) === null || ref1 === void 0 ? void 0 : ref1.compilation : (ref2 = this.hotReloader) === null || ref2 === void 0 ? void 0 : (ref3 = ref2.serverStats) === null || ref3 === void 0 ? void 0 : ref3.compilation;
+                    var ref, ref6, ref7, ref8, ref9, ref10;
+                    const compilation = stats === 'client' ? (ref = this.hotReloader) === null || ref === void 0 ? void 0 : (ref6 = ref.clientStats) === null || ref6 === void 0 ? void 0 : ref6.compilation : (ref7 = this.hotReloader) === null || ref7 === void 0 ? void 0 : (ref8 = ref7.serverStats) === null || ref8 === void 0 ? void 0 : ref8.compilation;
                     const moduleId = frame.file.replace(/^(webpack-internal:\/\/\/|file:\/\/)/, '');
-                    const source = await (0, _middleware).getSourceById(!!((ref4 = frame.file) === null || ref4 === void 0 ? void 0 : ref4.startsWith(_path.sep)) || !!((ref5 = frame.file) === null || ref5 === void 0 ? void 0 : ref5.startsWith('file:')), moduleId, compilation);
+                    const source = await (0, _middleware).getSourceById(!!((ref9 = frame.file) === null || ref9 === void 0 ? void 0 : ref9.startsWith(_path.sep)) || !!((ref10 = frame.file) === null || ref10 === void 0 ? void 0 : ref10.startsWith('file:')), moduleId, compilation);
                     const originalFrame = await (0, _middleware).createOriginalStackFrame({
                         line: frame.lineNumber,
                         column: frame.column,
@@ -562,9 +554,9 @@ class DevServer extends _nextServer.default {
             fn: async (_req, res)=>{
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'application/json; charset=utf-8');
-                res.end(JSON.stringify({
+                res.body(JSON.stringify({
                     pages: this.sortedRoutes
-                }));
+                })).send();
                 return {
                     finished: true
                 };
@@ -578,11 +570,11 @@ class DevServer extends _nextServer.default {
                 var ref;
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'application/json; charset=utf-8');
-                res.end(JSON.stringify(((ref = this.middleware) === null || ref === void 0 ? void 0 : ref.map((middleware)=>[
+                res.body(JSON.stringify(((ref = this.middleware) === null || ref === void 0 ? void 0 : ref.map((middleware)=>[
                         middleware.page,
                         !!middleware.ssr, 
                     ]
-                )) || []));
+                )) || [])).send();
                 return {
                     finished: true
                 };
@@ -640,8 +632,7 @@ class DevServer extends _nextServer.default {
         // from waiting on them for the page to load in dev mode
         const __getStaticPaths = async ()=>{
             const { configFileName , publicRuntimeConfig , serverRuntimeConfig , httpAgentOptions ,  } = this.nextConfig;
-            const { locales , defaultLocale  } = this.nextConfig.i18n || {
-            };
+            const { locales , defaultLocale  } = this.nextConfig.i18n || {};
             const paths = await this.getStaticPathsWorker().loadStaticPaths(this.distDir, pathname, !this.renderOpts.dev && this._isLikeServerless, {
                 configFileName,
                 publicRuntimeConfig,
@@ -658,8 +649,7 @@ class DevServer extends _nextServer.default {
     async ensureApiPage(pathname) {
         return this.hotReloader.ensurePage(pathname);
     }
-    async findPageComponents(pathname, query = {
-    }, params = null) {
+    async findPageComponents(pathname, query = {}, params = null) {
         await this.devReady;
         const compilationErr = await this.getCompilationError(pathname);
         if (compilationErr) {

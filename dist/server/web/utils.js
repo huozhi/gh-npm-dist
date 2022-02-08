@@ -8,6 +8,7 @@ exports.notImplemented = notImplemented;
 exports.fromNodeHeaders = fromNodeHeaders;
 exports.toNodeHeaders = toNodeHeaders;
 exports.splitCookiesString = splitCookiesString;
+exports.validateURL = validateURL;
 async function* streamToIterator(readable) {
     const reader = readable.getReader();
     while(true){
@@ -61,8 +62,7 @@ function fromNodeHeaders(object) {
     return headers;
 }
 function toNodeHeaders(headers) {
-    const result = {
-    };
+    const result = {};
     if (headers) {
         for (const [key, value] of headers.entries()){
             result[key] = value;
@@ -127,6 +127,14 @@ function splitCookiesString(cookiesString) {
         }
     }
     return cookiesStrings;
+}
+function validateURL(url) {
+    try {
+        return String(new URL(String(url)));
+    } catch (error) {
+        console.log(`warn  -`, 'using relative URLs for Middleware will be deprecated soon - https://nextjs.org/docs/messages/middleware-relative-urls');
+        return String(url);
+    }
 }
 
 //# sourceMappingURL=utils.js.map

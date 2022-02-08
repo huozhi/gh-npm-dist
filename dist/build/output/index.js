@@ -48,8 +48,8 @@ function formatAmpMessages(amp) {
             warn.specUrl || ''
         ]);
     }
-    for(const page in amp){
-        let { errors , warnings  } = amp[page];
+    for(const page1 in amp){
+        let { errors , warnings  } = amp[page1];
         const devOnlyFilter = (err)=>err.code !== 'DEV_MODE_ONLY'
         ;
         errors = errors.filter(devOnlyFilter);
@@ -58,13 +58,13 @@ function formatAmpMessages(amp) {
             continue;
         }
         if (errors.length) {
-            ampError(page, errors[0]);
+            ampError(page1, errors[0]);
             for(let index = 1; index < errors.length; ++index){
                 ampError('', errors[index]);
             }
         }
         if (warnings.length) {
-            ampWarn(errors.length ? '' : page, warnings[0]);
+            ampWarn(errors.length ? '' : page1, warnings[0]);
             for(let index = 1; index < warnings.length; ++index){
                 ampWarn('', warnings[index]);
             }
@@ -166,8 +166,7 @@ function ampValidation(page, errors, warnings) {
             amp: Object.keys(amp).filter((k)=>k !== page
             ).sort()// eslint-disable-next-line no-sequences
             .reduce((a, c)=>(a[c] = amp[c], a)
-            , {
-            })
+            , {})
         });
         return;
     }
@@ -181,8 +180,7 @@ function ampValidation(page, errors, warnings) {
     buildStore.setState({
         amp: Object.keys(newAmp).sort()// eslint-disable-next-line no-sequences
         .reduce((a, c)=>(a[c] = newAmp[c], a)
-        , {
-        })
+        , {})
     });
 }
 function watchCompilers(client, server, serverWeb) {
@@ -209,8 +207,7 @@ function watchCompilers(client, server, serverWeb) {
         });
         compiler.hooks.done.tap(`NextJsDone-${key}`, (stats)=>{
             buildStore.setState({
-                amp: {
-                }
+                amp: {}
             });
             const { errors , warnings  } = (0, _formatWebpackMessages).default(stats.toJson({
                 preset: 'errors-warnings',

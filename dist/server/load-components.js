@@ -17,11 +17,9 @@ async function loadDefaultErrorComponents(distDir) {
         App,
         Document,
         Component,
-        pageConfig: {
-        },
+        pageConfig: {},
         buildManifest: require((0, _path).join(distDir, `fallback-${_constants.BUILD_MANIFEST}`)),
-        reactLoadableManifest: {
-        },
+        reactLoadableManifest: {},
         ComponentMod
     };
 }
@@ -31,8 +29,7 @@ async function loadComponents(distDir, pathname, serverless) {
         if (typeof ComponentMod === 'string') {
             return {
                 Component: ComponentMod,
-                pageConfig: {
-                },
+                pageConfig: {},
                 ComponentMod
             };
         }
@@ -41,8 +38,7 @@ async function loadComponents(distDir, pathname, serverless) {
         getStaticProps = await getStaticProps;
         getStaticPaths = await getStaticPaths;
         getServerSideProps = await getServerSideProps;
-        const pageConfig = await ComponentMod.config || {
-        };
+        const pageConfig = await ComponentMod.config || {};
         return {
             Component,
             pageConfig,
@@ -71,8 +67,7 @@ async function loadComponents(distDir, pathname, serverless) {
         Component,
         buildManifest,
         reactLoadableManifest,
-        pageConfig: ComponentMod.config || {
-        },
+        pageConfig: ComponentMod.config || {},
         ComponentMod,
         getServerSideProps,
         getStaticProps,

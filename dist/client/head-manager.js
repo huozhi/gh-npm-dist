@@ -92,8 +92,7 @@ function initHeadManager() {
             const promise = updatePromise = Promise.resolve().then(()=>{
                 if (promise !== updatePromise) return;
                 updatePromise = null;
-                const tags = {
-                };
+                const tags = {};
                 head.forEach((h)=>{
                     if (// If the font tag is loaded only on client navigation
                     // it won't be inlined. In this case revert to the original behavior

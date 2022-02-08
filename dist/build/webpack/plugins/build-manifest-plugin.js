@@ -154,8 +154,7 @@ class BuildManifestPlugin {
             }
             assetMap.pages = Object.keys(assetMap.pages).sort()// eslint-disable-next-line
             .reduce((a, c)=>(a[c] = assetMap.pages[c], a)
-            , {
-            });
+            , {});
             let buildManifestName = _constants.BUILD_MANIFEST;
             if (this.isDevFallback) {
                 buildManifestName = `fallback-${_constants.BUILD_MANIFEST}`;

@@ -3,19 +3,19 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.flushAllTraces = exports.trace = exports.SpanStatus = void 0;
-var _indexCjs = require("next/dist/compiled/nanoid/index.cjs");
 var _report = require("./report");
 const NUM_OF_MICROSEC_IN_SEC = BigInt('1000');
-const nanoid = (0, _indexCjs).customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 8);
-const getId = ()=>Buffer.from(nanoid(), 'utf8').toString('hex')
-;
+let count = 0;
+const getId = ()=>{
+    count++;
+    return count;
+};
 var SpanStatus;
 exports.SpanStatus = SpanStatus;
 (function(SpanStatus) {
     SpanStatus[SpanStatus["Started"] = 0] = "Started";
     SpanStatus[SpanStatus["Stopped"] = 1] = "Stopped";
-})(SpanStatus || (exports.SpanStatus = SpanStatus = {
-}));
+})(SpanStatus || (exports.SpanStatus = SpanStatus = {}));
 class Span {
     constructor({ name , parentId , attrs , startTime  }){
         this.name = name;
@@ -23,8 +23,7 @@ class Span {
         this.duration = null;
         this.attrs = attrs ? {
             ...attrs
-        } : {
-        };
+        } : {};
         this.status = SpanStatus.Started;
         this.id = getId();
         this._start = startTime || process.hrtime.bigint();

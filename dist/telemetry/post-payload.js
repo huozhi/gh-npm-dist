@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports._postPayload = _postPayload;
 var _asyncRetry = _interopRequireDefault(require("next/dist/compiled/async-retry"));
-var _nodeFetch = _interopRequireDefault(require("node-fetch"));
+var _nodeFetch = _interopRequireDefault(require("next/dist/compiled/node-fetch"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -32,9 +32,7 @@ function _postPayload(endpoint, body) {
     }).catch(()=>{
     // We swallow errors when telemetry cannot be sent
     })// Ensure promise is voided
-    .then(()=>{
-    }, ()=>{
-    });
+    .then(()=>{}, ()=>{});
 }
 
 //# sourceMappingURL=post-payload.js.map

@@ -16,8 +16,7 @@ const Portal = ({ children , type  })=>{
     _react.default.useEffect(()=>{
         portalNode.current = document.createElement(type);
         document.body.appendChild(portalNode.current);
-        forceUpdate({
-        });
+        forceUpdate({});
         return ()=>{
             if (portalNode.current) {
                 document.body.removeChild(portalNode.current);

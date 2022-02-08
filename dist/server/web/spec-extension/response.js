@@ -19,14 +19,12 @@ const REDIRECTS = new Set([
     308
 ]);
 class NextResponse extends Response {
-    constructor(body, init = {
-    }){
+    constructor(body, init = {}){
         var ref, ref1, ref2;
         super(body, init);
         const cookieParser = ()=>{
             const value = this.headers.get('cookie');
-            return value ? _cookie.default.parse(value) : {
-            };
+            return value ? _cookie.default.parse(value) : {};
         };
         this[INTERNALS] = {
             cookieParser,
@@ -41,8 +39,7 @@ class NextResponse extends Response {
     get cookies() {
         return this[INTERNALS].cookieParser();
     }
-    cookie(name, value, opts = {
-    }) {
+    cookie(name, value, opts = {}) {
         const val = typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value);
         const options = {
             ...opts
@@ -57,8 +54,7 @@ class NextResponse extends Response {
         this.headers.append('Set-Cookie', _cookie.default.serialize(name, String(val), options));
         return this;
     }
-    clearCookie(name, opts = {
-    }) {
+    clearCookie(name, opts = {}) {
         return this.cookie(name, '', {
             expires: new Date(1),
             path: '/',
@@ -72,11 +68,11 @@ class NextResponse extends Response {
             }
         });
     }
-    static redirect(url, status = 302) {
+    static redirect(url, status = 307) {
         if (!REDIRECTS.has(status)) {
             throw new RangeError('Failed to execute "redirect" on "response": Invalid status code');
         }
-        const destination = typeof url === 'string' ? url : url.toString();
+        const destination = (0, _utils).validateURL(url);
         return new NextResponse(destination, {
             headers: {
                 Location: destination
@@ -87,7 +83,7 @@ class NextResponse extends Response {
     static rewrite(destination) {
         return new NextResponse(null, {
             headers: {
-                'x-middleware-rewrite': typeof destination === 'string' ? destination : destination.toString()
+                'x-middleware-rewrite': (0, _utils).validateURL(destination)
             }
         });
     }

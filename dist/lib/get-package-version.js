@@ -16,13 +16,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -45,18 +43,13 @@ async function getDependencies({ cwd  }) {
     });
     if (!configurationPath) {
         return cachedDeps = {
-            dependencies: {
-            },
-            devDependencies: {
-            }
+            dependencies: {},
+            devDependencies: {}
         };
     }
     const content = await _fs.promises.readFile(configurationPath, 'utf-8');
     const packageJson = _json5.default.parse(content);
-    const { dependencies ={
-    } , devDependencies ={
-    }  } = packageJson || {
-    };
+    const { dependencies ={} , devDependencies ={}  } = packageJson || {};
     return cachedDeps = {
         dependencies,
         devDependencies

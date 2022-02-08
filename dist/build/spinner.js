@@ -17,8 +17,7 @@ const dotsSpinner = {
     ],
     interval: 200
 };
-function createSpinner(text, options = {
-}, logFn = console.log) {
+function createSpinner(text, options = {}, logFn = console.log) {
     let spinner;
     let prefixText = text && typeof text === 'object' && text.prefixText;
     if (process.stdout.isTTY) {

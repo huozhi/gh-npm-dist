@@ -13,7 +13,6 @@ exports.isPageStatic = isPageStatic;
 exports.hasCustomGetInitialProps = hasCustomGetInitialProps;
 exports.getNamedExports = getNamedExports;
 exports.detectConflictingPaths = detectConflictingPaths;
-exports.getCssFilePaths = getCssFilePaths;
 exports.getRawPageExtensions = getRawPageExtensions;
 exports.isFlightPage = isFlightPage;
 exports.getUnresolvedModuleFromError = getUnresolvedModuleFromError;
@@ -26,7 +25,7 @@ var _gzipSize = _interopRequireDefault(require("next/dist/compiled/gzip-size"));
 var _textTable = _interopRequireDefault(require("next/dist/compiled/text-table"));
 var _path = _interopRequireDefault(require("path"));
 var _fs = require("fs");
-var _reactIs = require("react-is");
+var _reactIs = require("next/dist/compiled/react-is");
 var _stripAnsi = _interopRequireDefault(require("next/dist/compiled/strip-ansi"));
 var _constants = require("../lib/constants");
 var _prettyBytes = _interopRequireDefault(require("../lib/pretty-bytes"));
@@ -54,13 +53,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -75,8 +72,7 @@ function _interopRequireWildcard(obj) {
 }
 const { builtinModules  } = require('module');
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/;
-const fileGzipStats = {
-};
+const fileGzipStats = {};
 const fsStatGzip = (file)=>{
     const cached = fileGzipStats[file];
     if (cached) return cached;
@@ -84,8 +80,7 @@ const fsStatGzip = (file)=>{
 };
 const fileSize = async (file)=>(await _fs.promises.stat(file)).size
 ;
-const fileStats = {
-};
+const fileStats = {};
 const fsStat = (file)=>{
     const cached = fileStats[file];
     if (cached) return cached;
@@ -418,13 +413,11 @@ async function computeFromManifest(manifest, distPath, gzipSize = true, pageInfo
         sizeUniqueFiles: uniqueStats.reduce((obj, n)=>Object.assign(obj, {
                 [n[0]]: n[1]
             })
-        , {
-        }),
+        , {}),
         sizeCommonFile: stats.reduce((obj, n)=>Object.assign(obj, {
                 [n[0]]: n[1]
             })
-        , {
-        }),
+        , {}),
         sizeCommonFiles: stats.reduce((size, [f, stat])=>{
             if (f.endsWith('.css')) return size;
             return size + stat;
@@ -481,8 +474,7 @@ async function getJsPageSizeInKb(page, distPath, buildManifest, gzipSize = true,
             selfFilesSize,
             allFilesSize
         ];
-    } catch (_) {
-    }
+    } catch (_) {}
     return [
         -1,
         -1
@@ -544,8 +536,7 @@ async function buildStaticPaths(page, getStaticPaths, configFileName, locales, d
                 throw new Error(`Additional keys were returned from \`getStaticPaths\` in page "${page}". ` + `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` + `\n\n\treturn { params: { ${_validParamKeys.map((k)=>`${k}: ...`
                 ).join(', ')} } }` + `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.\n`);
             }
-            const { params ={
-            }  } = entry;
+            const { params ={}  } = entry;
             let builtPage = page;
             let encodedBuiltPage = page;
             _validParamKeys.forEach((validParamKey)=>{
@@ -657,8 +648,7 @@ async function isPageStatic(page, distDir, serverless, configFileName, runtimeEn
                 traceExcludes: config.unstable_excludeFiles || []
             };
         } catch (err) {
-            if ((0, _isError).default(err) && err.code === 'MODULE_NOT_FOUND') return {
-            };
+            if ((0, _isError).default(err) && err.code === 'MODULE_NOT_FOUND') return {};
             throw err;
         }
     });
@@ -743,19 +733,6 @@ function detectConflictingPaths(combinedPages, ssgPages, additionalSsgPaths) {
         process.exit(1);
     }
 }
-function getCssFilePaths(buildManifest) {
-    const cssFiles = new Set();
-    Object.values(buildManifest.pages).forEach((files)=>{
-        files.forEach((file)=>{
-            if (file.endsWith('.css')) {
-                cssFiles.add(file);
-            }
-        });
-    });
-    return [
-        ...cssFiles
-    ];
-}
 function getRawPageExtensions(pageExtensions) {
     return pageExtensions.filter((ext)=>!ext.startsWith('client.') && !ext.startsWith('server.')
     );
@@ -774,7 +751,7 @@ function getUnresolvedModuleFromError(error) {
     return builtinModules.find((item)=>item === moduleName
     );
 }
-async function copyTracedFiles(dir, distDir, pageKeys, tracingRoot, serverConfig) {
+async function copyTracedFiles(dir, distDir, pageKeys, tracingRoot, serverConfig, middlewareManifest) {
     const outputPath = _path.default.join(distDir, 'standalone');
     const copiedFiles = new Set();
     await (0, _recursiveDelete).recursiveDelete(outputPath);
@@ -806,6 +783,18 @@ async function copyTracedFiles(dir, distDir, pageKeys, tracingRoot, serverConfig
         }));
     }
     for (const page of pageKeys){
+        if (_constants.MIDDLEWARE_ROUTE.test(page)) {
+            const { files  } = middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/'];
+            for (const file of files){
+                const originalPath = _path.default.join(distDir, file);
+                const fileOutputPath = _path.default.join(outputPath, _path.default.relative(tracingRoot, distDir), file);
+                await _fs.promises.mkdir(_path.default.dirname(fileOutputPath), {
+                    recursive: true
+                });
+                await _fs.promises.copyFile(originalPath, fileOutputPath);
+            }
+            continue;
+        }
         const pageFile = _path.default.join(distDir, 'server', 'pages', `${(0, _normalizePagePath).normalizePagePath(page)}.js`);
         const pageTraceFile = `${pageFile}.nft.json`;
         await handleTraceFiles(pageTraceFile);
@@ -819,16 +808,7 @@ const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
 const path = require('path')
 
-const nextServer = new NextServer({
-  dir: path.join(__dirname),
-  dev: false,
-  conf: ${JSON.stringify({
-        ...serverConfig,
-        distDir: `./${_path.default.relative(dir, distDir)}`
-    })},
-})
-
-const handler = nextServer.getRequestHandler()
+let handler
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -839,12 +819,26 @@ const server = http.createServer(async (req, res) => {
     res.end('internal server error')
   }
 })
-const currentPort = process.env.PORT || 3000
+const currentPort = parseInt(process.env.PORT, 10) || 3000
+
 server.listen(currentPort, (err) => {
   if (err) {
     console.error("Failed to start server", err)
     process.exit(1)
   }
+  const addr = server.address()
+  const nextServer = new NextServer({
+    hostname: 'localhost',
+    port: currentPort,
+    dir: path.join(__dirname),
+    dev: false,
+    conf: ${JSON.stringify({
+        ...serverConfig,
+        distDir: `./${_path.default.relative(dir, distDir)}`
+    })},
+  })
+  handler = nextServer.getRequestHandler()
+
   console.log("Listening on port", currentPort)
 })
     `);

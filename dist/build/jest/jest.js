@@ -18,13 +18,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -55,8 +53,7 @@ async function getConfig(dir) {
     }
 }
 console.warn('"next/jest" is currently experimental. https://nextjs.org/docs/messages/experimental-jest-transformer');
-function nextJest(options = {
-}) {
+function nextJest(options = {}) {
     // createJestConfig
     return (customJestConfig)=>{
         // Function that is provided as the module.exports of jest.config.js
@@ -77,8 +74,9 @@ function nextJest(options = {
                 jsConfig = result.jsConfig;
                 resolvedBaseUrl = result.resolvedBaseUrl;
             }
+            var ref;
             // Ensure provided async config is supported
-            const resolvedJestConfig = typeof customJestConfig === 'function' ? await customJestConfig() : customJestConfig;
+            const resolvedJestConfig = (ref = typeof customJestConfig === 'function' ? await customJestConfig() : customJestConfig) !== null && ref !== void 0 ? ref : {};
             return {
                 ...resolvedJestConfig,
                 moduleNameMapper: {
@@ -90,8 +88,7 @@ function nextJest(options = {
                     // Handle image imports
                     '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$': require.resolve(`./__mocks__/fileMock.js`),
                     // Custom config will be able to override the default mappings
-                    ...resolvedJestConfig.moduleNameMapper || {
-                    }
+                    ...resolvedJestConfig.moduleNameMapper || {}
                 },
                 testPathIgnorePatterns: [
                     // Don't look for tests in node_modules
@@ -114,8 +111,7 @@ function nextJest(options = {
                         }, 
                     ],
                     // Allow for appending/overriding the default transforms
-                    ...resolvedJestConfig.transform || {
-                    }
+                    ...resolvedJestConfig.transform || {}
                 },
                 transformIgnorePatterns: [
                     // To match Next.js behavior node_modules is not transformed

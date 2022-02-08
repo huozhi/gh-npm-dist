@@ -28,8 +28,7 @@ async function writeAppTypeDeclarations(baseDir, imageImportsEnabled) {
                 eol = '\n';
             }
         }
-    } catch (err) {
-    }
+    } catch (err) {}
     const content = '/// <reference types="next" />' + eol + (imageImportsEnabled ? '/// <reference types="next/image-types/global" />' + eol : '') + eol + '// NOTE: This file should not be edited' + eol + '// see https://nextjs.org/docs/basic-features/typescript for more information.' + eol;
     // Avoids an un-necessary write on read-only fs
     if (currentContent === content) {

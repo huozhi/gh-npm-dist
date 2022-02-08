@@ -11,8 +11,7 @@ const INVALID_TOKEN_REGEX = /[^^_`a-zA-Z\-0-9!#$%&'*+.|~]/;
 const INVALID_HEADER_CHAR_REGEX = /[^\t\x20-\x7e\x80-\xff]/;
 class BaseHeaders {
     constructor(init){
-        this[_key] = {
-        };
+        this[_key] = {};
         if (init instanceof BaseHeaders) {
             const rawHeaders = init.raw();
             for (const headerName of Object.keys(rawHeaders)){

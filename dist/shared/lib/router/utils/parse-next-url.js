@@ -17,8 +17,7 @@ function parseNextUrl({ headers , nextConfig , url ='/'  }) {
     if (nextConfig.i18n) {
         var ref;
         urlParsed.locale = (0, _getLocaleMetadata).getLocaleMetadata({
-            cookies: (0, _apiUtils).getCookieParser(headers || {
-            }),
+            cookies: (0, _apiUtils).getCookieParser(headers || {}),
             headers: headers,
             nextConfig: {
                 basePath: nextConfig.basePath,

@@ -33,14 +33,13 @@ function nextPageConfig({ types: t  }) {
                             }
                         },
                         ExportNamedDeclaration (exportPath, exportState) {
-                            var ref7, ref1;
+                            var ref, ref1;
                             if (exportState.bundleDropped || !exportPath.node.declaration && exportPath.node.specifiers.length === 0) {
                                 return;
                             }
-                            const config = {
-                            };
+                            const config = {};
                             const declarations = [
-                                ...((ref7 = exportPath.node.declaration) === null || ref7 === void 0 ? void 0 : ref7.declarations) || [],
+                                ...((ref = exportPath.node.declaration) === null || ref === void 0 ? void 0 : ref.declarations) || [],
                                 (ref1 = exportPath.scope.getBinding(CONFIG_KEY)) === null || ref1 === void 0 ? void 0 : ref1.path.node, 
                             ].filter(Boolean);
                             for (const specifier of exportPath.node.specifiers){
@@ -51,8 +50,8 @@ function nextPageConfig({ types: t  }) {
                                     // import hello from 'world'
                                     // export { hello as config }
                                     } else if (_core.types.isIdentifier(specifier.local)) {
-                                        var ref5;
-                                        if (_core.types.isImportSpecifier((ref5 = exportPath.scope.getBinding(specifier.local.name)) === null || ref5 === void 0 ? void 0 : ref5.path.node)) {
+                                        var ref2;
+                                        if (_core.types.isImportSpecifier((ref2 = exportPath.scope.getBinding(specifier.local.name)) === null || ref2 === void 0 ? void 0 : ref2.path.node)) {
                                             throw new Error(errorMessage(exportState, `Expected object but got import`));
                                         }
                                     }
@@ -64,11 +63,15 @@ function nextPageConfig({ types: t  }) {
                                 })) {
                                     continue;
                                 }
-                                if (!_core.types.isObjectExpression(declaration.init)) {
-                                    const got = declaration.init ? declaration.init.type : 'undefined';
+                                let { init  } = declaration;
+                                if (_core.types.isTSAsExpression(init)) {
+                                    init = init.expression;
+                                }
+                                if (!_core.types.isObjectExpression(init)) {
+                                    const got = init ? init.type : 'undefined';
                                     throw new Error(errorMessage(exportState, `Expected object but got ${got}`));
                                 }
-                                for (const prop of declaration.init.properties){
+                                for (const prop of init.properties){
                                     if (_core.types.isSpreadElement(prop)) {
                                         throw new Error(errorMessage(exportState, `Property spread is not allowed`));
                                     }
@@ -87,8 +90,8 @@ function nextPageConfig({ types: t  }) {
                                 }
                             }
                             if (config.amp === true) {
-                                var ref, ref5;
-                                if (!((ref = exportState.file) === null || ref === void 0 ? void 0 : (ref5 = ref.opts) === null || ref5 === void 0 ? void 0 : ref5.caller.isDev)) {
+                                var ref3, ref4;
+                                if (!((ref3 = exportState.file) === null || ref3 === void 0 ? void 0 : (ref4 = ref3.opts) === null || ref4 === void 0 ? void 0 : ref4.caller.isDev)) {
                                     // don't replace bundle in development so HMR can track
                                     // dependencies and trigger reload when they are changed
                                     replaceBundle(exportPath, t);

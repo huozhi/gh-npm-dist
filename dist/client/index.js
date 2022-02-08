@@ -23,9 +23,9 @@ var _pageLoader = _interopRequireDefault(require("./page-loader"));
 var _performanceRelayer = _interopRequireDefault(require("./performance-relayer"));
 var _routeAnnouncer = require("./route-announcer");
 var _router1 = require("./router");
-var _isError = _interopRequireDefault(require("../lib/is-error"));
-var _vitals = require("./vitals");
-var _refresh = require("./rsc/refresh");
+var _isError = require("../lib/is-error");
+var _vitals = require("./streaming/vitals");
+var _refresh = require("./streaming/refresh");
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -77,13 +77,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -98,8 +96,7 @@ function _interopRequireWildcard(obj) {
 }
 function _objectSpread(target) {
     for(var i = 1; i < arguments.length; i++){
-        var source = arguments[i] != null ? arguments[i] : {
-        };
+        var source = arguments[i] != null ? arguments[i] : {};
         var ownKeys = Object.keys(source);
         if (typeof Object.getOwnPropertySymbols === "function") {
             ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function(sym) {
@@ -112,9 +109,36 @@ function _objectSpread(target) {
     }
     return target;
 }
+function _objectWithoutProperties(source, excluded) {
+    if (source == null) return {};
+    var target = _objectWithoutPropertiesLoose(source, excluded);
+    var key, i;
+    if (Object.getOwnPropertySymbols) {
+        var sourceSymbolKeys = Object.getOwnPropertySymbols(source);
+        for(i = 0; i < sourceSymbolKeys.length; i++){
+            key = sourceSymbolKeys[i];
+            if (excluded.indexOf(key) >= 0) continue;
+            if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue;
+            target[key] = source[key];
+        }
+    }
+    return target;
+}
+function _objectWithoutPropertiesLoose(source, excluded) {
+    if (source == null) return {};
+    var target = {};
+    var sourceKeys = Object.keys(source);
+    var key, i;
+    for(i = 0; i < sourceKeys.length; i++){
+        key = sourceKeys[i];
+        if (excluded.indexOf(key) >= 0) continue;
+        target[key] = source[key];
+    }
+    return target;
+}
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent);
 window.__NEXT_DATA__ = data;
-const version = "12.0.8-canary.13";
+const version = "12.0.11-canary.7";
 exports.version = version;
 const looseToArray = (input)=>[].slice.call(input)
 ;
@@ -127,10 +151,8 @@ __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 ;
 // Initialize next/config with the environment configuration
 (0, _runtimeConfig).setConfig({
-    serverRuntimeConfig: {
-    },
-    publicRuntimeConfig: runtimeConfig || {
-    }
+    serverRuntimeConfig: {},
+    publicRuntimeConfig: runtimeConfig || {}
 });
 let asPath = (0, _utils).getURL();
 // make sure not to attempt stripping basePath for 404s
@@ -244,9 +266,11 @@ class Container extends _react.default.Component {
 const emitter = (0, _mitt).default();
 exports.emitter = emitter;
 let CachedComponent;
+function initNext() {
+    return _initNext.apply(this, arguments);
+}
 function _initNext() {
-    _initNext = _asyncToGenerator(function*(opts = {
-    }) {
+    _initNext = _asyncToGenerator(function*(opts = {}) {
         // This makes sure this specific lines are removed in production
         if (process.env.NODE_ENV === 'development') {
             webpackHMR = opts.webpackHMR;
@@ -287,14 +311,14 @@ function _initNext() {
             }
             CachedComponent = pageEntrypoint.component;
             if (process.env.NODE_ENV !== 'production') {
-                const { isValidElementType  } = require('react-is');
+                const { isValidElementType  } = require('next/dist/compiled/react-is');
                 if (!isValidElementType(CachedComponent)) {
                     throw new Error(`The default export is not a React Component in page: "${page}"`);
                 }
             }
-        } catch (error) {
+        } catch (error1) {
             // This catches errors like throwing in the top level of a module
-            initialErr = (0, _isError).default(error) ? error : new Error(error + '');
+            initialErr = (0, _isError).getProperError(error1);
         }
         if (process.env.NODE_ENV === 'development') {
             const { getNodeError ,  } = require('next/dist/compiled/@next/react-dev-overlay/client');
@@ -340,8 +364,7 @@ function _initNext() {
             wrapApp,
             err: initialErr,
             isFallback: Boolean(isFallback),
-            subscription: (info, App, scroll)=>render(Object.assign({
-                }, info, {
+            subscription: (info, App, scroll)=>render(Object.assign({}, info, {
                     App,
                     scroll
                 }))
@@ -359,20 +382,15 @@ function _initNext() {
             props: hydrateProps,
             err: initialErr
         };
-        if (process.env.NODE_ENV === 'production') {
-            render(renderCtx);
-            return emitter;
-        } else {
-            return {
-                emitter,
-                renderCtx
-            };
+        if (opts.beforeRender) {
+            yield opts.beforeRender();
         }
+        render(renderCtx);
     });
     return _initNext.apply(this, arguments);
 }
-function initNext() {
-    return _initNext.apply(this, arguments);
+function render(renderingProps) {
+    return _render.apply(this, arguments);
 }
 function _render() {
     _render = _asyncToGenerator(function*(renderingProps) {
@@ -383,7 +401,7 @@ function _render() {
         try {
             yield doRender(renderingProps);
         } catch (err) {
-            const renderErr = err instanceof Error ? err : new Error(err + '');
+            const renderErr = (0, _isError).getProperError(err);
             // bubble up cancelation errors
             if (renderErr.cancelled) {
                 throw renderErr;
@@ -394,15 +412,11 @@ function _render() {
                     throw renderErr;
                 });
             }
-            yield renderError(_objectSpread({
-            }, renderingProps, {
+            yield renderError(_objectSpread({}, renderingProps, {
                 err: renderErr
             }));
         }
     });
-    return _render.apply(this, arguments);
-}
-function render(renderingProps) {
     return _render.apply(this, arguments);
 }
 function renderError(renderErrorProps) {
@@ -418,8 +432,7 @@ function renderError(renderErrorProps) {
         return doRender({
             App: ()=>null
             ,
-            props: {
-            },
+            props: {},
             Component: ()=>null
             ,
             styleSheets: []
@@ -454,8 +467,7 @@ function renderError(renderErrorProps) {
                 AppTree
             }
         };
-        return Promise.resolve(renderErrorProps.props ? renderErrorProps.props : (0, _utils).loadGetInitialProps(App, appCtx)).then((initProps)=>doRender(_objectSpread({
-            }, renderErrorProps, {
+        return Promise.resolve(renderErrorProps.props ? renderErrorProps.props : (0, _utils).loadGetInitialProps(App, appCtx)).then((initProps)=>doRender(_objectSpread({}, renderErrorProps, {
                 err,
                 Component: ErrorComponent,
                 styleSheets,
@@ -544,15 +556,25 @@ function AppContainer({ children  }) {
         value: headManager
     }, children))));
 }
+function renderApp(App, appProps) {
+    if (process.env.__NEXT_RSC && App.__next_rsc__) {
+        const { Component , err: _ , router: __  } = appProps, props = _objectWithoutProperties(appProps, [
+            "Component",
+            "err",
+            "router"
+        ]);
+        return(/*#__PURE__*/ _react.default.createElement(Component, Object.assign({}, props)));
+    } else {
+        return(/*#__PURE__*/ _react.default.createElement(App, Object.assign({}, appProps)));
+    }
+}
 const wrapApp = (App)=>(wrappedAppProps)=>{
-        const appProps = _objectSpread({
-        }, wrappedAppProps, {
+        const appProps = _objectSpread({}, wrappedAppProps, {
             Component: CachedComponent,
             err: hydrateErr,
             router
         });
-        return(/*#__PURE__*/ _react.default.createElement(AppContainer, null, /*#__PURE__*/ _react.default.createElement(App, Object.assign({
-        }, appProps))));
+        return(/*#__PURE__*/ _react.default.createElement(AppContainer, null, renderApp(App, appProps)));
     }
 ;
 let RSCComponent;
@@ -648,11 +670,9 @@ if (process.env.__NEXT_RSC) {
     RSCComponent = (props)=>{
         const cacheKey = getCacheKey();
         const { __flight_serialized__ , __flight_fresh__  } = props;
-        const [, dispatch] = (0, _react).useState({
-        });
+        const [, dispatch] = (0, _react).useState({});
         const startTransition = _react.default.startTransition;
-        const renrender = ()=>dispatch({
-            })
+        const renrender = ()=>dispatch({})
         ;
         // If there is no cache, or there is serialized data already
         function refreshCache(nextProps) {
@@ -681,8 +701,7 @@ function doRender(input) {
     Component = Component || lastAppProps.Component;
     props = props || lastAppProps.props;
     const isRSC = process.env.__NEXT_RSC && 'initial' in input ? !!rsc : !!__N_RSC;
-    const appProps = _objectSpread({
-    }, props, {
+    const appProps = _objectSpread({}, props, {
         Component: isRSC ? RSCComponent : Component,
         err,
         router
@@ -782,8 +801,7 @@ function doRender(input) {
     onStart();
     const elem = /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement(Head, {
         callback: onHeadCommit
-    }), /*#__PURE__*/ _react.default.createElement(AppContainer, null, /*#__PURE__*/ _react.default.createElement(App, Object.assign({
-    }, appProps)), /*#__PURE__*/ _react.default.createElement(_portal.Portal, {
+    }), /*#__PURE__*/ _react.default.createElement(AppContainer, null, renderApp(App, appProps), /*#__PURE__*/ _react.default.createElement(_portal.Portal, {
         type: "next-route-announcer"
     }, /*#__PURE__*/ _react.default.createElement(_routeAnnouncer.RouteAnnouncer, null))));
     // We catch runtime errors using componentDidCatch which will trigger renderError
@@ -817,6 +835,7 @@ function Root({ callbacks , children  }) {
     // don't cause any hydration delay:
     _react.default.useEffect(()=>{
         (0, _performanceRelayer).default(onPerfEntry);
+        (0, _vitals).flushBufferedVitalsMetrics();
     }, []);
     return children;
 }

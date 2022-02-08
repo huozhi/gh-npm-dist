@@ -4,11 +4,11 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 var _devalue = _interopRequireDefault(require("next/dist/compiled/devalue"));
-var _escapeStringRegexp = _interopRequireDefault(require("next/dist/compiled/escape-string-regexp"));
 var _path = require("path");
 var _querystring = require("querystring");
 var _constants = require("../../../../lib/constants");
 var _utils = require("../../../../shared/lib/router/utils");
+var _escapeRegexp = require("../../../../shared/lib/escape-regexp");
 var _constants1 = require("../../../../shared/lib/constants");
 var _stringifyRequest = require("../../stringify-request");
 function _interopRequireDefault(obj) {
@@ -21,7 +21,7 @@ const nextServerlessLoader = function() {
     const buildManifest = (0, _path).join(distDir, _constants1.BUILD_MANIFEST).replace(/\\/g, '/');
     const reactLoadableManifest = (0, _path).join(distDir, _constants1.REACT_LOADABLE_MANIFEST).replace(/\\/g, '/');
     const routesManifest = (0, _path).join(distDir, _constants1.ROUTES_MANIFEST).replace(/\\/g, '/');
-    const escapedBuildId = (0, _escapeStringRegexp).default(buildId);
+    const escapedBuildId = (0, _escapeRegexp).escapeStringRegexp(buildId);
     const pageIsDynamicRoute = (0, _utils).isDynamicRoute(page);
     const encodedPreviewProps = (0, _devalue).default(JSON.parse(previewProps));
     const envLoading = `

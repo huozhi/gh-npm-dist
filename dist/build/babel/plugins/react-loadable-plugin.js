@@ -20,7 +20,7 @@ function _default({ types: t  }) {
                     return;
                 }
                 binding.referencePaths.forEach((refPath)=>{
-                    var ref, ref1;
+                    var ref2, ref1;
                     let callExpression = refPath.parentPath;
                     if (callExpression.isMemberExpression() && callExpression.node.computed === false) {
                         const property = callExpression.get('property');
@@ -55,8 +55,7 @@ function _default({ types: t  }) {
                     if (!options.isObjectExpression()) return;
                     const options_ = options;
                     let properties = options_.get('properties');
-                    let propertiesMap = {
-                    };
+                    let propertiesMap = {};
                     properties.forEach((property)=>{
                         const key = property.get('key');
                         propertiesMap[key.node.name] = property;
@@ -77,16 +76,16 @@ function _default({ types: t  }) {
                     const dynamicKeys = [];
                     loader.traverse({
                         Import (importPath) {
-                            var ref2;
+                            var ref;
                             const importArguments = importPath.parentPath.get('arguments');
                             if (!Array.isArray(importArguments)) return;
                             const node = importArguments[0].node;
                             dynamicImports.push(node);
-                            dynamicKeys.push(t.binaryExpression('+', t.stringLiteral((((ref2 = state.file.opts.caller) === null || ref2 === void 0 ? void 0 : ref2.pagesDir) ? (0, _path).relative(state.file.opts.caller.pagesDir, state.file.opts.filename) : state.file.opts.filename) + ' -> '), node));
+                            dynamicKeys.push(t.binaryExpression('+', t.stringLiteral((((ref = state.file.opts.caller) === null || ref === void 0 ? void 0 : ref.pagesDir) ? (0, _path).relative(state.file.opts.caller.pagesDir, state.file.opts.filename) : state.file.opts.filename) + ' -> '), node));
                         }
                     });
                     if (!dynamicImports.length) return;
-                    options.node.properties.push(t.objectProperty(t.identifier('loadableGenerated'), t.objectExpression(((ref = state.file.opts.caller) === null || ref === void 0 ? void 0 : ref.isDev) || ((ref1 = state.file.opts.caller) === null || ref1 === void 0 ? void 0 : ref1.isServer) ? [
+                    options.node.properties.push(t.objectProperty(t.identifier('loadableGenerated'), t.objectExpression(((ref2 = state.file.opts.caller) === null || ref2 === void 0 ? void 0 : ref2.isDev) || ((ref1 = state.file.opts.caller) === null || ref1 === void 0 ? void 0 : ref1.isServer) ? [
                         t.objectProperty(t.identifier('modules'), t.arrayExpression(dynamicKeys)), 
                     ] : [
                         t.objectProperty(t.identifier('webpack'), t.arrowFunctionExpression([], t.arrayExpression(dynamicImports.map((dynamicImport)=>{

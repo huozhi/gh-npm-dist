@@ -12,8 +12,7 @@ function _interopRequireDefault(obj) {
     };
 }
 const defaultConfig = {
-    env: {
-    },
+    env: {},
     webpack: null,
     webpackDevMiddleware: null,
     eslint: {
@@ -54,18 +53,15 @@ const defaultConfig = {
         canonicalBase: ''
     },
     basePath: '',
-    sassOptions: {
-    },
+    sassOptions: {},
     trailingSlash: false,
     i18n: null,
     productionBrowserSourceMaps: false,
     optimizeFonts: true,
     webpack5: undefined,
     excludeDefaultMomentLocales: true,
-    serverRuntimeConfig: {
-    },
-    publicRuntimeConfig: {
-    },
+    serverRuntimeConfig: {},
+    publicRuntimeConfig: {},
     reactStrictMode: false,
     httpAgentOptions: {
         keepAlive: true
@@ -103,16 +99,14 @@ const defaultConfig = {
     }
 };
 exports.defaultConfig = defaultConfig;
-function normalizeConfig(phase, config) {
+async function normalizeConfig(phase, config) {
     if (typeof config === 'function') {
         config = config(phase, {
             defaultConfig
         });
-        if (typeof config.then === 'function') {
-            throw new Error('> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config');
-        }
     }
-    return config;
+    // Support `new Promise` and `async () =>` as return values of the config export
+    return await config;
 }
 
 //# sourceMappingURL=config-shared.js.map

@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 var path = _interopRequireWildcard(require("path"));
 var _webpack = require("next/dist/compiled/webpack/webpack");
 var _pLimit = _interopRequireDefault(require("next/dist/compiled/p-limit"));
-var _jestWorker = require("jest-worker");
+var _jestWorker = require("next/dist/compiled/jest-worker");
 var _profilingPlugin = require("../../profiling-plugin");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -16,13 +16,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -57,10 +55,8 @@ function buildError(error, file) {
 }
 const debugMinify = process.env.NEXT_DEBUG_MINIFY;
 class TerserPlugin {
-    constructor(options = {
-    }){
-        const { terserOptions ={
-        } , parallel , swcMinify  } = options;
+    constructor(options = {}){
+        const { terserOptions ={} , parallel , swcMinify  } = options;
         this.options = {
             swcMinify,
             parallel,
@@ -84,6 +80,11 @@ class TerserPlugin {
                 const res = compilation.getAsset(name);
                 if (!res) {
                     console.log(name);
+                    return false;
+                }
+                // don't minify _middleware as it can break in some cases
+                // and doesn't provide too much of a benefit as it's server-side
+                if (name.match(/(middleware-runtime\.js|middleware-chunks|_middleware\.js$)/)) {
                     return false;
                 }
                 const { info  } = res;
@@ -128,8 +129,7 @@ class TerserPlugin {
                                     sourceMap: {
                                         content: JSON.stringify(options.inputSourceMap)
                                     }
-                                } : {
-                                },
+                                } : {},
                                 compress: true,
                                 mangle: true
                             });
@@ -216,8 +216,7 @@ class TerserPlugin {
         const { SourceMapSource , RawSource  } = (compiler === null || compiler === void 0 ? void 0 : (ref = compiler.webpack) === null || ref === void 0 ? void 0 : ref.sources) || _webpack.sources;
         const { output  } = compiler.options;
         if (typeof this.options.terserOptions.ecma === 'undefined') {
-            this.options.terserOptions.ecma = getEcmaVersion(output.environment || {
-            });
+            this.options.terserOptions.ecma = getEcmaVersion(output.environment || {});
         }
         const pluginName = this.constructor.name;
         const availableNumberOfCores = this.options.parallel;

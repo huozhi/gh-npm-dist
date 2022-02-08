@@ -9,8 +9,7 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
-const HeadManagerContext = _react.default.createContext({
-});
+const HeadManagerContext = _react.default.createContext({});
 exports.HeadManagerContext = HeadManagerContext;
 if (process.env.NODE_ENV !== 'production') {
     HeadManagerContext.displayName = 'HeadManagerContext';

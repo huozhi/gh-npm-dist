@@ -7,10 +7,32 @@ var _fontUtils = require("../../../server/font-utils");
 var _postcss = _interopRequireDefault(require("postcss"));
 var _cssnanoSimple = _interopRequireDefault(require("next/dist/compiled/cssnano-simple"));
 var _constants = require("../../../shared/lib/constants");
+var Log = _interopRequireWildcard(require("../../output/log"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
     };
+}
+function _interopRequireWildcard(obj) {
+    if (obj && obj.__esModule) {
+        return obj;
+    } else {
+        var newObj = {};
+        if (obj != null) {
+            for(var key in obj){
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
+                    if (desc.get || desc.set) {
+                        Object.defineProperty(newObj, key, desc);
+                    } else {
+                        newObj[key] = obj[key];
+                    }
+                }
+            }
+        }
+        newObj.default = obj;
+        return newObj;
+    }
 }
 function minifyCss(css) {
     return (0, _postcss).default([
@@ -67,7 +89,7 @@ class FontStylesheetGatheringPlugin {
                         return result;
                     });
                     const jsxNodeHandler = (node)=>{
-                        var ref, ref6;
+                        var ref, ref2;
                         if (node.arguments.length !== 2) {
                             // A font link tag has only two arguments rel=stylesheet and href='...'
                             return;
@@ -78,8 +100,7 @@ class FontStylesheetGatheringPlugin {
                         // node.arguments[0] is the name of the tag and [1] are the props.
                         const arg1 = node.arguments[1];
                         const propsNode = arg1.type === 'ObjectExpression' ? arg1 : undefined;
-                        const props = {
-                        };
+                        const props = {};
                         if (propsNode) {
                             propsNode.properties.forEach((prop)=>{
                                 if (prop.type !== 'Property') {
@@ -95,7 +116,7 @@ class FontStylesheetGatheringPlugin {
                             return false;
                         }
                         this.gatheredStylesheets.push(props.href);
-                        const buildInfo = parser === null || parser === void 0 ? void 0 : (ref = parser.state) === null || ref === void 0 ? void 0 : (ref6 = ref.module) === null || ref6 === void 0 ? void 0 : ref6.buildInfo;
+                        const buildInfo = parser === null || parser === void 0 ? void 0 : (ref = parser.state) === null || ref === void 0 ? void 0 : (ref2 = ref.module) === null || ref2 === void 0 ? void 0 : ref2.buildInfo;
                         if (buildInfo) {
                             buildInfo.valueDependencies.set(_constants.FONT_MANIFEST, this.gatheredStylesheets);
                         }
@@ -132,8 +153,8 @@ class FontStylesheetGatheringPlugin {
                 let fontStylesheets = this.gatheredStylesheets;
                 const fontUrls = new Set();
                 modules.forEach((module)=>{
-                    var ref, ref1;
-                    const fontDependencies = module === null || module === void 0 ? void 0 : (ref = module.buildInfo) === null || ref === void 0 ? void 0 : (ref1 = ref.valueDependencies) === null || ref1 === void 0 ? void 0 : ref1.get(_constants.FONT_MANIFEST);
+                    var ref, ref3;
+                    const fontDependencies = module === null || module === void 0 ? void 0 : (ref = module.buildInfo) === null || ref === void 0 ? void 0 : (ref3 = ref.valueDependencies) === null || ref3 === void 0 ? void 0 : ref3.get(_constants.FONT_MANIFEST);
                     if (fontDependencies) {
                         fontDependencies.forEach((v)=>fontUrls.add(v)
                         );
@@ -146,11 +167,16 @@ class FontStylesheetGatheringPlugin {
                 for(let promiseIndex in fontDefinitionPromises){
                     const css = await fontDefinitionPromises[promiseIndex];
                     if (css) {
-                        const content = await minifyCss(css);
-                        this.manifestContent.push({
-                            url: fontStylesheets[promiseIndex],
-                            content
-                        });
+                        try {
+                            const content = await minifyCss(css);
+                            this.manifestContent.push({
+                                url: fontStylesheets[promiseIndex],
+                                content
+                            });
+                        } catch (err) {
+                            Log.warn(`Failed to minify the stylesheet for ${fontStylesheets[promiseIndex]}. Skipped optimizing this font.`);
+                            console.error(err);
+                        }
                     }
                 }
                 compilation.assets[_constants.FONT_MANIFEST] = new _webpack.sources.RawSource(JSON.stringify(this.manifestContent, null, '  '));

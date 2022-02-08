@@ -57,10 +57,10 @@ async function lazyPostCSS(rootDirectory, supportedBrowsers, disablePostcssPrese
                         return cache;
                     }
                 });
-                creator.process = function(css, processOpts, pluginOpts) {
+                creator.process = function(css1, processOpts, pluginOpts) {
                     return postcss([
                         creator(pluginOpts)
-                    ]).process(css, processOpts);
+                    ]).process(css1, processOpts);
                 };
                 return creator;
             };
@@ -107,7 +107,7 @@ async function lazyPostCSS(rootDirectory, supportedBrowsers, disablePostcssPrese
 }
 const css = (0, _lodashCurry).default(async function css(ctx, config) {
     const { prependData: sassPrependData , additionalData: sassAdditionalData , ...sassOptions } = ctx.sassOptions;
-    const lazyPostCSSInitalizer = ()=>lazyPostCSS(ctx.rootDirectory, ctx.supportedBrowsers, ctx.experimental.disablePostcssPresetEnv)
+    const lazyPostCSSInitializer = ()=>lazyPostCSS(ctx.rootDirectory, ctx.supportedBrowsers, ctx.experimental.disablePostcssPresetEnv)
     ;
     const sassPreprocessors = [
         // First, process files with `sass-loader`: this inlines content, and
@@ -128,8 +128,9 @@ const css = (0, _lodashCurry).default(async function css(ctx, config) {
         // To fix this, we use `resolve-url-loader` to rewrite the CSS
         // imports to real file paths.
         {
-            loader: require.resolve('next/dist/compiled/resolve-url-loader'),
+            loader: require.resolve('../../../loaders/resolve-url-loader/index'),
             options: {
+                postcss: lazyPostCSSInitializer,
                 // Source maps are not required here, but we may as well emit
                 // them.
                 sourceMap: true
@@ -177,7 +178,7 @@ const css = (0, _lodashCurry).default(async function css(ctx, config) {
                         /node_modules/
                     ]
                 },
-                use: (0, _loaders).getCssModuleLoader(ctx, lazyPostCSSInitalizer)
+                use: (0, _loaders).getCssModuleLoader(ctx, lazyPostCSSInitializer)
             }), 
         ]
     }));
@@ -202,7 +203,7 @@ const css = (0, _lodashCurry).default(async function css(ctx, config) {
                         /node_modules/
                     ]
                 },
-                use: (0, _loaders).getCssModuleLoader(ctx, lazyPostCSSInitalizer, sassPreprocessors)
+                use: (0, _loaders).getCssModuleLoader(ctx, lazyPostCSSInitializer, sassPreprocessors)
             }), 
         ]
     }));
@@ -266,7 +267,7 @@ const css = (0, _lodashCurry).default(async function css(ctx, config) {
                             /node_modules/
                         ]
                     },
-                    use: (0, _loaders).getGlobalCssLoader(ctx, lazyPostCSSInitalizer)
+                    use: (0, _loaders).getGlobalCssLoader(ctx, lazyPostCSSInitializer)
                 }), 
             ]
         }));
@@ -285,7 +286,7 @@ const css = (0, _lodashCurry).default(async function css(ctx, config) {
                                 ctx.customAppFile
                             ]
                         },
-                        use: (0, _loaders).getGlobalCssLoader(ctx, lazyPostCSSInitalizer)
+                        use: (0, _loaders).getGlobalCssLoader(ctx, lazyPostCSSInitializer)
                     }), 
                 ]
             }));
@@ -303,7 +304,7 @@ const css = (0, _lodashCurry).default(async function css(ctx, config) {
                                 ctx.customAppFile
                             ]
                         },
-                        use: (0, _loaders).getGlobalCssLoader(ctx, lazyPostCSSInitalizer, sassPreprocessors)
+                        use: (0, _loaders).getGlobalCssLoader(ctx, lazyPostCSSInitializer, sassPreprocessors)
                     }), 
                 ]
             }));

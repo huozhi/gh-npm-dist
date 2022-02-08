@@ -132,12 +132,10 @@ function createRouter(...args) {
 }
 function makePublicRouterInstance(router) {
     const scopedRouter = router;
-    const instance = {
-    };
+    const instance = {};
     for (const property of urlPropertyFields){
         if (typeof scopedRouter[property] === 'object') {
-            instance[property] = Object.assign(Array.isArray(scopedRouter[property]) ? [] : {
-            }, scopedRouter[property]) // makes sure query is not stateful
+            instance[property] = Object.assign(Array.isArray(scopedRouter[property]) ? [] : {}, scopedRouter[property]) // makes sure query is not stateful
             ;
             continue;
         }

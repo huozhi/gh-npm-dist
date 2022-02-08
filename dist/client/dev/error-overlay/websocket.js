@@ -13,8 +13,7 @@ function getSocketProtocol(assetPrefix) {
     try {
         // assetPrefix is a url
         protocol = new URL(assetPrefix).protocol;
-    } catch (_) {
-    }
+    } catch (_) {}
     return protocol === 'http:' ? 'ws' : 'wss';
 }
 function addMessageListener(cb) {

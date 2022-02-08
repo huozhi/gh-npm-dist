@@ -32,15 +32,33 @@ function unescape(str) {
 function normalizePath(file) {
     return _path.default.sep === '\\' ? file.replace(/\\/g, '/') : file;
 }
+function fixedEncodeURIComponent(str) {
+    return str.replace(/[!'()*]/g, (c)=>`%${c.charCodeAt(0).toString(16)}`
+    );
+}
 function normalizeUrl(url, isStringValue) {
     let normalizedUrl = url;
     if (isStringValue && /\\(\n|\r\n|\r|\f)/.test(normalizedUrl)) {
         normalizedUrl = normalizedUrl.replace(/\\(\n|\r\n|\r|\f)/g, '');
     }
     if (matchNativeWin32Path.test(url)) {
-        return decodeURIComponent(normalizedUrl);
+        try {
+            normalizedUrl = decodeURIComponent(normalizedUrl);
+        } catch (error) {
+        // Ignores invalid and broken URLs and try to resolve them as is
+        }
+        return normalizedUrl;
     }
-    return decodeURIComponent(unescape(normalizedUrl));
+    normalizedUrl = unescape(normalizedUrl);
+    if (isDataUrl(url)) {
+        return fixedEncodeURIComponent(normalizedUrl);
+    }
+    try {
+        normalizedUrl = decodeURI(normalizedUrl);
+    } catch (error) {
+    // Ignores invalid and broken URLs and try to resolve them as is
+    }
+    return normalizedUrl;
 }
 function requestify(url, rootContext) {
     if (/^file:/i.test(url)) {
@@ -252,39 +270,39 @@ function getExportCode(exports, replacements, options) {
             localsCode += `\t${JSON.stringify(name)}: ${JSON.stringify(value)}`;
         }
     };
-    for (const { name , value  } of exports){
+    for (const { name: name1 , value: value1  } of exports){
         switch(options.modules.exportLocalsConvention){
             case 'camelCase':
                 {
-                    addExportToLocalsCode(name, value);
-                    const modifiedName = (0, _camelcase).default(name);
-                    if (modifiedName !== name) {
-                        addExportToLocalsCode(modifiedName, value);
+                    addExportToLocalsCode(name1, value1);
+                    const modifiedName = (0, _camelcase).default(name1);
+                    if (modifiedName !== name1) {
+                        addExportToLocalsCode(modifiedName, value1);
                     }
                     break;
                 }
             case 'camelCaseOnly':
                 {
-                    addExportToLocalsCode((0, _camelcase).default(name), value);
+                    addExportToLocalsCode((0, _camelcase).default(name1), value1);
                     break;
                 }
             case 'dashes':
                 {
-                    addExportToLocalsCode(name, value);
-                    const modifiedName = dashesCamelCase(name);
-                    if (modifiedName !== name) {
-                        addExportToLocalsCode(modifiedName, value);
+                    addExportToLocalsCode(name1, value1);
+                    const modifiedName = dashesCamelCase(name1);
+                    if (modifiedName !== name1) {
+                        addExportToLocalsCode(modifiedName, value1);
                     }
                     break;
                 }
             case 'dashesOnly':
                 {
-                    addExportToLocalsCode(dashesCamelCase(name), value);
+                    addExportToLocalsCode(dashesCamelCase(name1), value1);
                     break;
                 }
             case 'asIs':
             default:
-                addExportToLocalsCode(name, value);
+                addExportToLocalsCode(name1, value1);
                 break;
         }
     }

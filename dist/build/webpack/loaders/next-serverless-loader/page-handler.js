@@ -61,9 +61,7 @@ function getPageHandler(ctx) {
             canonicalBase,
             buildId,
             assetPrefix,
-            runtimeConfig: (runtimeConfig || {
-            }).publicRuntimeConfig || {
-            },
+            runtimeConfig: (runtimeConfig || {}).publicRuntimeConfig || {},
             previewProps: encodedPreviewProps,
             env: process.env,
             basePath,
@@ -84,14 +82,12 @@ function getPageHandler(ctx) {
             if (basePath) {
                 routeNoAssetPath = routeNoAssetPath.replace(new RegExp(`^${basePath}`), '') || '/';
             }
-            const origQuery = Object.assign({
-            }, parsedUrl.query);
+            const origQuery = Object.assign({}, parsedUrl.query);
             parsedUrl = handleRewrites(req, parsedUrl);
             handleBasePath(req, parsedUrl);
             // remove ?amp=1 from request URL if rendering for export
             if (fromExport && parsedUrl.query.amp) {
-                const queryNoAmp = Object.assign({
-                }, origQuery);
+                const queryNoAmp = Object.assign({}, origQuery);
                 delete queryNoAmp.amp;
                 req.url = (0, _url).format({
                     ...parsedUrl,
@@ -129,8 +125,7 @@ function getPageHandler(ctx) {
             if (page === '/_error' && !res.statusCode) {
                 res.statusCode = 404;
             }
-            let params = {
-            };
+            let params = {};
             if (!fromExport && pageIsDynamic) {
                 const result = normalizeDynamicRouteParams(trustQuery ? parsedUrl.query : dynamicRouteMatcher(parsedUrl.pathname));
                 hasValidParams = result.hasValidParams;
@@ -187,16 +182,13 @@ function getPageHandler(ctx) {
          */ // @ts-ignore
                 renderOpts.fontManifest = __webpack_require__.__NEXT_FONT_MANIFEST__;
             }
-            let result = await (0, _render).renderToHTML(req, res, page, Object.assign({
-            }, getStaticProps ? {
+            let result = await (0, _render).renderToHTML(req, res, page, Object.assign({}, getStaticProps ? {
                 ...parsedUrl.query.amp ? {
                     amp: '1'
-                } : {
-                }
+                } : {}
             } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? {
                 __nextFallback: 'true'
-            } : {
-            }), renderOpts);
+            } : {}), renderOpts);
             if (!renderMode) {
                 if (_nextData || getStaticProps || getServerSideProps) {
                     if (renderOpts.isNotFound) {
@@ -207,8 +199,7 @@ function getPageHandler(ctx) {
                         }
                         const NotFoundComponent = notFoundMod ? notFoundMod.default : Error;
                         const errPathname = notFoundMod ? '/404' : '/_error';
-                        const result2 = await (0, _render).renderToHTML(req, res, errPathname, parsedUrl.query, Object.assign({
-                        }, options, {
+                        const result2 = await (0, _render).renderToHTML(req, res, errPathname, parsedUrl.query, Object.assign({}, options, {
                             getStaticProps: notFoundMod ? notFoundMod.getStaticProps : undefined,
                             getStaticPaths: undefined,
                             getServerSideProps: undefined,
@@ -286,8 +277,7 @@ function getPageHandler(ctx) {
                 console.error('Unhandled error during request:', err);
                 // Backwards compat (call getInitialProps in custom error):
                 try {
-                    await (0, _render).renderToHTML(req, res, '/_error', parsedUrl.query, Object.assign({
-                    }, options, {
+                    await (0, _render).renderToHTML(req, res, '/_error', parsedUrl.query, Object.assign({}, options, {
                         getStaticProps: undefined,
                         getStaticPaths: undefined,
                         getServerSideProps: undefined,
@@ -307,8 +297,7 @@ function getPageHandler(ctx) {
                 }
                 throw err;
             }
-            const result2 = await (0, _render).renderToHTML(req, res, '/_error', parsedUrl.query, Object.assign({
-            }, options, {
+            const result2 = await (0, _render).renderToHTML(req, res, '/_error', parsedUrl.query, Object.assign({}, options, {
                 getStaticProps: undefined,
                 getStaticPaths: undefined,
                 getServerSideProps: undefined,

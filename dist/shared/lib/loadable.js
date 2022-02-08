@@ -163,16 +163,13 @@ class LoadableSubscription {
             }
         }
         this._res.promise.then(()=>{
-            this._update({
-            });
+            this._update({});
             this._clearTimeouts();
         }).catch((_err)=>{
-            this._update({
-            });
+            this._update({});
             this._clearTimeouts();
         });
-        this._update({
-        });
+        this._update({});
     }
     _update(partial) {
         this._state = {

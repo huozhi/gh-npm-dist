@@ -62,8 +62,7 @@ function getModulesOptions(rawOptions, loaderContext) {
         }
         modulesOptions = {
             ...modulesOptions,
-            ...rawOptions.modules || {
-            }
+            ...rawOptions.modules || {}
         };
     }
     if (typeof modulesOptions.mode === 'function') {

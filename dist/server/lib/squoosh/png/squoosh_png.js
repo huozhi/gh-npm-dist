@@ -113,10 +113,8 @@ async function load(module, imports) {
     }
 }
 async function init(input) {
-    const imports = {
-    };
-    imports.wbg = {
-    };
+    const imports = {};
+    imports.wbg = {};
     imports.wbg.__wbg_newwithownedu8clampedarrayandsh_787b2db8ea6bfd62 = function(arg0, arg1, arg2, arg3) {
         var v0 = getClampedArrayU8FromWasm0(arg0, arg1).slice();
         wasm.__wbindgen_free(arg0, arg1 * 1);

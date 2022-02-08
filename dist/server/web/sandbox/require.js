@@ -28,8 +28,7 @@ function createRequire(context, cache) {
             return cached.exports;
         }
         const module = {
-            exports: {
-            },
+            exports: {},
             loaded: false,
             id: resolved
         };

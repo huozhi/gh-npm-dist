@@ -21,13 +21,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -96,7 +94,7 @@ function getModuleContext(options) {
             }
         ], 
     ]);
-    const context = createContext();
+    const context = createContext(options);
     (0, _require).requireDependencies({
         requireCache: requireCache,
         context: context,
@@ -138,12 +136,10 @@ function getModuleContext(options) {
         }
         return fn();
     };
-    context.fetch = (input, init = {
-    })=>{
+    context.fetch = (input, init = {})=>{
         var ref;
         var _headers;
-        init.headers = new Headers((_headers = init.headers) !== null && _headers !== void 0 ? _headers : {
-        });
+        init.headers = new Headers((_headers = init.headers) !== null && _headers !== void 0 ? _headers : {});
         const prevs = ((ref = init.headers.get(`x-middleware-subrequest`)) === null || ref === void 0 ? void 0 : ref.split(':')) || [];
         const value = prevs.concat(options.module).join(':');
         init.headers.set('x-middleware-subrequest', value);
@@ -164,10 +160,9 @@ function getModuleContext(options) {
 /**
  * Create a base context with all required globals for the runtime that
  * won't depend on any externally provided dependency.
- */ function createContext() {
+ */ function createContext(options) {
     const context = {
-        _ENTRIES: {
-        },
+        _ENTRIES: {},
         atob: polyfills.atob,
         Blob: _formdataNode.Blob,
         btoa: polyfills.btoa,
@@ -191,9 +186,7 @@ function getModuleContext(options) {
         File: _formdataNode.File,
         FormData: _formdataNode.FormData,
         process: {
-            env: {
-                ...process.env
-            }
+            env: buildEnvironmentVariablesFrom(options.env)
         },
         ReadableStream: polyfills.ReadableStream,
         setInterval,
@@ -234,6 +227,14 @@ function getModuleContext(options) {
             wasm: false
         } : undefined
     });
+}
+function buildEnvironmentVariablesFrom(keys) {
+    const pairs = keys.map((key)=>[
+            key,
+            process.env[key]
+        ]
+    );
+    return Object.fromEntries(pairs);
 }
 
 //# sourceMappingURL=context.js.map

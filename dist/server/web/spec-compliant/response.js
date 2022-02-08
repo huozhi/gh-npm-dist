@@ -5,6 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.Response = void 0;
 var _body = require("./body");
 var _nextUrl = require("../next-url");
+var _utils = require("../utils");
 const INTERNALS = Symbol('internal response');
 const REDIRECTS = new Set([
     301,
@@ -33,11 +34,11 @@ class BaseResponse extends _body.Body {
             }
         }
     }
-    static redirect(url, status = 302) {
+    static redirect(url, status = 307) {
         if (!REDIRECTS.has(status)) {
             throw new RangeError('Failed to execute "redirect" on "response": Invalid status code');
         }
-        return new Response(url, {
+        return new Response((0, _utils).validateURL(url), {
             headers: {
                 Location: url
             },

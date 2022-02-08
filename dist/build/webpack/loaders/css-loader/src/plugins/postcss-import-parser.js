@@ -88,8 +88,7 @@ function parseNode(atRule, key) {
         isRequestable
     };
 }
-const plugin = (options = {
-})=>{
+const plugin = (options = {})=>{
     return {
         postcssPlugin: 'postcss-import-parser',
         prepare (result) {

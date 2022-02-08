@@ -53,6 +53,9 @@ function isUpdateAvailable() {
 function canApplyUpdates() {
     return module.hot.status() === 'idle';
 }
+function tryApplyUpdates() {
+    return _tryApplyUpdates.apply(this, arguments);
+}
 function _tryApplyUpdates() {
     _tryApplyUpdates = // This function reads code updates on the fly and hard
     // reloads the page when it has changed.
@@ -78,9 +81,6 @@ function _tryApplyUpdates() {
             document.location.reload(true);
         }
     });
-    return _tryApplyUpdates.apply(this, arguments);
-}
-function tryApplyUpdates() {
     return _tryApplyUpdates.apply(this, arguments);
 }
 (0, _websocket).addMessageListener((event)=>{

@@ -1,5 +1,4 @@
 "use strict";
-module.exports = {
-};
+module.exports = {};
 
 //# sourceMappingURL=styleMock.js.map

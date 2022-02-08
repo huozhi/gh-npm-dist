@@ -18,8 +18,7 @@ function getRouteMatcher(routeRegex) {
                 throw new _utils.DecodeError('failed to decode param');
             }
         };
-        const params = {
-        };
+        const params = {};
         Object.keys(groups).forEach((slugName)=>{
             const g = groups[slugName];
             const m = routeMatch[g.pos];

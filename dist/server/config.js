@@ -21,9 +21,8 @@ Object.defineProperty(exports, "normalizeConfig", {
     }
 });
 exports.default = loadConfig;
-exports.isTargetLikeServerless = isTargetLikeServerless;
 exports.setHttpAgentOptions = setHttpAgentOptions;
-var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
+var _chalk = _interopRequireDefault(require("../lib/chalk"));
 var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
 var _path = require("path");
 var _url = require("url");
@@ -46,13 +45,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -76,7 +73,7 @@ const experimentalWarning = (0, _utils).execOnce(()=>{
     console.warn();
 });
 function assignDefaults(userConfig) {
-    var ref, ref1, ref2, ref3;
+    var ref7, ref1, ref2, ref3;
     const configFileName = userConfig.configFileName;
     if (typeof userConfig.exportTrailingSlash !== 'undefined') {
         console.warn(_chalk.default.yellow.bold('Warning: ') + `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`);
@@ -85,10 +82,10 @@ function assignDefaults(userConfig) {
         }
         delete userConfig.exportTrailingSlash;
     }
-    if (typeof ((ref = userConfig.experimental) === null || ref === void 0 ? void 0 : ref.reactMode) !== 'undefined') {
-        var ref13;
+    if (typeof ((ref7 = userConfig.experimental) === null || ref7 === void 0 ? void 0 : ref7.reactMode) !== 'undefined') {
+        var ref4;
         console.warn(_chalk.default.yellow.bold('Warning: ') + `The experimental "reactMode" option has been replaced with "reactRoot". Please update your ${configFileName}.`);
-        if (typeof ((ref13 = userConfig.experimental) === null || ref13 === void 0 ? void 0 : ref13.reactRoot) === 'undefined') {
+        if (typeof ((ref4 = userConfig.experimental) === null || ref4 === void 0 ? void 0 : ref4.reactRoot) === 'undefined') {
             userConfig.experimental.reactRoot = [
                 'concurrent',
                 'blocking'
@@ -142,15 +139,13 @@ function assignDefaults(userConfig) {
                         c[k] = v;
                     }
                     return c;
-                }, {
-                })
+                }, {})
             };
         } else {
             currentConfig[key] = value;
         }
         return currentConfig;
-    }, {
-    });
+    }, {});
     const result = {
         ..._configShared.defaultConfig,
         ...config
@@ -169,14 +164,14 @@ function assignDefaults(userConfig) {
             throw new Error(`Specified basePath has to start with a /, found "${result.basePath}"`);
         }
         if (result.basePath !== '/') {
-            var ref13;
+            var ref5;
             if (result.basePath.endsWith('/')) {
                 throw new Error(`Specified basePath should not end with /, found "${result.basePath}"`);
             }
             if (result.assetPrefix === '') {
                 result.assetPrefix = result.basePath;
             }
-            if (((ref13 = result.amp) === null || ref13 === void 0 ? void 0 : ref13.canonicalBase) === '') {
+            if (((ref5 = result.amp) === null || ref5 === void 0 ? void 0 : ref5.canonicalBase) === '') {
                 result.amp.canonicalBase = result.basePath;
             }
         }
@@ -187,14 +182,14 @@ function assignDefaults(userConfig) {
             throw new Error(`Specified images should be an object received ${typeof images}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
         }
         if (images.domains) {
-            var ref13;
+            var ref6;
             if (!Array.isArray(images.domains)) {
                 throw new Error(`Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
             }
             // static images are automatically prefixed with assetPrefix
             // so we need to ensure _next/image allows downloading from
             // this resource
-            if ((ref13 = config.assetPrefix) === null || ref13 === void 0 ? void 0 : ref13.startsWith('http')) {
+            if ((ref6 = config.assetPrefix) === null || ref6 === void 0 ? void 0 : ref6.startsWith('http')) {
                 images.domains.push(new URL(config.assetPrefix).hostname);
             }
             if (images.domains.length > 50) {
@@ -283,7 +278,7 @@ function assignDefaults(userConfig) {
         result.swcMinify = result.experimental.swcMinify;
     }
     if (result.swcMinify) {
-        Log.warn('SWC minify beta enabled. https://nextjs.org/docs/messages/swc-minify-enabled');
+        Log.warn('SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled');
     }
     if (((ref1 = result.experimental) === null || ref1 === void 0 ? void 0 : ref1.outputFileTracingRoot) && !(0, _path).isAbsolute(result.experimental.outputFileTracingRoot)) {
         result.experimental.outputFileTracingRoot = (0, _path).resolve(result.experimental.outputFileTracingRoot);
@@ -416,7 +411,7 @@ async function loadConfig(phase, dir, customConfig) {
             Log.error(`Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`);
             throw err;
         }
-        const userConfig = (0, _configShared).normalizeConfig(phase, userConfigModule.default || userConfigModule);
+        const userConfig = await (0, _configShared).normalizeConfig(phase, userConfigModule.default || userConfigModule);
         if (Object.keys(userConfig).length === 0) {
             Log.warn(`Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`);
         }
@@ -427,10 +422,8 @@ async function loadConfig(phase, dir, customConfig) {
             Log.warn('The `target` config is deprecated and will be removed in a future version.\n' + 'See more info here https://nextjs.org/docs/messages/deprecated-target-config');
         }
         if ((ref = userConfig.amp) === null || ref === void 0 ? void 0 : ref.canonicalBase) {
-            const { canonicalBase  } = userConfig.amp || {
-            };
-            userConfig.amp = userConfig.amp || {
-            };
+            const { canonicalBase  } = userConfig.amp || {};
+            userConfig.amp = userConfig.amp || {};
             userConfig.amp.canonicalBase = (canonicalBase.endsWith('/') ? canonicalBase.slice(0, -1) : canonicalBase) || '';
         }
         if (process.env.NEXT_PRIVATE_TARGET || _ciInfo.hasNextSupport) {
@@ -460,11 +453,6 @@ async function loadConfig(phase, dir, customConfig) {
     completeConfig.configFileName = configFileName;
     setHttpAgentOptions(completeConfig.httpAgentOptions);
     return completeConfig;
-}
-function isTargetLikeServerless(target) {
-    const isServerless = target === 'serverless';
-    const isServerlessTrace = target === 'experimental-serverless-trace';
-    return isServerless || isServerlessTrace;
 }
 function setHttpAgentOptions(options) {
     if (global.__NEXT_HTTP_AGENT) {

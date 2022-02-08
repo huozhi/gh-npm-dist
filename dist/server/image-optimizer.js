@@ -53,13 +53,13 @@ try {
 // Sharp not present on the server, Squoosh fallback will be used
 }
 let showSharpMissingWarning = process.env.NODE_ENV === 'production';
-async function imageOptimizer(server, req, res, parsedUrl, nextConfig, distDir, isDev = false) {
+async function imageOptimizer(req, res, parsedUrl, nextConfig, distDir, render404, handleRequest, isDev = false) {
     const imageData = nextConfig.images || _imageConfig.imageConfigDefault;
     const { deviceSizes =[] , imageSizes =[] , domains =[] , loader , minimumCacheTTL =60 , formats =[
         'image/webp'
     ] ,  } = imageData;
     if (loader !== 'default') {
-        await server.render404(req, res, parsedUrl);
+        await render404();
         return {
             finished: true
         };
@@ -184,14 +184,14 @@ async function imageOptimizer(server, req, res, parsedUrl, nextConfig, distDir, 
     const imagesDir = (0, _path).join(distDir, 'cache', 'images');
     const hashDir = (0, _path).join(imagesDir, hash);
     const now = Date.now();
+    let xCache = 'MISS';
     // If there're concurrent requests hitting the same resource and it's still
     // being optimized, wait before accessing the cache.
     if (inflightRequests.has(hash)) {
         await inflightRequests.get(hash);
     }
-    let dedupeResolver;
-    inflightRequests.set(hash, new Promise((resolve)=>dedupeResolver = resolve
-    ));
+    const dedupe = new Deferred();
+    inflightRequests.set(hash, dedupe.promise);
     try {
         if (await (0, _fileExists).fileExists(hashDir, 'directory')) {
             const files = await _fs.promises.readdir(hashDir);
@@ -201,11 +201,14 @@ async function imageOptimizer(server, req, res, parsedUrl, nextConfig, distDir, 
                 const expireAt = Number(expireAtSt);
                 const contentType = (0, _serveStatic).getContentType(extension);
                 const fsPath = (0, _path).join(hashDir, file);
-                if (now < expireAt) {
-                    const result = setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, isDev);
-                    if (!result.finished) {
-                        (0, _fs).createReadStream(fsPath).pipe(res);
-                    }
+                xCache = now < expireAt ? 'HIT' : 'STALE';
+                const result = setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, isDev, xCache);
+                if (!result.finished) {
+                    await new Promise((resolve, reject)=>{
+                        (0, _fs).createReadStream(fsPath).on('end', resolve).on('error', reject).pipe(res);
+                    });
+                }
+                if (xCache === 'HIT') {
                     return {
                         finished: true
                     };
@@ -245,11 +248,15 @@ async function imageOptimizer(server, req, res, parsedUrl, nextConfig, distDir, 
                 mockRes.write = (chunk)=>{
                     resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
                 };
-                mockRes._write = (chunk)=>{
+                mockRes._write = (chunk, _encoding, callback)=>{
                     mockRes.write(chunk);
+                    // According to Node.js documentation, the callback MUST be invoked to signal that
+                    // the write completed successfully. If this callback is not invoked, the 'finish' event
+                    // will not be emitted.
+                    // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
+                    callback();
                 };
-                const mockHeaders = {
-                };
+                const mockHeaders = {};
                 mockRes.writeHead = (_status, _headers)=>Object.assign(mockHeaders, _headers)
                 ;
                 mockRes.getHeader = (name)=>mockHeaders[name.toLowerCase()]
@@ -263,8 +270,7 @@ async function imageOptimizer(server, req, res, parsedUrl, nextConfig, distDir, 
                 mockRes.removeHeader = (name)=>{
                     delete mockHeaders[name.toLowerCase()];
                 };
-                mockRes._implicitHeader = ()=>{
-                };
+                mockRes._implicitHeader = ()=>{};
                 mockRes.connection = res.connection;
                 mockRes.finished = false;
                 mockRes.statusCode = 200;
@@ -278,7 +284,7 @@ async function imageOptimizer(server, req, res, parsedUrl, nextConfig, distDir, 
                 mockReq.method = req.method;
                 mockReq.url = href;
                 mockReq.connection = req.connection;
-                await server.getRequestHandler()(mockReq, mockRes, _url.default.parse(href, true));
+                await handleRequest(mockReq, mockRes, _url.default.parse(href, true));
                 await isStreamFinished;
                 res.statusCode = mockRes.statusCode;
                 upstreamBuffer = Buffer.concat(resBuffers);
@@ -298,7 +304,7 @@ async function imageOptimizer(server, req, res, parsedUrl, nextConfig, distDir, 
             const animate = ANIMATABLE_TYPES.includes(upstreamType) && (0, _isAnimated).default(upstreamBuffer);
             if (vector || animate) {
                 await writeToCacheDir(hashDir, upstreamType, maxAge, expireAt, upstreamBuffer);
-                sendResponse(req, res, url, maxAge, upstreamType, upstreamBuffer, isStatic, isDev);
+                sendResponse(req, res, url, maxAge, upstreamType, upstreamBuffer, isStatic, isDev, xCache);
                 return {
                     finished: true
                 };
@@ -414,19 +420,18 @@ async function imageOptimizer(server, req, res, parsedUrl, nextConfig, distDir, 
             }
             if (optimizedBuffer) {
                 await writeToCacheDir(hashDir, contentType, maxAge, expireAt, optimizedBuffer);
-                sendResponse(req, res, url, maxAge, contentType, optimizedBuffer, isStatic, isDev);
+                sendResponse(req, res, url, maxAge, contentType, optimizedBuffer, isStatic, isDev, xCache);
             } else {
                 throw new Error('Unable to optimize buffer');
             }
         } catch (error) {
-            sendResponse(req, res, url, maxAge, upstreamType, upstreamBuffer, isStatic, isDev);
+            sendResponse(req, res, url, maxAge, upstreamType, upstreamBuffer, isStatic, isDev, xCache);
         }
         return {
             finished: true
         };
     } finally{
-        // Make sure to remove the hash in the end.
-        dedupeResolver();
+        dedupe.resolve();
         inflightRequests.delete(hash);
     }
 }
@@ -451,7 +456,7 @@ function getFileNameWithExtension(url, contentType) {
     const extension = (0, _serveStatic).getExtension(contentType);
     return `${fileName}.${extension}`;
 }
-function setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, isDev) {
+function setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, isDev, xCache) {
     res.setHeader('Vary', 'Accept');
     res.setHeader('Cache-Control', isStatic ? 'public, max-age=315360000, immutable' : `public, max-age=${isDev ? 0 : maxAge}, must-revalidate`);
     if ((0, _sendPayload).sendEtagResponse(req, res, etag)) {
@@ -470,15 +475,19 @@ function setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, 
         }));
     }
     res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`);
+    res.setHeader('X-Nextjs-Cache', xCache);
     return {
         finished: false
     };
 }
-function sendResponse(req, res, url, maxAge, contentType, buffer, isStatic, isDev) {
+function sendResponse(req, res, url, maxAge, contentType, buffer, isStatic, isDev, xCache) {
+    if (xCache === 'STALE') {
+        return;
+    }
     const etag = getHash([
         buffer
     ]);
-    const result = setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, isDev);
+    const result = setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, isDev, xCache);
     if (!result.finished) {
         res.end(buffer);
     }
@@ -679,5 +688,14 @@ extension) {
         height
     };
 }
+class Deferred {
+    constructor(){
+        this.promise = new Promise((resolve, reject)=>{
+            this.resolve = resolve;
+            this.reject = reject;
+        });
+    }
+}
+exports.Deferred = Deferred;
 
 //# sourceMappingURL=image-optimizer.js.map

@@ -96,15 +96,15 @@ function parse(raw, preferences, options) {
         return values;
     }
     const preferred = [];
-    for (const selection of values){
-        if (selection === '*') {
+    for (const selection1 of values){
+        if (selection1 === '*') {
             for (const [preference, value] of lowers){
                 if (!map.has(preference)) {
                     preferred.push(value.orig);
                 }
             }
         } else {
-            const lower = selection.toLowerCase();
+            const lower = selection1.toLowerCase();
             if (lowers.has(lower)) {
                 preferred.push(lowers.get(lower).orig);
             }

@@ -3,20 +3,11 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.isSerializableProps = isSerializableProps;
+var _isPlainObject = require("../shared/lib/is-plain-object");
 const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
-function getObjectClassLabel(value) {
-    return Object.prototype.toString.call(value);
-}
-function isPlainObject(value) {
-    if (getObjectClassLabel(value) !== '[object Object]') {
-        return false;
-    }
-    const prototype = Object.getPrototypeOf(value);
-    return prototype === null || prototype === Object.prototype;
-}
 function isSerializableProps(page, method, input) {
-    if (!isPlainObject(input)) {
-        throw new SerializableError(page, method, '', `Props must be returned as a plain object from ${method}: \`{ props: { ... } }\` (received: \`${getObjectClassLabel(input)}\`).`);
+    if (!(0, _isPlainObject).isPlainObject(input)) {
+        throw new SerializableError(page, method, '', `Props must be returned as a plain object from ${method}: \`{ props: { ... } }\` (received: \`${(0, _isPlainObject).getObjectClassLabel(input)}\`).`);
     }
     function visit(visited, value, path) {
         if (visited.has(value)) {
@@ -38,7 +29,7 @@ function isSerializableProps(page, method, input) {
         if (type === 'undefined') {
             throw new SerializableError(page, method, path, '`undefined` cannot be serialized as JSON. Please use `null` or omit this value.');
         }
-        if (isPlainObject(value)) {
+        if ((0, _isPlainObject).isPlainObject(value)) {
             visit(refs, value, path);
             if (Object.entries(value).every(([key, nestedValue])=>{
                 const nextPath = regexpPlainIdentifier.test(key) ? `${path}.${key}` : `${path}[${JSON.stringify(key)}]`;

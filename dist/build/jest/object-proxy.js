@@ -3,8 +3,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = void 0;
-var _default = new Proxy({
-}, {
+var _default = new Proxy({}, {
     get: function getter(target, key) {
         if (key === '__esModule') {
             return false;

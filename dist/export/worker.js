@@ -40,9 +40,8 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
             ampValidations: []
         };
         try {
-            var ref3;
-            const { query: originalQuery = {
-            }  } = pathMap;
+            var ref;
+            const { query: originalQuery = {}  } = pathMap;
             const { page  } = pathMap;
             const filePath = (0, _normalizePagePath).normalizePagePath(path);
             const isDynamic = (0, _isDynamic).isDynamicRoute(page);
@@ -91,17 +90,13 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
                 }
             }
             const headerMocks = {
-                headers: {
-                },
-                getHeader: ()=>({
-                    })
+                headers: {},
+                getHeader: ()=>({})
                 ,
-                setHeader: ()=>{
-                },
+                setHeader: ()=>{},
                 hasHeader: ()=>false
                 ,
-                removeHeader: ()=>{
-                },
+                removeHeader: ()=>{},
                 getHeaderNames: ()=>[]
             };
             const req = {
@@ -114,7 +109,7 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
             if (updatedPath === '/500' && page === '/_error') {
                 res.statusCode = 500;
             }
-            if (renderOpts.trailingSlash && !((ref3 = req.url) === null || ref3 === void 0 ? void 0 : ref3.endsWith('/'))) {
+            if (renderOpts.trailingSlash && !((ref = req.url) === null || ref === void 0 ? void 0 : ref.endsWith('/'))) {
                 req.url += '/';
             }
             envConfig.setConfig({
@@ -149,8 +144,7 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
                 recursive: true
             });
             let renderResult;
-            let curRenderOpts = {
-            };
+            let curRenderOpts = {};
             let renderMethod = _render.renderToHTML;
             let inAmpMode = false, hybridAmp = false;
             const renderedDuringBuild = (getStaticProps)=>{
@@ -208,20 +202,19 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
                         locales: renderOpts.locales
                     }, // @ts-ignore
                     params);
-                    curRenderOpts = result.renderOpts || {
-                    };
+                    curRenderOpts = result.renderOpts || {};
                     renderResult = result.html;
                 }
                 if (!renderResult && !curRenderOpts.isNotFound) {
                     throw new Error(`Failed to render serverless page`);
                 }
             } else {
-                var ref, ref1;
+                var ref1, ref2;
                 const components = await (0, _loadComponents).loadComponents(distDir, page, serverless);
                 const ampState = {
-                    ampFirst: ((ref = components.pageConfig) === null || ref === void 0 ? void 0 : ref.amp) === true,
+                    ampFirst: ((ref1 = components.pageConfig) === null || ref1 === void 0 ? void 0 : ref1.amp) === true,
                     hasQuery: Boolean(query.amp),
-                    hybrid: ((ref1 = components.pageConfig) === null || ref1 === void 0 ? void 0 : ref1.amp) === 'hybrid'
+                    hybrid: ((ref2 = components.pageConfig) === null || ref2 === void 0 ? void 0 : ref2.amp) === 'hybrid'
                 };
                 inAmpMode = (0, _amp).isInAmpMode(ampState);
                 hybridAmp = ampState.hybrid;

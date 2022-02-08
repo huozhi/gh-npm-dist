@@ -26,10 +26,10 @@ module.exports = {
                     resolvedBaseUrl: inputOptions.resolvedBaseUrl,
                     esm: isSupportEsm && isEsm(Boolean(inputOptions.isEsmProject), filename, jestConfig)
                 });
-                return((0, _index).transformSync(src, {
+                return (0, _index).transformSync(src, {
                     ...swcTransformOpts,
                     filename
-                }));
+                });
             }
         })
 };

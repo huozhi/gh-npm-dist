@@ -19,8 +19,7 @@ class ProfilingPlugin {
         this.traceCompilationHooks(compiler);
         this.compiler = compiler;
     }
-    traceHookPair(spanName, startHook, stopHook, { parentSpan , attrs , onStart , onStop  } = {
-    }) {
+    traceHookPair(spanName, startHook, stopHook, { parentSpan , attrs , onStart , onStop  } = {}) {
         let span;
         startHook.tap({
             name: pluginName,

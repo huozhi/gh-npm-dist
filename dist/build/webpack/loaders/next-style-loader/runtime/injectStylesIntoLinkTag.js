@@ -1,7 +1,6 @@
 "use strict";
 const getTarget = function getTarget() {
-    const memo = {
-    };
+    const memo = {};
     return function memorize(target) {
         if (typeof memo[target] === 'undefined') {
             let styleTarget = document.querySelector(target);
@@ -22,10 +21,8 @@ const getTarget = function getTarget() {
     };
 }();
 module.exports = (url, options)=>{
-    options = options || {
-    };
-    options.attributes = typeof options.attributes === 'object' ? options.attributes : {
-    };
+    options = options || {};
+    options.attributes = typeof options.attributes === 'object' ? options.attributes : {};
     if (typeof options.attributes.nonce === 'undefined') {
         const nonce = // eslint-disable-next-line no-undef
         typeof __webpack_nonce__ !== 'undefined' ? __webpack_nonce__ : null;

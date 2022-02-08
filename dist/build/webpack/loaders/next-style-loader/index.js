@@ -7,8 +7,7 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
-const loaderApi = ()=>{
-};
+const loaderApi = ()=>{};
 loaderApi.pitch = function loader(request) {
     const loaderSpan = this.currentTraceSpan.traceChild('next-style-loader');
     return loaderSpan.traceFn(()=>{

@@ -55,8 +55,7 @@ async function recursiveDelete(dir, exclude, previousPath = '') {
             try {
                 const stats = await _fs.promises.stat((0, _path).isAbsolute(linkPath) ? linkPath : (0, _path).join((0, _path).dirname(absolutePath), linkPath));
                 isDirectory = stats.isDirectory();
-            } catch (_) {
-            }
+            } catch (_) {}
         }
         const pp = (0, _path).join(previousPath, part.name);
         const isNotExcluded = !exclude || !exclude.test(pp);

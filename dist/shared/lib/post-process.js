@@ -3,14 +3,9 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = void 0;
-var _escapeStringRegexp = _interopRequireDefault(require("next/dist/compiled/escape-string-regexp"));
+var _escapeRegexp = require("./escape-regexp");
 var _nodeHtmlParser = require("next/dist/compiled/node-html-parser");
 var _constants = require("./constants");
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
 // const MIDDLEWARE_TIME_BUDGET = parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
 const MAXIMUM_IMAGE_PRELOADS = 2;
 const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500;
@@ -150,7 +145,7 @@ function isImgEligible(imgElement) {
     return !!imgSrc && sourceIsSupportedType(imgSrc) && imageIsNotTooSmall(imgElement) && imageIsNotHidden(imgElement);
 }
 function preloadTagAlreadyExists(html, href) {
-    const escapedHref = (0, _escapeStringRegexp).default(href);
+    const escapedHref = (0, _escapeRegexp).escapeStringRegexp(href);
     const regex = new RegExp(`<link[^>]*href[^>]*${escapedHref}`);
     return html.match(regex);
 }

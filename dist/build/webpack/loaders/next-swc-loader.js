@@ -11,8 +11,7 @@ var _path = require("path");
 async function loaderTransform(parentTrace, source, inputSourceMap) {
     // Make the loader async
     const filename = this.resourcePath;
-    let loaderOptions = this.getOptions() || {
-    };
+    let loaderOptions = this.getOptions() || {};
     const { isServer , pagesDir , hasReactRefresh , nextConfig , jsConfig  } = loaderOptions;
     const isPageFile = filename.startsWith(pagesDir);
     const swcOptions = (0, _options).getLoaderSWCOptions({
@@ -57,9 +56,9 @@ const EXCLUDED_PATHS = /[\\/](cache[\\/][^\\/]+\.zip[\\/]node_modules|__virtual_
 function pitch() {
     const callback = this.async();
     (async ()=>{
-        let loaderOptions = this.getOptions() || {
-        };
-        if (loaderOptions.fileReading && !EXCLUDED_PATHS.test(this.resourcePath) && this.loaders.length - 1 === this.loaderIndex && (0, _path).isAbsolute(this.resourcePath) && !await (0, _swc).isWasm()) {
+        let loaderOptions = this.getOptions() || {};
+        if (// TODO: investigate swc file reading in PnP mode?
+        !process.versions.pnp && loaderOptions.fileReading && !EXCLUDED_PATHS.test(this.resourcePath) && this.loaders.length - 1 === this.loaderIndex && (0, _path).isAbsolute(this.resourcePath) && !await (0, _swc).isWasm()) {
             const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader');
             this.addDependency(this.resourcePath);
             return loaderSpan.traceAsyncFn(()=>loaderTransform.call(this, loaderSpan)

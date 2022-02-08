@@ -76,8 +76,7 @@ function prefetchViaDom(href, as, link) {
 }
 const ASSET_LOAD_ERROR = Symbol('ASSET_LOAD_ERROR');
 function markAssetError(err) {
-    return Object.defineProperty(err, ASSET_LOAD_ERROR, {
-    });
+    return Object.defineProperty(err, ASSET_LOAD_ERROR, {});
 }
 function isAssetError(err) {
     return err && ASSET_LOAD_ERROR in err;
@@ -309,12 +308,10 @@ function createRouteLoader(assetPrefix) {
             return getFilesForRoute(assetPrefix, route).then((output)=>Promise.all(canPrefetch ? output.scripts.map((script)=>prefetchViaDom(script, 'script')
                 ) : [])
             ).then(()=>{
-                (0, _requestIdleCallback).requestIdleCallback(()=>this.loadRoute(route, true).catch(()=>{
-                    })
+                (0, _requestIdleCallback).requestIdleCallback(()=>this.loadRoute(route, true).catch(()=>{})
                 );
             }).catch(// swallow prefetch errors
-            ()=>{
-            });
+            ()=>{});
         }
     };
 }

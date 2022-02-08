@@ -26,8 +26,7 @@ function parseParameter(param) {
 }
 function getParametrizedRoute(route) {
     const segments = (route.replace(/\/$/, '') || '/').slice(1).split('/');
-    const groups = {
-    };
+    const groups = {};
     let groupIndex = 1;
     const parameterizedRoute = segments.map((segment)=>{
         if (segment.startsWith('[') && segment.endsWith(']')) {
@@ -60,8 +59,7 @@ function getParametrizedRoute(route) {
             }
             return routeKey;
         };
-        const routeKeys = {
-        };
+        const routeKeys = {};
         let namedParameterizedRoute = segments.map((segment)=>{
             if (segment.startsWith('[') && segment.endsWith(']')) {
                 const { key , optional , repeat  } = parseParameter(segment.slice(1, -1));

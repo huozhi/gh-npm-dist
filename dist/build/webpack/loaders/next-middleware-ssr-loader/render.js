@@ -3,11 +3,18 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.getRender = getRender;
-var _render = require("../../../../server/web/render");
 var _utils = require("../../../../server/web/utils");
+var _webServer = _interopRequireDefault(require("../../../../server/web-server"));
+var _baseHttp = require("../../../../server/base-http");
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 const createHeaders = (args)=>({
         ...args,
-        'x-middleware-ssr': '1'
+        'x-middleware-ssr': '1',
+        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
     })
 ;
 function sendError(req, error) {
@@ -17,7 +24,68 @@ function sendError(req, error) {
         headers: createHeaders()
     });
 }
-function getRender({ App , Document , pageMod , errorMod , rscManifest , buildManifest , reactLoadableManifest , isServerComponent , restRenderOpts  }) {
+// Polyfilled for `path-browserify` inside the Web Server.
+process.cwd = ()=>''
+;
+function getRender({ dev , page , pageMod , errorMod , error500Mod , Document , App , buildManifest , reactLoadableManifest , serverComponentManifest , isServerComponent , config , buildId  }) {
+    const baseLoadComponentResult = {
+        dev,
+        buildManifest,
+        reactLoadableManifest,
+        Document,
+        App
+    };
+    const server = new _webServer.default({
+        conf: config,
+        minimalMode: true,
+        webServerConfig: {
+            extendRenderOpts: {
+                buildId,
+                supportsDynamicHTML: true,
+                concurrentFeatures: true,
+                disableOptimizedLoading: true,
+                serverComponentManifest
+            },
+            loadComponent: async (pathname)=>{
+                if (pathname === page) {
+                    return {
+                        ...baseLoadComponentResult,
+                        Component: pageMod.default,
+                        pageConfig: pageMod.config || {},
+                        getStaticProps: pageMod.getStaticProps,
+                        getServerSideProps: pageMod.getServerSideProps,
+                        getStaticPaths: pageMod.getStaticPaths,
+                        ComponentMod: pageMod
+                    };
+                }
+                // If there is a custom 500 page, we need to handle it separately.
+                if (pathname === '/500' && error500Mod) {
+                    return {
+                        ...baseLoadComponentResult,
+                        Component: error500Mod.default,
+                        pageConfig: error500Mod.config || {},
+                        getStaticProps: error500Mod.getStaticProps,
+                        getServerSideProps: error500Mod.getServerSideProps,
+                        getStaticPaths: error500Mod.getStaticPaths,
+                        ComponentMod: error500Mod
+                    };
+                }
+                if (pathname === '/_error') {
+                    return {
+                        ...baseLoadComponentResult,
+                        Component: errorMod.default,
+                        pageConfig: errorMod.config || {},
+                        getStaticProps: errorMod.getStaticProps,
+                        getServerSideProps: errorMod.getServerSideProps,
+                        getStaticPaths: errorMod.getStaticPaths,
+                        ComponentMod: errorMod
+                    };
+                }
+                return null;
+            }
+        }
+    });
+    const requestHandler = server.getRequestHandler();
     return async function render(request) {
         const { nextUrl: url , cookies , headers  } = request;
         const { pathname , searchParams  } = url;
@@ -33,83 +101,22 @@ function getRender({ App , Document , pageMod , errorMod , rscManifest , buildMa
                 headers: createHeaders()
             });
         }
+        // @TODO: We should move this into server/render.
         if (Document.getInitialProps) {
             const err = new Error('`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.');
             return sendError(req, err);
         }
         const renderServerComponentData = isServerComponent ? query.__flight__ !== undefined : false;
         const serverComponentProps = isServerComponent && query.__props__ ? JSON.parse(query.__props__) : undefined;
-        delete query.__flight__;
-        delete query.__props__;
-        const renderOpts = {
-            ...restRenderOpts,
-            // Locales are not supported yet.
-            // locales: i18n?.locales,
-            // locale: detectedLocale,
-            // defaultLocale,
-            // domainLocales: i18n?.domains,
-            dev: process.env.NODE_ENV !== 'production',
-            App,
-            Document,
-            buildManifest,
-            Component: pageMod.default,
-            pageConfig: pageMod.config || {
-            },
-            getStaticProps: pageMod.getStaticProps,
-            getServerSideProps: pageMod.getServerSideProps,
-            getStaticPaths: pageMod.getStaticPaths,
-            reactLoadableManifest,
-            env: process.env,
-            supportsDynamicHTML: true,
-            concurrentFeatures: true,
-            // When streaming, opt-out the `defer` behavior for script tags.
-            disableOptimizedLoading: true,
+        // Extend the render options.
+        server.updateRenderOpts({
             renderServerComponentData,
-            serverComponentProps,
-            serverComponentManifest: isServerComponent ? rscManifest : null,
-            ComponentMod: null
-        };
-        const transformStream = new TransformStream();
-        const writer = transformStream.writable.getWriter();
-        const encoder = new TextEncoder();
-        let result;
-        let renderError;
-        try {
-            result = await (0, _render).renderToHTML(req, {
-            }, pathname, query, renderOpts);
-        } catch (err) {
-            console.error('An error occurred while rendering the initial result:', err);
-            const errorRes = {
-                statusCode: 500,
-                err
-            };
-            renderError = err;
-            try {
-                req.url = '/_error';
-                result = await (0, _render).renderToHTML(req, errorRes, '/_error', query, {
-                    ...renderOpts,
-                    err,
-                    Component: errorMod.default,
-                    getStaticProps: errorMod.getStaticProps,
-                    getServerSideProps: errorMod.getServerSideProps,
-                    getStaticPaths: errorMod.getStaticPaths
-                });
-            } catch (err2) {
-                return sendError(req, err2);
-            }
-        }
-        if (!result) {
-            return sendError(req, new Error('No result returned from render.'));
-        }
-        result.pipe({
-            write: (str)=>writer.write(encoder.encode(str))
-            ,
-            end: ()=>writer.close()
+            serverComponentProps
         });
-        return new Response(transformStream.readable, {
-            headers: createHeaders(),
-            status: renderError ? 500 : 200
-        });
+        const extendedReq = new _baseHttp.WebNextRequest(request);
+        const extendedRes = new _baseHttp.WebNextResponse();
+        requestHandler(extendedReq, extendedRes);
+        return await extendedRes.toResponse();
     };
 }
 

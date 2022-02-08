@@ -5,11 +5,11 @@ Object.defineProperty(exports, "__esModule", {
 exports.hasBasePath = hasBasePath;
 exports.replaceBasePath = replaceBasePath;
 exports.default = exports.route = void 0;
+var _requestMeta = require("./request-meta");
 var _pathMatch = _interopRequireDefault(require("../shared/lib/router/utils/path-match"));
 var _normalizeTrailingSlash = require("../client/normalize-trailing-slash");
 var _normalizeLocalePath = require("../shared/lib/i18n/normalize-locale-path");
 var _prepareDestination = require("../shared/lib/router/utils/prepare-destination");
-var _requestMeta = require("./request-meta");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -52,6 +52,7 @@ class Router {
         this.dynamicRoutes = dynamicRoutes;
         this.useFileSystemPublicRoutes = useFileSystemPublicRoutes;
         this.locales = locales;
+        this.seenRequests = new Set();
     }
     setDynamicRoutes(routes = []) {
         this.dynamicRoutes = routes;
@@ -60,9 +61,12 @@ class Router {
         this.fsRoutes.unshift(fsRoute);
     }
     async execute(req, res, parsedUrl) {
+        if (this.seenRequests.has(req)) {
+            throw new Error(`Invariant: request has already been processed: ${req.url}, this is an internal error please open an issue.`);
+        }
+        this.seenRequests.add(req);
         // memoize page check calls so we don't duplicate checks for pages
-        const pageChecks = {
-        };
+        const pageChecks = {};
         const memoizedPageChecker = async (p)=>{
             p = (0, _normalizeLocalePath).normalizeLocalePath(p, this.locales).pathname;
             if (pageChecks[p] !== undefined) {
@@ -213,6 +217,7 @@ class Router {
                     if (!originallyHadBasePath && !(0, _requestMeta).getRequestMeta(req, '_nextDidRewrite')) {
                         if (requireBasePath) {
                             // consider this a non-match so the 404 renders
+                            this.seenRequests.delete(req);
                             return false;
                         }
                         continue;
@@ -222,6 +227,7 @@ class Router {
                 const result = await testRoute.fn(req, res, newParams, parsedUrlUpdated);
                 // The response was handled
                 if (result.finished) {
+                    this.seenRequests.delete(req);
                     return true;
                 }
                 // since the fs route didn't finish routing we need to re-add the
@@ -234,18 +240,20 @@ class Router {
                 }
                 if (result.query) {
                     parsedUrlUpdated.query = {
-                        ...parsedUrlUpdated.query,
+                        ...(0, _requestMeta).getNextInternalQuery(parsedUrlUpdated.query),
                         ...result.query
                     };
                 }
                 // check filesystem
                 if (testRoute.check === true) {
                     if (await applyCheckTrue(parsedUrlUpdated)) {
+                        this.seenRequests.delete(req);
                         return true;
                     }
                 }
             }
         }
+        this.seenRequests.delete(req);
         return false;
     }
 }

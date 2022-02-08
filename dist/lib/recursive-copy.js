@@ -14,8 +14,7 @@ function _interopRequireDefault(obj) {
 }
 const COPYFILE_EXCL = _fs.constants.COPYFILE_EXCL;
 async function recursiveCopy(source, dest, { concurrency =32 , overwrite =false , filter =()=>true
-  } = {
-}) {
+  } = {}) {
     const cwdPath = process.cwd();
     const from = _path.default.resolve(cwdPath, source);
     const to = _path.default.resolve(cwdPath, dest);

@@ -18,8 +18,7 @@ class PagesManifestPlugin {
     }
     createAssets(compilation, assets) {
         const entrypoints = compilation.entrypoints;
-        const pages = {
-        };
+        const pages = {};
         for (const entrypoint of entrypoints.values()){
             const pagePath = (0, _getRouteFromEntrypoint).default(entrypoint.name);
             if (!pagePath) {

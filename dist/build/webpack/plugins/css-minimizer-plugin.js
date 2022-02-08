@@ -38,8 +38,7 @@ class CssMinimizerPlugin {
             input = asset.source();
         }
         return (0, _postcss).default([
-            (0, _cssnanoSimple).default({
-            }, _postcss.default)
+            (0, _cssnanoSimple).default({}, _postcss.default)
         ]).process(input, postcssOptions).then((res)=>{
             if (res.map) {
                 return new _webpack.sources.SourceMapSource(res.css, file, res.map.toJSON());

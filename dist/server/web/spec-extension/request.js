@@ -16,19 +16,16 @@ function _interopRequireDefault(obj) {
 const INTERNALS = Symbol('internal request');
 exports.INTERNALS = INTERNALS;
 class NextRequest extends Request {
-    constructor(input, init = {
-    }){
+    constructor(input, init = {}){
         var ref, ref1, ref2;
         super(input, init);
         const cookieParser = ()=>{
             const value = this.headers.get('cookie');
-            return value ? _cookie.default.parse(value) : {
-            };
+            return value ? _cookie.default.parse(value) : {};
         };
         this[INTERNALS] = {
             cookieParser,
-            geo: init.geo || {
-            },
+            geo: init.geo || {},
             ip: init.ip,
             page: init.page,
             url: new _nextUrl.NextURL(typeof input === 'string' ? input : input.url, {
@@ -55,10 +52,10 @@ class NextRequest extends Request {
         return this[INTERNALS].url;
     }
     get page() {
-        var ref, ref1;
+        var ref, ref3;
         return {
             name: (ref = this[INTERNALS].page) === null || ref === void 0 ? void 0 : ref.name,
-            params: (ref1 = this[INTERNALS].page) === null || ref1 === void 0 ? void 0 : ref1.params
+            params: (ref3 = this[INTERNALS].page) === null || ref3 === void 0 ? void 0 : ref3.params
         };
     }
     get ua() {

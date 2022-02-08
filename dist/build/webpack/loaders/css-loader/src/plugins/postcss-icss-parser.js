@@ -5,8 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = void 0;
 var _icssUtils = require("next/dist/compiled/icss-utils");
 var _utils = require("../utils");
-const plugin = (options = {
-})=>{
+const plugin = (options = {})=>{
     return {
         postcssPlugin: 'postcss-icss-parser',
         async OnceExit (root) {

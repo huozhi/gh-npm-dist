@@ -155,8 +155,7 @@ class JsConfigPathsPlugin {
                     return pathCallback();
                 }
                 const candidate = _path.default.join(baseDirectory, curPath);
-                const obj = Object.assign({
-                }, request, {
+                const obj = Object.assign({}, request, {
                     request: candidate
                 });
                 resolver.doResolve(target, obj, `Aliased with tsconfig.json or jsconfig.json ${matchedPatternText} to ${candidate}`, resolveContext, (resolverErr, resolverResult)=>{

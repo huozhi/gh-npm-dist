@@ -1,1 +1,1 @@
-{"version":3,"sources":["../../../server/web/render.ts"],"names":["renderToHTML"],"mappings":";;;;+BAAS,CAAY;;;uBAAZ,YAAY"}
+{"version":3,"sources":["../../../server/web/render.ts"],"sourcesContent":["export { renderToHTML } from '../render'\n"],"names":["renderToHTML"],"mappings":";;;;+BAASA,CAAY;;;uBAAZA,YAAY"}

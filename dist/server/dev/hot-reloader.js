@@ -25,7 +25,7 @@ var _querystring = require("querystring");
 var _utils = require("../../build/utils");
 var _utils1 = require("../../shared/lib/utils");
 var _trace = require("../../trace");
-var _isError = _interopRequireDefault(require("../../lib/is-error"));
+var _isError = require("../../lib/is-error");
 var _ws = _interopRequireDefault(require("next/dist/compiled/ws"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -36,13 +36,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -58,8 +56,7 @@ function _interopRequireWildcard(obj) {
 const wsServer = new _ws.default.Server({
     noServer: true
 });
-async function renderScriptError(res, error, { verbose =true  } = {
-}) {
+async function renderScriptError(res, error, { verbose =true  } = {}) {
     // Asks CDNs and others to not to cache the errored page
     res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate');
     if (error.code === 'ENOENT') {
@@ -112,8 +109,7 @@ function findEntryModule(issuer) {
     return issuer;
 }
 function erroredPages(compilation) {
-    const failedPages = {
-    };
+    const failedPages = {};
     for (const error of compilation.errors){
         if (!error.module) {
             continue;
@@ -139,8 +135,7 @@ class HotReloader {
     constructor(dir, { config , pagesDir , buildId , previewProps , rewrites  }){
         this.clientError = null;
         this.serverError = null;
-        this.pagesMapping = {
-        };
+        this.pagesMapping = {};
         this.buildId = buildId;
         this.dir = dir;
         this.middlewares = [];
@@ -154,7 +149,7 @@ class HotReloader {
         this.previewProps = previewProps;
         this.rewrites = rewrites;
         this.hotReloaderSpan = (0, _trace).trace('hot-reloader', undefined, {
-            version: "12.0.8-canary.13"
+            version: "12.0.11-canary.7"
         });
         // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
         // of the current `next dev` invocation.
@@ -167,8 +162,7 @@ class HotReloader {
         // That's when the CORS support is needed.
         const { preflight  } = addCorsSupport(req, res);
         if (preflight) {
-            return {
-            };
+            return {};
         }
         // When a request comes in that is a page bundle, e.g. /_next/static/<buildid>/pages/index.js
         // we have to compile the page using on-demand-entries, this middleware will handle doing that
@@ -178,8 +172,7 @@ class HotReloader {
             const { pathname  } = parsedPageBundleUrl;
             const params = matchNextPageBundleRequest(pathname);
             if (!params) {
-                return {
-                };
+                return {};
             }
             let decodedPagePath;
             try {
@@ -193,7 +186,7 @@ class HotReloader {
                 try {
                     await this.ensurePage(page, true);
                 } catch (error) {
-                    await renderScriptError(pageBundleRes, (0, _isError).default(error) ? error : new Error(error + ''));
+                    await renderScriptError(pageBundleRes, (0, _isError).getProperError(error));
                     return {
                         finished: true
                     };
@@ -208,8 +201,7 @@ class HotReloader {
                     };
                 }
             }
-            return {
-            };
+            return {};
         };
         const { finished  } = await handlePageBundleRequest(res, parsedUrl);
         for (const fn of this.middlewares){
@@ -327,14 +319,14 @@ class HotReloader {
         ;
         await this.clean(startSpan);
         const configs = await this.getWebpackConfig(startSpan);
-        for (const config of configs){
-            const defaultEntry = config.entry;
-            config.entry = async (...args)=>{
+        for (const config1 of configs){
+            const defaultEntry = config1.entry;
+            config1.entry = async (...args)=>{
                 // @ts-ignore entry is always a function
                 const entrypoints = await defaultEntry(...args);
-                const isClientCompilation = config.name === 'client';
-                const isServerCompilation = config.name === 'server';
-                const isServerWebCompilation = config.name === 'server-web';
+                const isClientCompilation = config1.name === 'client';
+                const isServerCompilation = config1.name === 'server';
+                const isServerWebCompilation = config1.name === 'server-web';
                 await Promise.all(Object.keys(_onDemandEntryHandler.entries).map(async (pageKey)=>{
                     const isClientKey = pageKey.startsWith('client');
                     const isServerWebKey = pageKey.startsWith('server-web');
@@ -394,28 +386,23 @@ class HotReloader {
                             entrypoints[bundlePath] = (0, _entries).finalizeEntrypoint({
                                 name: '[name].js',
                                 value: `next-middleware-ssr-loader?${(0, _querystring).stringify({
+                                    dev: true,
                                     page,
+                                    stringifiedConfig: JSON.stringify(this.config),
                                     absoluteAppPath: this.pagesMapping['/_app'],
                                     absoluteDocumentPath: this.pagesMapping['/_document'],
                                     absoluteErrorPath: this.pagesMapping['/_error'],
                                     absolute404Path: this.pagesMapping['/404'] || '',
                                     absolutePagePath,
                                     isServerComponent,
-                                    buildId: this.buildId,
-                                    basePath: this.config.basePath,
-                                    assetPrefix: this.config.assetPrefix,
-                                    generateEtags: this.config.generateEtags,
-                                    poweredByHeader: this.config.poweredByHeader,
-                                    canonicalBase: this.config.amp.canonicalBase,
-                                    i18n: this.config.i18n,
-                                    previewProps: this.previewProps
+                                    buildId: this.buildId
                                 })}!`,
                                 isServer: false,
                                 isServerWeb: true
                             });
                         }
                     } else {
-                        let request = (0, _path).relative(config.context, absolutePagePath);
+                        let request = (0, _path).relative(config1.context, absolutePagePath);
                         if (!(0, _path).isAbsolute(request) && !request.startsWith('../')) {
                             request = `./${request}`;
                         }
@@ -580,7 +567,7 @@ class HotReloader {
         }
     }
     async getCompilationErrors(page) {
-        var ref, ref6;
+        var ref, ref2;
         const normalizedPage = (0, _normalizePagePath).normalizePathSep(page);
         if (this.clientError || this.serverError) {
             return [
@@ -595,7 +582,7 @@ class HotReloader {
             }
             // If none were found we still have to show the other errors
             return this.clientStats.compilation.errors;
-        } else if ((ref6 = this.serverStats) === null || ref6 === void 0 ? void 0 : ref6.hasErrors()) {
+        } else if ((ref2 = this.serverStats) === null || ref2 === void 0 ? void 0 : ref2.hasErrors()) {
             const { compilation  } = this.serverStats;
             const failedPages = erroredPages(compilation);
             // If there is an error related to the requesting page we display it instead of the first error

@@ -22,8 +22,7 @@ function getChunkGroupFromBlock(compilation, block) {
     return compilation.chunkGraph.getBlockChunkGroup(block);
 }
 function buildManifest(_compiler, compilation, pagesDir, dev) {
-    let manifest = {
-    };
+    let manifest = {};
     // This is allowed:
     // import("./module"); <- ImportDependency
     // We don't support that:
@@ -82,13 +81,12 @@ function buildManifest(_compiler, compilation, pagesDir, dev) {
             }
         }
     };
-    for (const module of compilation.modules){
-        module.blocks.forEach(handleBlock);
+    for (const module1 of compilation.modules){
+        module1.blocks.forEach(handleBlock);
     }
     manifest = Object.keys(manifest).sort()// eslint-disable-next-line no-sequences
     .reduce((a, c)=>(a[c] = manifest[c], a)
-    , {
-    });
+    , {});
     return manifest;
 }
 class ReactLoadablePlugin {

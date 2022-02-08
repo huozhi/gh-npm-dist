@@ -19,13 +19,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -113,8 +111,7 @@ function getDesiredCompilerOptions(ts) {
     return o;
 }
 function getRequiredConfiguration(ts) {
-    const res = {
-    };
+    const res = {};
     const desiredCompilerOptions = getDesiredCompilerOptions(ts);
     for (const optionKey of Object.keys(desiredCompilerOptions)){
         const ev = desiredCompilerOptions[optionKey];
@@ -137,8 +134,7 @@ async function writeConfigurationDefaults(ts, tsConfigPath, isFirstTimeSetup) {
     });
     const userTsConfig = CommentJson.parse(userTsConfigContent);
     if (userTsConfig.compilerOptions == null && !('extends' in rawConfig)) {
-        userTsConfig.compilerOptions = {
-        };
+        userTsConfig.compilerOptions = {};
         isFirstTimeSetup = true;
     }
     const suggestedActions = [];
@@ -148,8 +144,7 @@ async function writeConfigurationDefaults(ts, tsConfigPath, isFirstTimeSetup) {
         if ('suggested' in check) {
             if (!(optionKey in tsOptions)) {
                 if (!userTsConfig.compilerOptions) {
-                    userTsConfig.compilerOptions = {
-                    };
+                    userTsConfig.compilerOptions = {};
                 }
                 userTsConfig.compilerOptions[optionKey] = check.suggested;
                 suggestedActions.push(_chalk.default.cyan(optionKey) + ' was set to ' + _chalk.default.bold(check.suggested));
@@ -159,8 +154,7 @@ async function writeConfigurationDefaults(ts, tsConfigPath, isFirstTimeSetup) {
             const ev = tsOptions[optionKey];
             if (!('parsedValues' in check ? (ref = check.parsedValues) === null || ref === void 0 ? void 0 : ref.includes(ev) : 'parsedValue' in check ? check.parsedValue === ev : check.value === ev)) {
                 if (!userTsConfig.compilerOptions) {
-                    userTsConfig.compilerOptions = {
-                    };
+                    userTsConfig.compilerOptions = {};
                 }
                 userTsConfig.compilerOptions[optionKey] = check.value;
                 requiredActions.push(_chalk.default.cyan(optionKey) + ' was set to ' + _chalk.default.bold(check.value) + ` (${check.reason})`);

@@ -18,13 +18,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -81,8 +79,7 @@ const METATYPES = [
     const keys = new Set();
     const tags = new Set();
     const metaTypes = new Set();
-    const metaCategories = {
-    };
+    const metaCategories = {};
     return (h)=>{
         let isUnique = true;
         let hasKey = false;
@@ -148,14 +145,22 @@ const METATYPES = [
             ].some((url)=>c.props['href'].startsWith(url)
             )) {
                 const newProps = {
-                    ...c.props || {
-                    }
+                    ...c.props || {}
                 };
                 newProps['data-href'] = newProps['href'];
                 newProps['href'] = undefined;
                 // Add this attribute to make it easy to identify optimized tags
                 newProps['data-optimized-fonts'] = true;
                 return(/*#__PURE__*/ _react.default.cloneElement(c, newProps));
+            }
+        }
+        if (process.env.NODE_ENV === 'development') {
+            // omit JSON-LD structured data snippets from the warning
+            if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
+                const srcMessage = c.props['src'] ? `<script> tag with src="${c.props['src']}"` : `inline <script>`;
+                console.warn(`Do not add <script> tags using next/head (see ${srcMessage}). Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`);
+            } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
+                console.warn(`Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`);
             }
         }
         return(/*#__PURE__*/ _react.default.cloneElement(c, {

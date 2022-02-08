@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.getPageFromPath = getPageFromPath;
 exports.createPagesMapping = createPagesMapping;
 exports.createEntrypoints = createEntrypoints;
 exports.finalizeEntrypoint = finalizeEntrypoint;
@@ -9,10 +10,10 @@ var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _path = require("path");
 var _querystring = require("querystring");
 var _constants = require("../lib/constants");
-var _config = require("../server/config");
+var _utils = require("../server/utils");
 var _normalizePagePath = require("../server/normalize-page-path");
 var _log = require("./output/log");
-var _utils = require("./utils");
+var _utils1 = require("./utils");
 var _middlewarePlugin = require("./webpack/plugins/middleware-plugin");
 var _constants1 = require("../shared/lib/constants");
 function _interopRequireDefault(obj) {
@@ -20,18 +21,23 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
+function getPageFromPath(pagePath, extensions) {
+    let page = pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '');
+    page = page.replace(/\\/g, '/').replace(/\/index$/, '');
+    return page === '' ? '/' : page;
+}
 function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents , hasConcurrentFeatures  }) {
-    const previousPages = {
-    };
+    const previousPages = {};
+    // Do not process .d.ts files inside the `pages` folder
+    pagePaths = extensions.includes('ts') ? pagePaths.filter((pagePath)=>!pagePath.endsWith('.d.ts')
+    ) : pagePaths;
     const pages = pagePaths.reduce((result, pagePath)=>{
-        let page = pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '');
-        if (hasServerComponents && /\.client$/.test(page)) {
+        const pageKey = getPageFromPath(pagePath, extensions);
+        if (hasServerComponents && /\.client$/.test(pageKey)) {
             // Assume that if there's a Client Component, that there is
             // a matching Server Component that will map to the page.
             return result;
         }
-        page = page.replace(/\\/g, '/').replace(/\/index$/, '');
-        const pageKey = page === '' ? '/' : page;
         if (pageKey in result) {
             (0, _log).warn(`Duplicate page detected. ${_chalk.default.cyan((0, _path).join('pages', previousPages[pageKey]))} and ${_chalk.default.cyan((0, _path).join('pages', pagePath))} both resolve to ${_chalk.default.cyan(pageKey)}.`);
         } else {
@@ -39,8 +45,7 @@ function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents
         }
         result[pageKey] = (0, _path).join(_constants.PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/');
         return result;
-    }, {
-    });
+    }, {});
     // we alias these in development and allow webpack to
     // allow falling back to the correct source file so
     // that HMR can work properly when a file is added/removed
@@ -57,12 +62,9 @@ function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents
     return pages;
 }
 function createEntrypoints(pages, target, buildId, previewMode, config, loadedEnvFiles) {
-    const client = {
-    };
-    const server = {
-    };
-    const serverWeb = {
-    };
+    const client = {};
+    const server = {};
+    const serverWeb = {};
     const hasRuntimeConfig = Object.keys(config.publicRuntimeConfig).length > 0 || Object.keys(config.serverRuntimeConfig).length > 0;
     const defaultServerlessOptions = {
         absoluteAppPath: pages['/_app'],
@@ -91,10 +93,10 @@ function createEntrypoints(pages, target, buildId, previewMode, config, loadedEn
         const isApiRoute = page.match(_constants.API_ROUTE);
         const clientBundlePath = _path.posix.join('pages', bundleFile);
         const serverBundlePath = _path.posix.join('pages', bundleFile);
-        const isLikeServerless = (0, _config).isTargetLikeServerless(target);
-        const isReserved = (0, _utils).isReservedPage(page);
-        const isCustomError = (0, _utils).isCustomErrorPage(page);
-        const isFlight = (0, _utils).isFlightPage(config, absolutePagePath);
+        const isLikeServerless = (0, _utils).isTargetLikeServerless(target);
+        const isReserved = (0, _utils1).isReservedPage(page);
+        const isCustomError = (0, _utils1).isCustomErrorPage(page);
+        const isFlight = (0, _utils1).isFlightPage(config, absolutePagePath);
         const webServerRuntime = !!config.experimental.concurrentFeatures;
         if (page.match(_constants.MIDDLEWARE_ROUTE)) {
             const loaderOpts = {
@@ -111,7 +113,9 @@ function createEntrypoints(pages, target, buildId, previewMode, config, loadedEn
             serverWeb[serverBundlePath] = finalizeEntrypoint({
                 name: '[name].js',
                 value: `next-middleware-ssr-loader?${(0, _querystring).stringify({
+                    dev: false,
                     page,
+                    stringifiedConfig: JSON.stringify(config),
                     absolute500Path: pages['/500'] || '',
                     absolutePagePath,
                     isServerComponent: isFlight,
@@ -205,6 +209,8 @@ function finalizeEntrypoint({ name , value , isServer , isMiddleware , isServerW
                 ],
                 type: 'assign'
             },
+            runtime: _constants1.MIDDLEWARE_RUNTIME_WEBPACK,
+            asyncChunks: false,
             ...entry
         };
         return middlewareEntry;

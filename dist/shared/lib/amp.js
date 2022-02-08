@@ -11,8 +11,7 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
-function isInAmpMode({ ampFirst =false , hybrid =false , hasQuery =false ,  } = {
-}) {
+function isInAmpMode({ ampFirst =false , hybrid =false , hasQuery =false ,  } = {}) {
     return ampFirst || hybrid && hasQuery;
 }
 function useAmp() {

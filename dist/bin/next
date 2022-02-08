@@ -12,13 +12,11 @@ function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
     } else {
-        var newObj = {
-        };
+        var newObj = {};
         if (obj != null) {
             for(var key in obj){
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {
-                    };
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
                     if (desc.get || desc.set) {
                         Object.defineProperty(newObj, key, desc);
                     } else {
@@ -55,6 +53,8 @@ const commands = {
     lint: ()=>Promise.resolve(require('../cli/next-lint').nextLint)
     ,
     telemetry: ()=>Promise.resolve(require('../cli/next-telemetry').nextTelemetry)
+    ,
+    info: ()=>Promise.resolve(require('../cli/next-info').nextInfo)
 };
 const args = (0, _indexJs).default({
     // Types
@@ -69,7 +69,7 @@ const args = (0, _indexJs).default({
 });
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
-    console.log(`Next.js v${"12.0.8-canary.13"}`);
+    console.log(`Next.js v${"12.0.11-canary.7"}`);
     process.exit(0);
 }
 // Check if we are running `next <subcommand>` or `next`

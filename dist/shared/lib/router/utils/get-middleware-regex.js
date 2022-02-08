@@ -11,12 +11,10 @@ function getMiddlewareRegex(normalizedRoute, catchAll = true) {
     if ('routeKeys' in result) {
         if (result.parameterizedRoute === '/') {
             return {
-                groups: {
-                },
+                groups: {},
                 namedRegex: `^/${catchAllRegex}$`,
                 re: new RegExp(`^/${catchAllRegex}$`),
-                routeKeys: {
-                }
+                routeKeys: {}
             };
         }
         return {
@@ -28,14 +26,12 @@ function getMiddlewareRegex(normalizedRoute, catchAll = true) {
     }
     if (result.parameterizedRoute === '/') {
         return {
-            groups: {
-            },
+            groups: {},
             re: new RegExp(`^/${catchAllRegex}$`)
         };
     }
     return {
-        groups: {
-        },
+        groups: {},
         re: new RegExp(`^${result.parameterizedRoute}${catchAllGroupedRegex}$`)
     };
 }

@@ -16,8 +16,7 @@ exports.MessageSeverity = MessageSeverity;
 (function(MessageSeverity) {
     MessageSeverity[MessageSeverity["Warning"] = 1] = "Warning";
     MessageSeverity[MessageSeverity["Error"] = 2] = "Error";
-})(MessageSeverity || (exports.MessageSeverity = MessageSeverity = {
-}));
+})(MessageSeverity || (exports.MessageSeverity = MessageSeverity = {}));
 function pluginCount(messages) {
     let nextPluginWarningCount = 0;
     let nextPluginErrorCount = 0;
