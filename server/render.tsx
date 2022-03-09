@@ -1756,9 +1756,9 @@ async function renderToStream({
 }): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
   const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
-  const renderStream: ReadableStream<Uint8Array> & { allReady?: Promise<void> } = await (
-    ReactDOMServer as any
-  ).renderToReadableStream(element)
+  const renderStream: ReadableStream<Uint8Array> & {
+    allReady?: Promise<void>
+  } = await (ReactDOMServer as any).renderToReadableStream(element)
 
   if (generateStaticHTML) {
     await renderStream.allReady
@@ -1802,17 +1802,24 @@ function createPrefixStream(
   prefix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let prefixFlushed = false
+  let prefixFlushPromise: Promise<void> | null = null
   return createTransformStream({
     transform(chunk, controller) {
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
         controller.enqueue(chunk)
-        controller.enqueue(encodeText(prefix))
+        prefixFlushPromise = new Promise((res) => {
+          setTimeout(() => {
+            controller.enqueue(encodeText(prefix))
+            res()
+          })
+        })
       } else {
         controller.enqueue(chunk)
       }
     },
     flush(controller) {
+      if (prefixFlushPromise) return prefixFlushPromise
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
         controller.enqueue(encodeText(prefix))

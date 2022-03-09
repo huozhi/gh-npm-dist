@@ -1151,17 +1151,24 @@ function createSuffixStream(suffix) {
 }
 function createPrefixStream(prefix) {
     let prefixFlushed = false;
+    let prefixFlushPromise = null;
     return createTransformStream({
         transform (chunk, controller) {
             if (!prefixFlushed && prefix) {
                 prefixFlushed = true;
                 controller.enqueue(chunk);
-                controller.enqueue(encodeText(prefix));
+                prefixFlushPromise = new Promise((res)=>{
+                    setTimeout(()=>{
+                        controller.enqueue(encodeText(prefix));
+                        res();
+                    });
+                });
             } else {
                 controller.enqueue(chunk);
             }
         },
         flush (controller) {
+            if (prefixFlushPromise) return prefixFlushPromise;
             if (!prefixFlushed && prefix) {
                 prefixFlushed = true;
                 controller.enqueue(encodeText(prefix));
