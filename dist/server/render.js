@@ -1155,7 +1155,8 @@ function createPrefixStream(prefix) {
         transform (chunk, controller) {
             if (!prefixFlushed && prefix) {
                 prefixFlushed = true;
-                controller.enqueue(encodeText(decodeText(chunk) + prefix));
+                controller.enqueue(chunk);
+                controller.enqueue(encodeText(prefix));
             } else {
                 controller.enqueue(chunk);
             }
