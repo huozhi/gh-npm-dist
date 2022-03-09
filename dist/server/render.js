@@ -1154,20 +1154,24 @@ function createPrefixStream(prefix) {
     let prefixFlushPromise = null;
     return createTransformStream({
         transform (chunk, controller) {
+            controller.enqueue(chunk);
             if (!prefixFlushed && prefix) {
+                console.log('db: transform with prefix');
                 prefixFlushed = true;
-                controller.enqueue(chunk);
-                prefixFlushPromise = new Promise((res)=>{
-                    setTimeout(()=>{
-                        controller.enqueue(encodeText(prefix));
-                        res();
+                if (!prefixFlushPromise) {
+                    console.log('db: create prefix promise');
+                    prefixFlushPromise = new Promise((res)=>{
+                        setTimeout(()=>{
+                            console.log('db: enqueue prefix');
+                            controller.enqueue(encodeText(prefix));
+                            res();
+                        });
                     });
-                });
-            } else {
-                controller.enqueue(chunk);
+                }
             }
         },
         flush (controller) {
+            console.log('db: flush prefix', !!prefixFlushPromise, prefixFlushed);
             if (prefixFlushPromise) return prefixFlushPromise;
             if (!prefixFlushed && prefix) {
                 prefixFlushed = true;
