@@ -1158,12 +1158,12 @@ function createPrefixStream(prefix) {
             if (!prefixFlushed && prefix) {
                 console.log('db: transform with prefix');
                 prefixFlushed = true;
+                console.log('db: enqueue prefix');
+                controller.enqueue(encodeText(prefix));
                 if (!prefixFlushPromise) {
                     console.log('db: create prefix promise');
                     prefixFlushPromise = new Promise((res)=>{
                         setTimeout(()=>{
-                            console.log('db: enqueue prefix');
-                            controller.enqueue(encodeText(prefix));
                             res();
                         });
                     });

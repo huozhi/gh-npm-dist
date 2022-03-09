@@ -67,7 +67,6 @@ import isError from '../lib/is-error'
 import { readableStreamTee } from './web/utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
-import { execOnce } from '../shared/lib/utils'
 
 let optimizeAmp: typeof import('./optimize-amp').default
 let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
@@ -1809,12 +1808,12 @@ function createPrefixStream(
       if (!prefixFlushed && prefix) {
         console.log('db: transform with prefix')
         prefixFlushed = true
+        console.log('db: enqueue prefix')
+        controller.enqueue(encodeText(prefix))
         if (!prefixFlushPromise) {
           console.log('db: create prefix promise')
           prefixFlushPromise = new Promise((res) => {
             setTimeout(() => {
-              console.log('db: enqueue prefix')
-              controller.enqueue(encodeText(prefix))
               res()
             })
           })
