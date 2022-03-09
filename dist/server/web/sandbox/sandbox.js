@@ -5,11 +5,12 @@ Object.defineProperty(exports, "__esModule", {
 exports.run = run;
 var _context = require("./context");
 async function run(params) {
-    const { runInContext , context  } = (0, _context).getModuleContext({
+    const { runInContext , context  } = await (0, _context).getModuleContext({
         module: params.name,
         onWarning: params.onWarning,
         useCache: params.useCache !== false,
-        env: params.env
+        env: params.env,
+        wasm: params.wasm
     });
     for (const paramPath of params.paths){
         runInContext(paramPath);

@@ -1,5 +1,5 @@
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack';
-declare type Feature = 'next/image' | 'next/script' | 'next/dynamic' | 'swcLoader' | 'swcMinify';
+declare type Feature = 'next/image' | 'next/script' | 'next/dynamic' | 'swcLoader' | 'swcMinify' | 'swcRelay' | 'swcStyledComponents' | 'swcReactRemoveProperties' | 'swcExperimentalDecorators' | 'swcRemoveConsole' | 'swcImportSource';
 interface FeatureUsage {
     featureName: Feature;
     invocationCount: number;

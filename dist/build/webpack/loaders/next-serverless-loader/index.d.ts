@@ -17,6 +17,7 @@ export declare type ServerlessLoaderQuery = {
     previewProps: string;
     loadedEnvFiles: string;
     i18n: string;
+    reactRoot: string;
 };
 declare const nextServerlessLoader: webpack.loader.Loader;
 export default nextServerlessLoader;

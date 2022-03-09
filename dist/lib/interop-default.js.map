@@ -1,1 +1,1 @@
-{"version":3,"sources":["../../lib/interop-default.ts"],"sourcesContent":["export function interopDefault(mod: any) {\n  return mod.default || mod\n}\n"],"names":["interopDefault","mod","default"],"mappings":";;;;QAAgBA,cAAc,GAAdA,cAAc;SAAdA,cAAc,CAACC,GAAQ,EAAE,CAAC;IACxC,MAAM,CAACA,GAAG,CAACC,OAAO,IAAID,GAAG;AAC3B,CAAC"}
+{"version":3,"sources":["../../lib/interop-default.ts"],"names":["interopDefault","mod","default"],"mappings":"Y;;;E;QAAgBA,cAAc,GAAdA,cAAc,A;SAAdA,cAAc,CAACC,GAAQ,EAAE,CAAC;IACxC,MAAM,CAACA,GAAG,CAACC,OAAO,IAAID,GAAG;AAC3B,CAAC"}

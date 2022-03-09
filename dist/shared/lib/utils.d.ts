@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import type { BuildManifest } from '../../server/get-page-files';
+import type { HtmlProps } from './html-context';
 import type { ComponentType } from 'react';
 import type { DomainLocale } from '../../server/config';
 import type { Env } from '@next/env';
@@ -7,7 +7,6 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import type { NextRouter } from './router/router';
 import type { ParsedUrlQuery } from 'querystring';
 import type { PreviewData } from 'next/types';
-import type { UrlObject } from 'url';
 export declare type NextComponentType<C extends BaseContext = NextPageContext, IP = {}, P = {}> = ComponentType<P> & {
     /**
      * Used for initial page load data population. Data returned from `getInitialProps` is serialized when server rendered.
@@ -77,6 +76,7 @@ export declare type NEXT_DATA = {
     domainLocales?: DomainLocale[];
     scriptLoader?: any[];
     isPreview?: boolean;
+    notFoundSrcPage?: string;
     rsc?: boolean;
 };
 /**
@@ -150,43 +150,6 @@ export declare type DocumentInitialProps = RenderPageResult & {
     styles?: React.ReactElement[] | React.ReactFragment;
 };
 export declare type DocumentProps = DocumentInitialProps & HtmlProps;
-export declare type MaybeDeferContentHook = (name: string, contentFn: () => JSX.Element) => [boolean, JSX.Element];
-export declare type HtmlProps = {
-    __NEXT_DATA__: NEXT_DATA;
-    dangerousAsPath: string;
-    docComponentsRendered: {
-        Html?: boolean;
-        Main?: boolean;
-        Head?: boolean;
-        NextScript?: boolean;
-    };
-    buildManifest: BuildManifest;
-    ampPath: string;
-    inAmpMode: boolean;
-    hybridAmp: boolean;
-    isDevelopment: boolean;
-    dynamicImports: string[];
-    assetPrefix?: string;
-    canonicalBase: string;
-    headTags: any[];
-    unstable_runtimeJS?: false;
-    unstable_JsPreload?: false;
-    devOnlyCacheBusterQueryString: string;
-    scriptLoader: {
-        afterInteractive?: string[];
-        beforeInteractive?: any[];
-    };
-    locale?: string;
-    disableOptimizedLoading?: boolean;
-    styles?: React.ReactElement[] | React.ReactFragment;
-    head?: Array<JSX.Element | null>;
-    useMaybeDeferContent: MaybeDeferContentHook;
-    crossOrigin?: string;
-    optimizeCss?: boolean;
-    optimizeFonts?: boolean;
-    optimizeImages?: boolean;
-    concurrentFeatures?: boolean;
-};
 /**
  * Next `API` route request
  */
@@ -243,6 +206,7 @@ export declare type NextApiResponse<T = any> = ServerResponse & {
         maxAge?: number;
     }) => NextApiResponse<T>;
     clearPreviewData: () => NextApiResponse<T>;
+    unstable_revalidate: (urlPath: string) => Promise<void>;
 };
 /**
  * Next `API` route handler
@@ -258,13 +222,12 @@ export declare function getDisplayName<P>(Component: ComponentType<P>): string;
 export declare function isResSent(res: ServerResponse): boolean;
 export declare function normalizeRepeatedSlashes(url: string): string;
 export declare function loadGetInitialProps<C extends BaseContext, IP = {}, P = {}>(App: NextComponentType<C, IP, P>, ctx: C): Promise<IP>;
-export declare const urlObjectKeys: string[];
-export declare function formatWithValidation(url: UrlObject): string;
+declare let warnOnce: (_: string) => void;
+export { warnOnce };
 export declare const SP: boolean;
 export declare const ST: boolean;
 export declare class DecodeError extends Error {
 }
-export declare const HtmlContext: import("react").Context<HtmlProps>;
 export interface CacheFs {
     readFile(f: string): Promise<string>;
     readFileSync(f: string): string;
@@ -274,4 +237,3 @@ export interface CacheFs {
         mtime: Date;
     }>;
 }
-export {};

@@ -1,12 +1,13 @@
 /// <reference types="node" />
-import { IncomingMessage, ServerResponse } from 'http';
-import { ParsedUrlQuery } from 'querystring';
-import React from 'react';
+import type { IncomingMessage, ServerResponse } from 'http';
+import type { DomainLocale } from './config';
+import type { ImageConfigComplete } from '../shared/lib/image-config';
 import type { __ApiPreviewProps } from './api-utils';
 import type { FontManifest } from './font-utils';
 import type { LoadComponentsReturnType } from './load-components';
+import React from 'react';
+import { ParsedUrlQuery } from 'querystring';
 import { NextParsedUrlQuery } from './request-meta';
-import { DomainLocale } from './config';
 import RenderResult from './render-result';
 export declare type RenderOptsPartial = {
     buildId: string;
@@ -35,7 +36,6 @@ export declare type RenderOptsPartial = {
     unstable_JsPreload?: false;
     optimizeFonts: boolean;
     fontManifest?: FontManifest;
-    optimizeImages: boolean;
     optimizeCss: any;
     devOnlyCacheBusterQueryString?: string;
     resolvedUrl?: string;
@@ -50,11 +50,12 @@ export declare type RenderOptsPartial = {
     domainLocales?: DomainLocale[];
     disableOptimizedLoading?: boolean;
     supportsDynamicHTML?: boolean;
-    concurrentFeatures?: boolean;
+    runtime?: 'nodejs' | 'edge';
     serverComponents?: boolean;
     customServer?: boolean;
     crossOrigin?: string;
+    images: ImageConfigComplete;
+    reactRoot: boolean;
 };
 export declare type RenderOpts = LoadComponentsReturnType & RenderOptsPartial;
 export declare function renderToHTML(req: IncomingMessage, res: ServerResponse, pathname: string, query: NextParsedUrlQuery, renderOpts: RenderOpts): Promise<RenderResult | null>;
-export declare function useMaybeDeferContent(_name: string, contentFn: () => JSX.Element): [boolean, JSX.Element];

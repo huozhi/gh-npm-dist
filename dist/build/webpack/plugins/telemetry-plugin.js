@@ -20,7 +20,13 @@ const FEATURE_MODULE_MAP = new Map([
 // List of build features used in webpack configuration
 const BUILD_FEATURES = [
     'swcLoader',
-    'swcMinify'
+    'swcMinify',
+    'swcRelay',
+    'swcStyledComponents',
+    'swcReactRemoveProperties',
+    'swcExperimentalDecorators',
+    'swcRemoveConsole',
+    'swcImportSource', 
 ];
 class TelemetryPlugin {
     // Build feature usage is on/off and is known before the build starts

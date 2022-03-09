@@ -14,12 +14,6 @@ Object.defineProperty(exports, "flushAllTraces", {
         return _trace.flushAllTraces;
     }
 });
-Object.defineProperty(exports, "SpanId", {
-    enumerable: true,
-    get: function() {
-        return _shared.SpanId;
-    }
-});
 Object.defineProperty(exports, "Span", {
     enumerable: true,
     get: function() {
@@ -30,6 +24,12 @@ Object.defineProperty(exports, "SpanStatus", {
     enumerable: true,
     get: function() {
         return _trace.SpanStatus;
+    }
+});
+Object.defineProperty(exports, "SpanId", {
+    enumerable: true,
+    get: function() {
+        return _shared.SpanId;
     }
 });
 Object.defineProperty(exports, "setGlobal", {

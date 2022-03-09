@@ -9,10 +9,7 @@ exports.getDisplayName = getDisplayName;
 exports.isResSent = isResSent;
 exports.normalizeRepeatedSlashes = normalizeRepeatedSlashes;
 exports.loadGetInitialProps = loadGetInitialProps;
-exports.formatWithValidation = formatWithValidation;
-exports.HtmlContext = exports.ST = exports.SP = exports.urlObjectKeys = void 0;
-var _react = require("react");
-var _formatUrl = require("./router/utils/format-url");
+exports.ST = exports.SP = exports.warnOnce = void 0;
 function execOnce(fn) {
     let used = false;
     let result;
@@ -80,32 +77,16 @@ async function loadGetInitialProps(App, ctx) {
     }
     return props;
 }
-const urlObjectKeys = [
-    'auth',
-    'hash',
-    'host',
-    'hostname',
-    'href',
-    'path',
-    'pathname',
-    'port',
-    'protocol',
-    'query',
-    'search',
-    'slashes', 
-];
-exports.urlObjectKeys = urlObjectKeys;
-function formatWithValidation(url) {
-    if (process.env.NODE_ENV === 'development') {
-        if (url !== null && typeof url === 'object') {
-            Object.keys(url).forEach((key)=>{
-                if (urlObjectKeys.indexOf(key) === -1) {
-                    console.warn(`Unknown key passed via urlObject into url.format: ${key}`);
-                }
-            });
+let warnOnce = (_)=>{};
+exports.warnOnce = warnOnce;
+if (process.env.NODE_ENV !== 'production') {
+    const warnings = new Set();
+    exports.warnOnce = warnOnce = (msg)=>{
+        if (!warnings.has(msg)) {
+            console.warn(msg);
         }
-    }
-    return (0, _formatUrl).formatUrl(url);
+        warnings.add(msg);
+    };
 }
 const SP = typeof performance !== 'undefined';
 exports.SP = SP;
@@ -114,10 +95,5 @@ exports.ST = ST;
 class DecodeError extends Error {
 }
 exports.DecodeError = DecodeError;
-const HtmlContext = (0, _react).createContext(null);
-exports.HtmlContext = HtmlContext;
-if (process.env.NODE_ENV !== 'production') {
-    HtmlContext.displayName = 'HtmlContext';
-}
 
 //# sourceMappingURL=utils.js.map

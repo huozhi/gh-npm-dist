@@ -9,6 +9,7 @@ var _sideEffect = _interopRequireDefault(require("./side-effect"));
 var _ampContext = require("./amp-context");
 var _headManagerContext = require("./head-manager-context");
 var _amp = require("./amp");
+var _utils = require("./utils");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -154,13 +155,13 @@ const METATYPES = [
                 return(/*#__PURE__*/ _react.default.cloneElement(c, newProps));
             }
         }
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === 'development' && process.env.__NEXT_CONCURRENT_FEATURES) {
             // omit JSON-LD structured data snippets from the warning
             if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
                 const srcMessage = c.props['src'] ? `<script> tag with src="${c.props['src']}"` : `inline <script>`;
-                console.warn(`Do not add <script> tags using next/head (see ${srcMessage}). Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`);
+                (0, _utils).warnOnce(`Do not add <script> tags using next/head (see ${srcMessage}). Use next/script instead. \nSee more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component`);
             } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
-                console.warn(`Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`);
+                (0, _utils).warnOnce(`Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`);
             }
         }
         return(/*#__PURE__*/ _react.default.cloneElement(c, {

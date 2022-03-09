@@ -2,20 +2,13 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-Object.defineProperty(exports, "TransformStream", {
-    enumerable: true,
-    get: function() {
-        return _webStreamsPolyfill.TransformStream;
-    }
-});
 exports.ReadableStream = void 0;
-var _webStreamsPolyfill = require("next/dist/compiled/web-streams-polyfill");
 class ReadableStream {
     constructor(opts = {}){
         let closed = false;
         let pullPromise;
         let transformController;
-        const { readable , writable  } = new _webStreamsPolyfill.TransformStream({
+        const { readable , writable  } = new TransformStream({
             start: (controller)=>{
                 transformController = controller;
             }

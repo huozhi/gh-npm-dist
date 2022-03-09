@@ -27,6 +27,12 @@ class Span {
         this.status = SpanStatus.Started;
         this.id = getId();
         this._start = startTime || process.hrtime.bigint();
+        // hrtime cannot be used to reconstruct tracing span's actual start time
+        // since it does not have relation to clock time:
+        // `These times are relative to an arbitrary time in the past, and not related to the time of day and therefore not subject to clock drift`
+        // https://nodejs.org/api/process.html#processhrtimetime
+        // Capturing current datetime as additional metadata for external reconstruction.
+        this.now = Date.now();
     }
     // Durations are reported as microseconds. This gives 1000x the precision
     // of something like Date.now(), which reports in milliseconds.
@@ -40,7 +46,7 @@ class Span {
             throw new Error(`Duration is too long to express as float64: ${duration}`);
         }
         const timestamp = this._start / NUM_OF_MICROSEC_IN_SEC;
-        _report.reporter.report(this.name, Number(duration), Number(timestamp), this.id, this.parentId, this.attrs);
+        _report.reporter.report(this.name, Number(duration), Number(timestamp), this.id, this.parentId, this.attrs, this.now);
     }
     traceChild(name, attrs) {
         return new Span({

@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import type { Context } from 'vm';
+import type { WasmBinding } from '../../../build/webpack/loaders/next-middleware-wasm-loader';
 /**
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
@@ -17,7 +18,8 @@ export declare function getModuleContext(options: {
     onWarning: (warn: Error) => void;
     useCache: boolean;
     env: string[];
-}): {
+    wasm: WasmBinding[];
+}): Promise<{
     context: Context;
     runInContext: (paramPath: string) => void;
-};
+}>;

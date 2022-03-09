@@ -8,7 +8,7 @@ export declare type ConfigurationContext = {
     isProduction: boolean;
     isServer: boolean;
     isClient: boolean;
-    webServerRuntime: boolean;
+    isEdgeRuntime: boolean;
     targetWeb: boolean;
     assetPrefix: string;
     sassOptions: any;

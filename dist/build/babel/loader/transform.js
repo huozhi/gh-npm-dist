@@ -11,6 +11,30 @@ var _coreLibBlockHoistPlugin = _interopRequireDefault(require("next/dist/compile
 var _coreLibPluginPass = _interopRequireDefault(require("next/dist/compiled/babel/core-lib-plugin-pass"));
 var _getConfig = _interopRequireDefault(require("./get-config"));
 var _util = require("./util");
+function transform(source, inputSourceMap, loaderOptions, filename, target, parentSpan) {
+    const getConfigSpan = parentSpan.traceChild('babel-turbo-get-config');
+    const babelConfig = _getConfig.default.call(this, {
+        source,
+        loaderOptions,
+        inputSourceMap,
+        target,
+        filename
+    });
+    getConfigSpan.stop();
+    const normalizeSpan = parentSpan.traceChild('babel-turbo-normalize-file');
+    const file = (0, _util).consumeIterator((0, _coreLibNormalizeFile).default(babelConfig.passes, (0, _coreLibNormalizeOpts).default(babelConfig), source));
+    normalizeSpan.stop();
+    const transformSpan = parentSpan.traceChild('babel-turbo-transform');
+    transformAst(file, babelConfig, transformSpan);
+    transformSpan.stop();
+    const generateSpan = parentSpan.traceChild('babel-turbo-generate');
+    const { code , map  } = (0, _generator).default(file.ast, file.opts.generatorOpts, file.code);
+    generateSpan.stop();
+    return {
+        code,
+        map
+    };
+}
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -62,30 +86,6 @@ function transformAst(file, babelConfig, parentSpan) {
     for (const pluginPairs of babelConfig.passes){
         transformAstPass(file, pluginPairs, parentSpan);
     }
-}
-function transform(source, inputSourceMap, loaderOptions, filename, target, parentSpan) {
-    const getConfigSpan = parentSpan.traceChild('babel-turbo-get-config');
-    const babelConfig = _getConfig.default.call(this, {
-        source,
-        loaderOptions,
-        inputSourceMap,
-        target,
-        filename
-    });
-    getConfigSpan.stop();
-    const normalizeSpan = parentSpan.traceChild('babel-turbo-normalize-file');
-    const file = (0, _util).consumeIterator((0, _coreLibNormalizeFile).default(babelConfig.passes, (0, _coreLibNormalizeOpts).default(babelConfig), source));
-    normalizeSpan.stop();
-    const transformSpan = parentSpan.traceChild('babel-turbo-transform');
-    transformAst(file, babelConfig, transformSpan);
-    transformSpan.stop();
-    const generateSpan = parentSpan.traceChild('babel-turbo-generate');
-    const { code , map  } = (0, _generator).default(file.ast, file.opts.generatorOpts, file.code);
-    generateSpan.stop();
-    return {
-        code,
-        map
-    };
 }
 
 //# sourceMappingURL=transform.js.map

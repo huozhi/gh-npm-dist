@@ -103,6 +103,10 @@ class NextWebServer extends _baseServer.default {
             }
         };
     }
+    getServerComponentManifest() {
+        // @TODO: Need to return `extendRenderOpts.serverComponentManifest` here.
+        return undefined;
+    }
     async renderHTML(req, _res, pathname, query, renderOpts) {
         return (0, _render).renderToHTML({
             url: pathname,
@@ -110,27 +114,38 @@ class NextWebServer extends _baseServer.default {
             headers: req.headers
         }, {}, pathname, query, {
             ...renderOpts,
-            supportsDynamicHTML: true,
-            concurrentFeatures: true,
-            disableOptimizedLoading: true
+            // supportsDynamicHTML: true,
+            disableOptimizedLoading: true,
+            runtime: 'edge'
         });
     }
     async sendRenderResult(_req, res, options) {
+        // Add necessary headers.
+        // @TODO: Share the isomorphic logic with server/send-payload.ts.
+        if (options.poweredByHeader && options.type === 'html') {
+            res.setHeader('X-Powered-By', 'Next.js');
+        }
+        if (!res.getHeader('Content-Type')) {
+            res.setHeader('Content-Type', options.type === 'json' ? 'application/json' : 'text/html; charset=utf-8');
+        }
         // @TODO
         const writer = res.transformStream.writable.getWriter();
-        options.result.pipe({
-            write: (chunk)=>writer.write(chunk)
-            ,
-            end: ()=>writer.close()
-            ,
-            destroy: (err)=>writer.abort(err)
-            ,
-            cork: ()=>{},
-            uncork: ()=>{}
-        });
-        // To prevent Safari's bfcache caching the "shell", we have to add the
-        // `no-cache` header to document responses.
-        res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate');
+        if (options.result.isDynamic()) {
+            options.result.pipe({
+                write: (chunk)=>writer.write(chunk)
+                ,
+                end: ()=>writer.close()
+                ,
+                destroy: (err)=>writer.abort(err)
+                ,
+                cork: ()=>{},
+                uncork: ()=>{}
+            });
+        } else {
+            // TODO: generate Etag
+            const payload = await options.result.toUnchunkedString();
+            res.body(payload);
+        }
         res.send();
     }
     async runApi() {

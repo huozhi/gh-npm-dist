@@ -26,6 +26,7 @@ var _resolveRewrites = _interopRequireDefault(require("./utils/resolve-rewrites"
 var _routeMatcher = require("./utils/route-matcher");
 var _routeRegex = require("./utils/route-regex");
 var _getMiddlewareRegex = require("./utils/get-middleware-regex");
+var _formatUrl = require("./utils/format-url");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -184,7 +185,7 @@ function omitParmsFromQuery(query, params) {
 function resolveHref(router, href, resolveAs) {
     // we use a dummy base url for relative urls
     let base;
-    let urlAsString = typeof href === 'string' ? href : (0, _utils).formatWithValidation(href);
+    let urlAsString = typeof href === 'string' ? href : (0, _formatUrl).formatWithValidation(href);
     // repeated slashes and backslashes in the URL are considered
     // invalid and will never match a Next.js page/file
     const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//);
@@ -215,7 +216,7 @@ function resolveHref(router, href, resolveAs) {
             const query = (0, _querystring).searchParamsToUrlQuery(finalUrl.searchParams);
             const { result , params  } = interpolateAs(finalUrl.pathname, finalUrl.pathname, query);
             if (result) {
-                interpolatedAs = (0, _utils).formatWithValidation({
+                interpolatedAs = (0, _formatUrl).formatWithValidation({
                     pathname: result,
                     hash: finalUrl.hash,
                     query: omitParmsFromQuery(query, params)
@@ -339,7 +340,7 @@ function fetchNextData(dataHref, isServerRender, text, inflightCache, persistCac
     });
 }
 class Router {
-    constructor(pathname1, query1, as1, { initialProps , pageLoader , App , wrapApp , Component , err , subscription , isFallback , locale , locales , defaultLocale , domainLocales , isPreview  }){
+    constructor(pathname1, query1, as1, { initialProps , pageLoader , App , wrapApp , Component , err , subscription , isFallback , locale , locales , defaultLocale , domainLocales , isPreview , isRsc  }){
         // Static Data Cache
         this.sdc = {};
         // In-flight Server Data Requests, for deduping
@@ -360,7 +361,7 @@ class Router {
                 // Actually, for (1) we don't need to nothing. But it's hard to detect that event.
                 // So, doing the following for (1) does no harm.
                 const { pathname , query  } = this;
-                this.changeState('replaceState', (0, _utils).formatWithValidation({
+                this.changeState('replaceState', (0, _formatUrl).formatWithValidation({
                     pathname: addBasePath(pathname),
                     query
                 }), (0, _utils).getURL());
@@ -419,7 +420,6 @@ class Router {
         // Otherwise, this cause issues when when going back and
         // come again to the errored page.
         if (pathname1 !== '/_error') {
-            var ref;
             this.components[route] = {
                 Component,
                 initial: true,
@@ -427,7 +427,7 @@ class Router {
                 err,
                 __N_SSG: initialProps && initialProps.__N_SSG,
                 __N_SSP: initialProps && initialProps.__N_SSP,
-                __N_RSC: !!((ref = Component) === null || ref === void 0 ? void 0 : ref.__next_rsc__)
+                __N_RSC: !!isRsc
             };
         }
         this.components['/_app'] = {
@@ -475,7 +475,7 @@ class Router {
                     locale
                 };
                 options._shouldResolveHref = as1 !== pathname1;
-                this.changeState('replaceState', (0, _utils).formatWithValidation({
+                this.changeState('replaceState', (0, _formatUrl).formatWithValidation({
                     pathname: addBasePath(pathname1),
                     query: query1
                 }), (0, _utils).getURL(), options);
@@ -554,7 +554,7 @@ class Router {
             if (localePathResult.detectedLocale) {
                 nextState.locale = localePathResult.detectedLocale;
                 parsedAs.pathname = addBasePath(parsedAs.pathname);
-                as = (0, _utils).formatWithValidation(parsedAs);
+                as = (0, _formatUrl).formatWithValidation(parsedAs);
                 url = addBasePath((0, _normalizeLocalePath).normalizeLocalePath(hasBasePath(url) ? delBasePath(url) : url, this.locales).pathname);
             }
             let didNavigate = false;
@@ -565,7 +565,7 @@ class Router {
                 // if the locale isn't configured hard navigate to show 404 page
                 if (!((ref = this.locales) === null || ref === void 0 ? void 0 : ref.includes(nextState.locale))) {
                     parsedAs.pathname = addLocale(parsedAs.pathname, nextState.locale);
-                    window.location.href = (0, _utils).formatWithValidation(parsedAs);
+                    window.location.href = (0, _formatUrl).formatWithValidation(parsedAs);
                     // this was previously a return but was removed in favor
                     // of better dead code elimination with regenerator runtime
                     didNavigate = true;
@@ -675,14 +675,14 @@ class Router {
                     // allow the correct page chunk to be loaded
                     pathname = rewritesResult.resolvedHref;
                     parsed.pathname = addBasePath(pathname);
-                    url = (0, _utils).formatWithValidation(parsed);
+                    url = (0, _formatUrl).formatWithValidation(parsed);
                 }
             } else {
                 parsed.pathname = resolveDynamicRoute(pathname, pages);
                 if (parsed.pathname !== pathname) {
                     pathname = parsed.pathname;
                     parsed.pathname = addBasePath(pathname);
-                    url = (0, _utils).formatWithValidation(parsed);
+                    url = (0, _formatUrl).formatWithValidation(parsed);
                 }
             }
         }
@@ -698,7 +698,7 @@ class Router {
      * If the route update was triggered for client-side hydration and
      * the rendered route is not dynamic do not check the preflight
      * request as it is not necessary.
-     */ if (options._h !== 1 || (0, _isDynamic).isDynamicRoute((0, _normalizeTrailingSlash).removePathTrailingSlash(pathname))) {
+     */ if ((!options.shallow || options._h === 1) && (options._h !== 1 || (0, _isDynamic).isDynamicRoute((0, _normalizeTrailingSlash).removePathTrailingSlash(pathname)))) {
             const effect = await this._preflightRequest({
                 as,
                 cache: process.env.NODE_ENV === 'production',
@@ -716,7 +716,7 @@ class Router {
                 resolvedAs = effect.asPath;
                 pathname = effect.resolvedHref;
                 parsed.pathname = effect.resolvedHref;
-                url = (0, _utils).formatWithValidation(parsed);
+                url = (0, _formatUrl).formatWithValidation(parsed);
             } else if (effect.type === 'redirect' && effect.newAs) {
                 return this.change(method, effect.newUrl, effect.newAs, options);
             } else if (effect.type === 'redirect' && effect.destination) {
@@ -745,7 +745,7 @@ class Router {
                     throw new Error((shouldInterpolate ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(', ')}) to be interpolated properly. ` : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) + `Read more: https://nextjs.org/docs/messages/${shouldInterpolate ? 'href-interpolation-failed' : 'incompatible-href-as'}`);
                 }
             } else if (shouldInterpolate) {
-                as = (0, _utils).formatWithValidation(Object.assign({}, parsedAs, {
+                as = (0, _formatUrl).formatWithValidation(Object.assign({}, parsedAs, {
                     pathname: interpolatedAs.result,
                     query: omitParmsFromQuery(query, interpolatedAs.params)
                 }));
@@ -924,7 +924,7 @@ class Router {
                     styleSheets: res.styleSheets,
                     __N_SSG: res.mod.__N_SSG,
                     __N_SSP: res.mod.__N_SSP,
-                    __N_RSC: !!res.page.__next_rsc__
+                    __N_RSC: !!res.mod.__next_rsc__
                 })
             );
             const { Component , __N_SSG , __N_SSP , __N_RSC  } = routeInfo;
@@ -937,7 +937,7 @@ class Router {
             let dataHref;
             if (__N_SSG || __N_SSP || __N_RSC) {
                 dataHref = this.pageLoader.getDataHref({
-                    href: (0, _utils).formatWithValidation({
+                    href: (0, _formatUrl).formatWithValidation({
                         pathname,
                         query
                     }),
@@ -1036,12 +1036,12 @@ class Router {
             if (options.locale === false) {
                 pathname = (0, _normalizeLocalePath).normalizeLocalePath(pathname, this.locales).pathname;
                 parsed.pathname = pathname;
-                url = (0, _utils).formatWithValidation(parsed);
+                url = (0, _formatUrl).formatWithValidation(parsed);
                 let parsedAs = (0, _parseRelativeUrl).parseRelativeUrl(asPath);
                 const localePathResult = (0, _normalizeLocalePath).normalizeLocalePath(parsedAs.pathname, this.locales);
                 parsedAs.pathname = localePathResult.pathname;
                 options.locale = localePathResult.detectedLocale || this.defaultLocale;
-                asPath = (0, _utils).formatWithValidation(parsedAs);
+                asPath = (0, _formatUrl).formatWithValidation(parsedAs);
             }
         }
         const pages = await this.pageLoader.getPageList();
@@ -1060,14 +1060,14 @@ class Router {
                 // allow the correct page chunk to be loaded
                 pathname = rewritesResult.resolvedHref;
                 parsed.pathname = pathname;
-                url = (0, _utils).formatWithValidation(parsed);
+                url = (0, _formatUrl).formatWithValidation(parsed);
             }
         } else {
             parsed.pathname = resolveDynamicRoute(parsed.pathname, pages);
             if (parsed.pathname !== pathname) {
                 pathname = parsed.pathname;
                 parsed.pathname = pathname;
-                url = (0, _utils).formatWithValidation(parsed);
+                url = (0, _formatUrl).formatWithValidation(parsed);
             }
         }
         // Prefetch is not supported in development mode because it would trigger on-demand-entries
@@ -1091,7 +1091,7 @@ class Router {
                 ...effects.parsedAs.query
             };
             resolvedAs = effects.asPath;
-            url = (0, _utils).formatWithValidation(parsed);
+            url = (0, _formatUrl).formatWithValidation(parsed);
         }
         const route = (0, _normalizeTrailingSlash).removePathTrailingSlash(pathname);
         await Promise.all([
@@ -1158,7 +1158,8 @@ class Router {
         });
     }
     async _preflightRequest(options) {
-        const cleanedAs = delLocale(hasBasePath(options.as) ? delBasePath(options.as) : options.as, options.locale);
+        const asPathname = pathNoQueryHash(options.as);
+        const cleanedAs = delLocale(hasBasePath(asPathname) ? delBasePath(asPathname) : asPathname, options.locale);
         const fns = await this.pageLoader.getMiddlewareList();
         const requiresPreflight = fns.some(([middleware, isSSR])=>{
             return (0, _routeMatcher).getRouteMatcher((0, _getMiddlewareRegex).getMiddlewareRegex(middleware, !isSSR))(cleanedAs);
@@ -1168,11 +1169,20 @@ class Router {
                 type: 'next'
             };
         }
-        const preflight = await this._getPreflightData({
-            preflightHref: options.as,
-            shouldCache: options.cache,
-            isPreview: options.isPreview
-        });
+        let preflight;
+        try {
+            preflight = await this._getPreflightData({
+                preflightHref: options.as,
+                shouldCache: options.cache,
+                isPreview: options.isPreview
+            });
+        } catch (err) {
+            // If preflight request fails, we need to do a hard-navigation.
+            return {
+                type: 'redirect',
+                destination: options.as
+            };
+        }
         if (preflight.rewrite) {
             // for external rewrites we need to do a hard navigation
             // to the resource
@@ -1301,7 +1311,7 @@ class Router {
         return this.state.isPreview;
     }
 }
-Router.events = (0, _mitt).default();
 exports.default = Router;
+Router.events = (0, _mitt).default();
 
 //# sourceMappingURL=router.js.map

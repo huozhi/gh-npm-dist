@@ -19,8 +19,8 @@ class MultiReporter {
         await Promise.all(this.reporters.map((reporter1)=>reporter1.flushAll()
         ));
     }
-    report(spanName, duration, timestamp, id, parentId, attrs) {
-        this.reporters.forEach((reporter2)=>reporter2.report(spanName, duration, timestamp, id, parentId, attrs)
+    report(spanName, duration, timestamp, id, parentId, attrs, startTime) {
+        this.reporters.forEach((reporter2)=>reporter2.report(spanName, duration, timestamp, id, parentId, attrs, startTime)
         );
     }
 }

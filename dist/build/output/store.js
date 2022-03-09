@@ -96,8 +96,8 @@ store.subscribe((state)=>{
             }
         }
         const moduleName = (0, _utils).getUnresolvedModuleFromError(cleanError);
-        if (state.hasServerWeb && moduleName) {
-            console.error(`Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n`);
+        if (state.hasEdgeServer && moduleName) {
+            console.error(`Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n`);
             return;
         }
         // Ensure traces are flushed after each compile in development mode

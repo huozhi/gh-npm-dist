@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.sort = exports.isUrlRequestable = exports.resolveRequests = exports.getExportCode = exports.getModuleCode = exports.getImportCode = exports.getPreRequester = exports.normalizeSourceMap = exports.getModulesPlugins = exports.getFilter = exports.requestify = exports.normalizeUrl = exports.shouldUseIcssPlugin = exports.shouldUseURLPlugin = exports.shouldUseImportPlugin = exports.shouldUseModulesPlugins = exports.isDataUrl = void 0;
+exports.isDataUrl = exports.sort = exports.isUrlRequestable = exports.resolveRequests = exports.getExportCode = exports.getModuleCode = exports.getImportCode = exports.getPreRequester = exports.normalizeSourceMap = exports.getModulesPlugins = exports.shouldUseIcssPlugin = exports.shouldUseModulesPlugins = exports.shouldUseURLPlugin = exports.shouldUseImportPlugin = exports.getFilter = exports.requestify = exports.normalizeUrl = void 0;
 var _url = require("url");
 var _path = _interopRequireDefault(require("path"));
 var _loaderUtils3 = require("next/dist/compiled/loader-utils3");
@@ -60,6 +60,7 @@ function normalizeUrl(url, isStringValue) {
     }
     return normalizedUrl;
 }
+exports.normalizeUrl = normalizeUrl;
 function requestify(url, rootContext) {
     if (/^file:/i.test(url)) {
         return (0, _url).fileURLToPath(url);
@@ -69,6 +70,7 @@ function requestify(url, rootContext) {
     }
     return url.charAt(0) === '/' ? (0, _loaderUtils3).urlToRequest(url, rootContext) : (0, _loaderUtils3).urlToRequest(url);
 }
+exports.requestify = requestify;
 function getFilter(filter, resourcePath) {
     return (...args)=>{
         if (typeof filter === 'function') {
@@ -77,6 +79,7 @@ function getFilter(filter, resourcePath) {
         return true;
     };
 }
+exports.getFilter = getFilter;
 function shouldUseImportPlugin(options) {
     if (options.modules.exportOnlyLocals) {
         return false;
@@ -86,6 +89,7 @@ function shouldUseImportPlugin(options) {
     }
     return true;
 }
+exports.shouldUseImportPlugin = shouldUseImportPlugin;
 function shouldUseURLPlugin(options) {
     if (options.modules.exportOnlyLocals) {
         return false;
@@ -95,12 +99,15 @@ function shouldUseURLPlugin(options) {
     }
     return true;
 }
+exports.shouldUseURLPlugin = shouldUseURLPlugin;
 function shouldUseModulesPlugins(options) {
     return options.modules.compileType === 'module';
 }
+exports.shouldUseModulesPlugins = shouldUseModulesPlugins;
 function shouldUseIcssPlugin(options) {
     return options.icss === true || Boolean(options.modules);
 }
+exports.shouldUseIcssPlugin = shouldUseIcssPlugin;
 function getModulesPlugins(options, loaderContext) {
     const { mode , getLocalIdent , localIdentName , localIdentContext , localIdentHashPrefix , localIdentRegExp ,  } = options.modules;
     let plugins = [];
@@ -127,6 +134,7 @@ function getModulesPlugins(options, loaderContext) {
     }
     return plugins;
 }
+exports.getModulesPlugins = getModulesPlugins;
 const IS_NATIVE_WIN32_PATH = /^[a-z]:[/\\]|^\\\\/i;
 const ABSOLUTE_SCHEME = /^[a-z0-9+\-.]+:/i;
 function getURLType(source) {
@@ -170,6 +178,7 @@ function normalizeSourceMap(map, resourcePath) {
     }
     return newMap;
 }
+exports.normalizeSourceMap = normalizeSourceMap;
 function getPreRequester({ loaders , loaderIndex  }) {
     const cache = Object.create(null);
     return (number)=>{
@@ -186,6 +195,7 @@ function getPreRequester({ loaders , loaderIndex  }) {
         return cache[number];
     };
 }
+exports.getPreRequester = getPreRequester;
 function getImportCode(imports, options) {
     let code = '';
     for (const item of imports){
@@ -202,6 +212,7 @@ function getImportCode(imports, options) {
     }
     return code ? `// Imports\n${code}` : '';
 }
+exports.getImportCode = getImportCode;
 function normalizeSourceMapForRuntime(map, loaderContext) {
     const resultMap = map ? map.toJSON() : null;
     if (resultMap) {
@@ -253,6 +264,7 @@ function getModuleCode(result, api, replacements, options, loaderContext) {
     }
     return `${beforeCode}// Module\n___CSS_LOADER_EXPORT___.push([module.id, ${code}, ""${sourceMapValue}]);\n`;
 }
+exports.getModuleCode = getModuleCode;
 function dashesCamelCase(str) {
     return str.replace(/-+(\w)/g, (match, firstLetter)=>firstLetter.toUpperCase()
     );
@@ -333,6 +345,7 @@ function getExportCode(exports, replacements, options) {
     code += `${options.esModule ? 'export default' : 'module.exports ='} ___CSS_LOADER_EXPORT___;\n`;
     return code;
 }
+exports.getExportCode = getExportCode;
 async function resolveRequests(resolve, context, possibleRequests) {
     return resolve(context, possibleRequests[0]).then((result)=>{
         return result;
@@ -344,6 +357,7 @@ async function resolveRequests(resolve, context, possibleRequests) {
         return resolveRequests(resolve, context, tailPossibleRequests);
     });
 }
+exports.resolveRequests = resolveRequests;
 function isUrlRequestable(url) {
     // Protocol-relative URLs
     if (/^\/\//.test(url)) {
@@ -363,9 +377,11 @@ function isUrlRequestable(url) {
     }
     return true;
 }
+exports.isUrlRequestable = isUrlRequestable;
 function sort(a, b) {
     return a.index - b.index;
 }
+exports.sort = sort;
 function isDataUrl(url) {
     if (/^data:/i.test(url)) {
         return true;
@@ -373,21 +389,5 @@ function isDataUrl(url) {
     return false;
 }
 exports.isDataUrl = isDataUrl;
-exports.shouldUseModulesPlugins = shouldUseModulesPlugins;
-exports.shouldUseImportPlugin = shouldUseImportPlugin;
-exports.shouldUseURLPlugin = shouldUseURLPlugin;
-exports.shouldUseIcssPlugin = shouldUseIcssPlugin;
-exports.normalizeUrl = normalizeUrl;
-exports.requestify = requestify;
-exports.getFilter = getFilter;
-exports.getModulesPlugins = getModulesPlugins;
-exports.normalizeSourceMap = normalizeSourceMap;
-exports.getPreRequester = getPreRequester;
-exports.getImportCode = getImportCode;
-exports.getModuleCode = getModuleCode;
-exports.getExportCode = getExportCode;
-exports.resolveRequests = resolveRequests;
-exports.isUrlRequestable = isUrlRequestable;
-exports.sort = sort;
 
 //# sourceMappingURL=utils.js.map

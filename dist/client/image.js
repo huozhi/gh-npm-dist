@@ -5,303 +5,11 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = Image;
 var _react = _interopRequireWildcard(require("react"));
 var _head = _interopRequireDefault(require("../shared/lib/head"));
-var _imageConfig = require("../server/image-config");
+var _imageConfig = require("../shared/lib/image-config");
 var _useIntersection = require("./use-intersection");
-function _defineProperty(obj, key, value) {
-    if (key in obj) {
-        Object.defineProperty(obj, key, {
-            value: value,
-            enumerable: true,
-            configurable: true,
-            writable: true
-        });
-    } else {
-        obj[key] = value;
-    }
-    return obj;
-}
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-        return obj;
-    } else {
-        var newObj = {};
-        if (obj != null) {
-            for(var key in obj){
-                if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
-                    if (desc.get || desc.set) {
-                        Object.defineProperty(newObj, key, desc);
-                    } else {
-                        newObj[key] = obj[key];
-                    }
-                }
-            }
-        }
-        newObj.default = obj;
-        return newObj;
-    }
-}
-function _objectSpread(target) {
-    for(var i = 1; i < arguments.length; i++){
-        var source = arguments[i] != null ? arguments[i] : {};
-        var ownKeys = Object.keys(source);
-        if (typeof Object.getOwnPropertySymbols === "function") {
-            ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function(sym) {
-                return Object.getOwnPropertyDescriptor(source, sym).enumerable;
-            }));
-        }
-        ownKeys.forEach(function(key) {
-            _defineProperty(target, key, source[key]);
-        });
-    }
-    return target;
-}
-function _objectWithoutProperties(source, excluded) {
-    if (source == null) return {};
-    var target = _objectWithoutPropertiesLoose(source, excluded);
-    var key, i;
-    if (Object.getOwnPropertySymbols) {
-        var sourceSymbolKeys = Object.getOwnPropertySymbols(source);
-        for(i = 0; i < sourceSymbolKeys.length; i++){
-            key = sourceSymbolKeys[i];
-            if (excluded.indexOf(key) >= 0) continue;
-            if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue;
-            target[key] = source[key];
-        }
-    }
-    return target;
-}
-function _objectWithoutPropertiesLoose(source, excluded) {
-    if (source == null) return {};
-    var target = {};
-    var sourceKeys = Object.keys(source);
-    var key, i;
-    for(i = 0; i < sourceKeys.length; i++){
-        key = sourceKeys[i];
-        if (excluded.indexOf(key) >= 0) continue;
-        target[key] = source[key];
-    }
-    return target;
-}
-const loadedImageURLs = new Set();
-const allImgs = new Map();
-let perfObserver;
-const emptyDataURL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-if (typeof window === 'undefined') {
-    global.__NEXT_IMAGE_IMPORTED = true;
-}
-const VALID_LOADING_VALUES = [
-    'lazy',
-    'eager',
-    undefined
-];
-const loaders = new Map([
-    [
-        'default',
-        defaultLoader
-    ],
-    [
-        'imgix',
-        imgixLoader
-    ],
-    [
-        'cloudinary',
-        cloudinaryLoader
-    ],
-    [
-        'akamai',
-        akamaiLoader
-    ],
-    [
-        'custom',
-        customLoader
-    ], 
-]);
-const VALID_LAYOUT_VALUES = [
-    'fill',
-    'fixed',
-    'intrinsic',
-    'responsive',
-    undefined, 
-];
-function isStaticRequire(src) {
-    return src.default !== undefined;
-}
-function isStaticImageData(src) {
-    return src.src !== undefined;
-}
-function isStaticImport(src) {
-    return typeof src === 'object' && (isStaticRequire(src) || isStaticImageData(src));
-}
-const { deviceSizes: configDeviceSizes , imageSizes: configImageSizes , loader: configLoader , path: configPath , domains: configDomains ,  } = process.env.__NEXT_IMAGE_OPTS || _imageConfig.imageConfigDefault;
-// sort smallest to largest
-const allSizes = [
-    ...configDeviceSizes,
-    ...configImageSizes
-];
-configDeviceSizes.sort((a, b)=>a - b
-);
-allSizes.sort((a, b)=>a - b
-);
-function getWidths(width, layout, sizes) {
-    if (sizes && (layout === 'fill' || layout === 'responsive')) {
-        // Find all the "vw" percent sizes used in the sizes prop
-        const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g;
-        const percentSizes = [];
-        for(let match; match = viewportWidthRe.exec(sizes); match){
-            percentSizes.push(parseInt(match[2]));
-        }
-        if (percentSizes.length) {
-            const smallestRatio = Math.min(...percentSizes) * 0.01;
-            return {
-                widths: allSizes.filter((s)=>s >= configDeviceSizes[0] * smallestRatio
-                ),
-                kind: 'w'
-            };
-        }
-        return {
-            widths: allSizes,
-            kind: 'w'
-        };
-    }
-    if (typeof width !== 'number' || layout === 'fill' || layout === 'responsive') {
-        return {
-            widths: configDeviceSizes,
-            kind: 'w'
-        };
-    }
-    const widths = [
-        ...new Set(// > This means that most OLED screens that say they are 3x resolution,
-        // > are actually 3x in the green color, but only 1.5x in the red and
-        // > blue colors. Showing a 3x resolution image in the app vs a 2x
-        // > resolution image will be visually the same, though the 3x image
-        // > takes significantly more data. Even true 3x resolution screens are
-        // > wasteful as the human eye cannot see that level of detail without
-        // > something like a magnifying glass.
-        // https://blog.twitter.com/engineering/en_us/topics/infrastructure/2019/capping-image-fidelity-on-ultra-high-resolution-devices.html
-        [
-            width,
-            width * 2 /*, width * 3*/ 
-        ].map((w)=>allSizes.find((p)=>p >= w
-            ) || allSizes[allSizes.length - 1]
-        )), 
-    ];
-    return {
-        widths,
-        kind: 'x'
-    };
-}
-function generateImgAttrs({ src , unoptimized , layout , width , quality , sizes , loader  }) {
-    if (unoptimized) {
-        return {
-            src,
-            srcSet: undefined,
-            sizes: undefined
-        };
-    }
-    const { widths , kind  } = getWidths(width, layout, sizes);
-    const last = widths.length - 1;
-    return {
-        sizes: !sizes && kind === 'w' ? '100vw' : sizes,
-        srcSet: widths.map((w, i)=>`${loader({
-                src,
-                quality,
-                width: w
-            })} ${kind === 'w' ? w : i + 1}${kind}`
-        ).join(', '),
-        // It's intended to keep `src` the last attribute because React updates
-        // attributes in order. If we keep `src` the first one, Safari will
-        // immediately start to fetch `src`, before `sizes` and `srcSet` are even
-        // updated by React. That causes multiple unnecessary requests if `srcSet`
-        // and `sizes` are defined.
-        // This bug cannot be reproduced in Chrome or Firefox.
-        src: loader({
-            src,
-            quality,
-            width: widths[last]
-        })
-    };
-}
-function getInt(x) {
-    if (typeof x === 'number') {
-        return x;
-    }
-    if (typeof x === 'string') {
-        return parseInt(x, 10);
-    }
-    return undefined;
-}
-function defaultImageLoader(loaderProps) {
-    const load = loaders.get(configLoader);
-    if (load) {
-        return load(_objectSpread({
-            root: configPath
-        }, loaderProps));
-    }
-    throw new Error(`Unknown "loader" found in "next.config.js". Expected: ${_imageConfig.VALID_LOADERS.join(', ')}. Received: ${configLoader}`);
-}
-// See https://stackoverflow.com/q/39777833/266535 for why we use this ref
-// handler instead of the img's onLoad attribute.
-function handleLoading(imgRef, src, layout, placeholder, onLoadingCompleteRef) {
-    const handleLoad = ()=>{
-        const img = imgRef.current;
-        if (!img) {
-            return;
-        }
-        if (img.src !== emptyDataURL) {
-            const p = 'decode' in img ? img.decode() : Promise.resolve();
-            p.catch(()=>{}).then(()=>{
-                if (!imgRef.current) {
-                    return;
-                }
-                loadedImageURLs.add(src);
-                if (placeholder === 'blur') {
-                    img.style.filter = '';
-                    img.style.backgroundSize = '';
-                    img.style.backgroundImage = '';
-                    img.style.backgroundPosition = '';
-                }
-                if (onLoadingCompleteRef.current) {
-                    const { naturalWidth , naturalHeight  } = img;
-                    // Pass back read-only primitive values but not the
-                    // underlying DOM element because it could be misused.
-                    onLoadingCompleteRef.current({
-                        naturalWidth,
-                        naturalHeight
-                    });
-                }
-                if (process.env.NODE_ENV !== 'production') {
-                    var ref;
-                    if ((ref = img.parentElement) === null || ref === void 0 ? void 0 : ref.parentElement) {
-                        const parent = getComputedStyle(img.parentElement.parentElement);
-                        if (!parent.position) {
-                        // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
-                        } else if (layout === 'responsive' && parent.display === 'flex') {
-                            console.warn(`Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`);
-                        } else if (layout === 'fill' && parent.position !== 'relative' && parent.position !== 'fixed') {
-                            console.warn(`Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`);
-                        }
-                    }
-                }
-            });
-        }
-    };
-    if (imgRef.current) {
-        if (imgRef.current.complete) {
-            // If the real image fails to load, this will still remove the placeholder.
-            // This is the desired behavior for now, and will be revisited when error
-            // handling is worked on for the image component itself.
-            handleLoad();
-        } else {
-            imgRef.current.onload = handleLoad;
-        }
-    }
-}
+var _imageConfigContext = require("../shared/lib/image-config-context");
+var _utils = require("../shared/lib/utils");
+var _normalizeTrailingSlash = require("./normalize-trailing-slash");
 function Image(_param) {
     var { src , sizes , unoptimized =false , priority =false , loading , lazyRoot =null , lazyBoundary ='200px' , className , quality , width , height , objectFit , objectPosition , onLoadingComplete , loader =defaultImageLoader , placeholder ='empty' , blurDataURL  } = _param, all = _objectWithoutProperties(_param, [
         "src",
@@ -323,6 +31,23 @@ function Image(_param) {
         "blurDataURL"
     ]);
     const imgRef = (0, _react).useRef(null);
+    const configContext = (0, _react).useContext(_imageConfigContext.ImageConfigContext);
+    const config = (0, _react).useMemo(()=>{
+        const c = configEnv || configContext || _imageConfig.imageConfigDefault;
+        const allSizes = [
+            ...c.deviceSizes,
+            ...c.imageSizes
+        ].sort((a, b)=>a - b
+        );
+        const deviceSizes = c.deviceSizes.sort((a, b)=>a - b
+        );
+        return _objectSpread({}, c, {
+            allSizes,
+            deviceSizes
+        });
+    }, [
+        configContext
+    ]);
     let rest = all;
     let layout = sizes ? 'responsive' : 'intrinsic';
     if ('layout' in rest) {
@@ -375,7 +100,7 @@ function Image(_param) {
             throw new Error(`Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`);
         }
         if (layout === 'fill' && (width || height)) {
-            console.warn(`Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`);
+            (0, _utils).warnOnce(`Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`);
         }
         if (!VALID_LOADING_VALUES.includes(loading)) {
             throw new Error(`Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(String).join(',')}.`);
@@ -384,11 +109,11 @@ function Image(_param) {
             throw new Error(`Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`);
         }
         if (sizes && layout !== 'fill' && layout !== 'responsive') {
-            console.warn(`Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'".`);
+            (0, _utils).warnOnce(`Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'".`);
         }
         if (placeholder === 'blur') {
             if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
-                console.warn(`Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`);
+                (0, _utils).warnOnce(`Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`);
             }
             if (!blurDataURL) {
                 const VALID_BLUR_EXT = [
@@ -407,13 +132,14 @@ function Image(_param) {
             }
         }
         if ('ref' in rest) {
-            console.warn(`Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`);
+            (0, _utils).warnOnce(`Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`);
         }
         if ('style' in rest) {
-            console.warn(`Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`);
+            (0, _utils).warnOnce(`Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`);
         }
-        if (!unoptimized) {
+        if (!unoptimized && loader !== defaultImageLoader) {
             const urlStr = loader({
+                config,
                 src,
                 width: widthInt || 400,
                 quality: qualityInt || 75
@@ -423,7 +149,7 @@ function Image(_param) {
                 url = new URL(urlStr);
             } catch (err) {}
             if (urlStr === src || url && url.pathname === src && !url.search) {
-                console.warn(`Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` + `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`);
+                (0, _utils).warnOnce(`Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` + `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`);
             }
         }
         if (typeof window !== 'undefined' && !perfObserver && window.PerformanceObserver) {
@@ -435,7 +161,7 @@ function Image(_param) {
                     const lcpImage = allImgs.get(imgSrc);
                     if (lcpImage && !lcpImage.priority && lcpImage.placeholder !== 'blur' && !lcpImage.src.startsWith('data:') && !lcpImage.src.startsWith('blob:')) {
                         // https://web.dev/lcp/#measure-lcp-in-javascript
-                        console.warn(`Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` + `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`);
+                        (0, _utils).warnOnce(`Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` + `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`);
                     }
                 }
             });
@@ -548,6 +274,7 @@ function Image(_param) {
     };
     if (isVisible) {
         imgAttributes = generateImgAttrs({
+            config,
             src,
             unoptimized,
             layout,
@@ -629,7 +356,8 @@ function Image(_param) {
         className: className,
         ref: imgRef,
         style: _objectSpread({}, imgStyle, blurStyle)
-    })), isLazy && /*#__PURE__*/ _react.default.createElement("noscript", null, /*#__PURE__*/ _react.default.createElement("img", Object.assign({}, rest, generateImgAttrs({
+    })), (isLazy || placeholder === 'blur') && /*#__PURE__*/ _react.default.createElement("noscript", null, /*#__PURE__*/ _react.default.createElement("img", Object.assign({}, rest, generateImgAttrs({
+        config,
         src,
         unoptimized,
         layout,
@@ -656,12 +384,300 @@ function Image(_param) {
         href: imgAttributes.srcSet ? undefined : imgAttributes.src
     }, linkProps))) : null));
 }
+function _defineProperty(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _interopRequireWildcard(obj) {
+    if (obj && obj.__esModule) {
+        return obj;
+    } else {
+        var newObj = {};
+        if (obj != null) {
+            for(var key in obj){
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
+                    if (desc.get || desc.set) {
+                        Object.defineProperty(newObj, key, desc);
+                    } else {
+                        newObj[key] = obj[key];
+                    }
+                }
+            }
+        }
+        newObj.default = obj;
+        return newObj;
+    }
+}
+function _objectSpread(target) {
+    for(var i = 1; i < arguments.length; i++){
+        var source = arguments[i] != null ? arguments[i] : {};
+        var ownKeys = Object.keys(source);
+        if (typeof Object.getOwnPropertySymbols === "function") {
+            ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function(sym) {
+                return Object.getOwnPropertyDescriptor(source, sym).enumerable;
+            }));
+        }
+        ownKeys.forEach(function(key) {
+            _defineProperty(target, key, source[key]);
+        });
+    }
+    return target;
+}
+function _objectWithoutProperties(source, excluded) {
+    if (source == null) return {};
+    var target = _objectWithoutPropertiesLoose(source, excluded);
+    var key, i;
+    if (Object.getOwnPropertySymbols) {
+        var sourceSymbolKeys = Object.getOwnPropertySymbols(source);
+        for(i = 0; i < sourceSymbolKeys.length; i++){
+            key = sourceSymbolKeys[i];
+            if (excluded.indexOf(key) >= 0) continue;
+            if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue;
+            target[key] = source[key];
+        }
+    }
+    return target;
+}
+function _objectWithoutPropertiesLoose(source, excluded) {
+    if (source == null) return {};
+    var target = {};
+    var sourceKeys = Object.keys(source);
+    var key, i;
+    for(i = 0; i < sourceKeys.length; i++){
+        key = sourceKeys[i];
+        if (excluded.indexOf(key) >= 0) continue;
+        target[key] = source[key];
+    }
+    return target;
+}
+const configEnv = process.env.__NEXT_IMAGE_OPTS;
+const loadedImageURLs = new Set();
+const allImgs = new Map();
+let perfObserver;
+const emptyDataURL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+if (typeof window === 'undefined') {
+    global.__NEXT_IMAGE_IMPORTED = true;
+}
+const VALID_LOADING_VALUES = [
+    'lazy',
+    'eager',
+    undefined
+];
+const loaders = new Map([
+    [
+        'default',
+        defaultLoader
+    ],
+    [
+        'imgix',
+        imgixLoader
+    ],
+    [
+        'cloudinary',
+        cloudinaryLoader
+    ],
+    [
+        'akamai',
+        akamaiLoader
+    ],
+    [
+        'custom',
+        customLoader
+    ], 
+]);
+const VALID_LAYOUT_VALUES = [
+    'fill',
+    'fixed',
+    'intrinsic',
+    'responsive',
+    undefined, 
+];
+function isStaticRequire(src) {
+    return src.default !== undefined;
+}
+function isStaticImageData(src) {
+    return src.src !== undefined;
+}
+function isStaticImport(src) {
+    return typeof src === 'object' && (isStaticRequire(src) || isStaticImageData(src));
+}
+function getWidths({ deviceSizes , allSizes  }, width, layout, sizes) {
+    if (sizes && (layout === 'fill' || layout === 'responsive')) {
+        // Find all the "vw" percent sizes used in the sizes prop
+        const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g;
+        const percentSizes = [];
+        for(let match; match = viewportWidthRe.exec(sizes); match){
+            percentSizes.push(parseInt(match[2]));
+        }
+        if (percentSizes.length) {
+            const smallestRatio = Math.min(...percentSizes) * 0.01;
+            return {
+                widths: allSizes.filter((s)=>s >= deviceSizes[0] * smallestRatio
+                ),
+                kind: 'w'
+            };
+        }
+        return {
+            widths: allSizes,
+            kind: 'w'
+        };
+    }
+    if (typeof width !== 'number' || layout === 'fill' || layout === 'responsive') {
+        return {
+            widths: deviceSizes,
+            kind: 'w'
+        };
+    }
+    const widths = [
+        ...new Set(// > This means that most OLED screens that say they are 3x resolution,
+        // > are actually 3x in the green color, but only 1.5x in the red and
+        // > blue colors. Showing a 3x resolution image in the app vs a 2x
+        // > resolution image will be visually the same, though the 3x image
+        // > takes significantly more data. Even true 3x resolution screens are
+        // > wasteful as the human eye cannot see that level of detail without
+        // > something like a magnifying glass.
+        // https://blog.twitter.com/engineering/en_us/topics/infrastructure/2019/capping-image-fidelity-on-ultra-high-resolution-devices.html
+        [
+            width,
+            width * 2 /*, width * 3*/ 
+        ].map((w)=>allSizes.find((p)=>p >= w
+            ) || allSizes[allSizes.length - 1]
+        )), 
+    ];
+    return {
+        widths,
+        kind: 'x'
+    };
+}
+function generateImgAttrs({ config , src , unoptimized , layout , width , quality , sizes , loader  }) {
+    if (unoptimized) {
+        return {
+            src,
+            srcSet: undefined,
+            sizes: undefined
+        };
+    }
+    const { widths , kind  } = getWidths(config, width, layout, sizes);
+    const last = widths.length - 1;
+    return {
+        sizes: !sizes && kind === 'w' ? '100vw' : sizes,
+        srcSet: widths.map((w, i)=>`${loader({
+                config,
+                src,
+                quality,
+                width: w
+            })} ${kind === 'w' ? w : i + 1}${kind}`
+        ).join(', '),
+        // It's intended to keep `src` the last attribute because React updates
+        // attributes in order. If we keep `src` the first one, Safari will
+        // immediately start to fetch `src`, before `sizes` and `srcSet` are even
+        // updated by React. That causes multiple unnecessary requests if `srcSet`
+        // and `sizes` are defined.
+        // This bug cannot be reproduced in Chrome or Firefox.
+        src: loader({
+            config,
+            src,
+            quality,
+            width: widths[last]
+        })
+    };
+}
+function getInt(x) {
+    if (typeof x === 'number') {
+        return x;
+    }
+    if (typeof x === 'string') {
+        return parseInt(x, 10);
+    }
+    return undefined;
+}
+function defaultImageLoader(loaderProps) {
+    var ref;
+    const loaderKey = ((ref = loaderProps.config) === null || ref === void 0 ? void 0 : ref.loader) || 'default';
+    const load = loaders.get(loaderKey);
+    if (load) {
+        return load(loaderProps);
+    }
+    throw new Error(`Unknown "loader" found in "next.config.js". Expected: ${_imageConfig.VALID_LOADERS.join(', ')}. Received: ${loaderKey}`);
+}
+// See https://stackoverflow.com/q/39777833/266535 for why we use this ref
+// handler instead of the img's onLoad attribute.
+function handleLoading(imgRef, src, layout, placeholder, onLoadingCompleteRef) {
+    const handleLoad = ()=>{
+        const img = imgRef.current;
+        if (!img) {
+            return;
+        }
+        if (img.src !== emptyDataURL) {
+            const p = 'decode' in img ? img.decode() : Promise.resolve();
+            p.catch(()=>{}).then(()=>{
+                if (!imgRef.current) {
+                    return;
+                }
+                loadedImageURLs.add(src);
+                if (placeholder === 'blur') {
+                    img.style.filter = '';
+                    img.style.backgroundSize = '';
+                    img.style.backgroundImage = '';
+                    img.style.backgroundPosition = '';
+                }
+                if (onLoadingCompleteRef.current) {
+                    const { naturalWidth , naturalHeight  } = img;
+                    // Pass back read-only primitive values but not the
+                    // underlying DOM element because it could be misused.
+                    onLoadingCompleteRef.current({
+                        naturalWidth,
+                        naturalHeight
+                    });
+                }
+                if (process.env.NODE_ENV !== 'production') {
+                    var ref;
+                    if ((ref = img.parentElement) === null || ref === void 0 ? void 0 : ref.parentElement) {
+                        const parent = getComputedStyle(img.parentElement.parentElement);
+                        if (!parent.position) {
+                        // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
+                        } else if (layout === 'responsive' && parent.display === 'flex') {
+                            (0, _utils).warnOnce(`Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`);
+                        } else if (layout === 'fill' && parent.position !== 'relative' && parent.position !== 'fixed' && parent.position !== 'absolute') {
+                            (0, _utils).warnOnce(`Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`);
+                        }
+                    }
+                }
+            });
+        }
+    };
+    if (imgRef.current) {
+        if (imgRef.current.complete) {
+            // If the real image fails to load, this will still remove the placeholder.
+            // This is the desired behavior for now, and will be revisited when error
+            // handling is worked on for the image component itself.
+            handleLoad();
+        } else {
+            imgRef.current.onload = handleLoad;
+        }
+    }
+}
 function normalizeSrc(src) {
     return src[0] === '/' ? src.slice(1) : src;
 }
-function imgixLoader({ root , src , width , quality  }) {
+function imgixLoader({ config , src , width , quality  }) {
     // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
-    const url = new URL(`${root}${normalizeSrc(src)}`);
+    const url = new URL(`${config.path}${normalizeSrc(src)}`);
     const params = url.searchParams;
     params.set('auto', params.get('auto') || 'format');
     params.set('fit', params.get('fit') || 'max');
@@ -671,10 +687,10 @@ function imgixLoader({ root , src , width , quality  }) {
     }
     return url.href;
 }
-function akamaiLoader({ root , src , width  }) {
-    return `${root}${normalizeSrc(src)}?imwidth=${width}`;
+function akamaiLoader({ config , src , width  }) {
+    return `${config.path}${normalizeSrc(src)}?imwidth=${width}`;
 }
-function cloudinaryLoader({ root , src , width , quality  }) {
+function cloudinaryLoader({ config , src , width , quality  }) {
     // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
     const params = [
         'f_auto',
@@ -683,12 +699,12 @@ function cloudinaryLoader({ root , src , width , quality  }) {
         'q_' + (quality || 'auto')
     ];
     const paramsString = params.join(',') + '/';
-    return `${root}${paramsString}${normalizeSrc(src)}`;
+    return `${config.path}${paramsString}${normalizeSrc(src)}`;
 }
 function customLoader({ src  }) {
     throw new Error(`Image with src "${src}" is missing "loader" prop.` + `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`);
 }
-function defaultLoader({ root , src , width , quality  }) {
+function defaultLoader({ config , src , width , quality  }) {
     if (process.env.NODE_ENV !== 'production') {
         const missingValues = [];
         // these should always be provided but make sure they are
@@ -704,7 +720,7 @@ function defaultLoader({ root , src , width , quality  }) {
         if (src.startsWith('//')) {
             throw new Error(`Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`);
         }
-        if (!src.startsWith('/') && configDomains) {
+        if (!src.startsWith('/') && config.domains) {
             let parsedSrc;
             try {
                 parsedSrc = new URL(src);
@@ -712,12 +728,17 @@ function defaultLoader({ root , src , width , quality  }) {
                 console.error(err);
                 throw new Error(`Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`);
             }
-            if (process.env.NODE_ENV !== 'test' && !configDomains.includes(parsedSrc.hostname)) {
+            if (process.env.NODE_ENV !== 'test' && !config.domains.includes(parsedSrc.hostname)) {
                 throw new Error(`Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` + `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`);
             }
         }
     }
-    return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`;
+    if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+        // Special case to make svg serve as-is to avoid proxying
+        // through the built-in Image Optimization API.
+        return src;
+    }
+    return `${(0, _normalizeTrailingSlash).normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`;
 }
 
 //# sourceMappingURL=image.js.map

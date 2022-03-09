@@ -26,7 +26,7 @@ function startedDevelopmentServer(appUrl, bindAddr) {
 }
 let previousClient = null;
 let previousServer = null;
-let previousServerWeb = null;
+let previousEdgeServer = null;
 function formatAmpMessages(amp) {
     let output = _chalk.default.bold('Amp Validation') + '\n\n';
     let messages = [];
@@ -96,11 +96,11 @@ const buildStore = (0, _unistore).default();
 let buildWasDone = false;
 let clientWasLoading = true;
 let serverWasLoading = true;
-let serverWebWasLoading = false;
+let edgeServerWasLoading = false;
 buildStore.subscribe((state)=>{
-    const { amp , client , server , serverWeb , trigger  } = state;
+    const { amp , client , server , edgeServer , trigger  } = state;
     const { appUrl  } = _store.store.getState();
-    if (client.loading || server.loading || (serverWeb === null || serverWeb === void 0 ? void 0 : serverWeb.loading)) {
+    if (client.loading || server.loading || (edgeServer === null || edgeServer === void 0 ? void 0 : edgeServer.loading)) {
         _store.store.setState({
             bootstrap: false,
             appUrl: appUrl,
@@ -109,20 +109,20 @@ buildStore.subscribe((state)=>{
         }, true);
         clientWasLoading = !buildWasDone && clientWasLoading || client.loading;
         serverWasLoading = !buildWasDone && serverWasLoading || server.loading;
-        serverWebWasLoading = !buildWasDone && serverWasLoading || !!(serverWeb === null || serverWeb === void 0 ? void 0 : serverWeb.loading);
+        edgeServerWasLoading = !buildWasDone && serverWasLoading || !!(edgeServer === null || edgeServer === void 0 ? void 0 : edgeServer.loading);
         buildWasDone = false;
         return;
     }
-    if (serverWeb === null || serverWeb === void 0 ? void 0 : serverWeb.loading) return;
+    if (edgeServer === null || edgeServer === void 0 ? void 0 : edgeServer.loading) return;
     buildWasDone = true;
     let partialState = {
         bootstrap: false,
         appUrl: appUrl,
         loading: false,
         typeChecking: false,
-        partial: clientWasLoading && (serverWasLoading || serverWebWasLoading) ? 'client and server' : undefined,
-        modules: (clientWasLoading ? client.modules : 0) + (serverWasLoading ? server.modules : 0) + (serverWebWasLoading ? (serverWeb === null || serverWeb === void 0 ? void 0 : serverWeb.modules) || 0 : 0),
-        hasServerWeb: !!serverWeb
+        partial: clientWasLoading && (serverWasLoading || edgeServerWasLoading) ? 'client and server' : undefined,
+        modules: (clientWasLoading ? client.modules : 0) + (serverWasLoading ? server.modules : 0) + (edgeServerWasLoading ? (edgeServer === null || edgeServer === void 0 ? void 0 : edgeServer.modules) || 0 : 0),
+        hasEdgeServer: !!edgeServer
     };
     if (client.errors) {
         // Show only client errors
@@ -138,11 +138,11 @@ buildStore.subscribe((state)=>{
             errors: server.errors,
             warnings: null
         }, true);
-    } else if (serverWeb && serverWeb.errors) {
-        // Show only serverWeb errors
+    } else if (edgeServer && edgeServer.errors) {
+        // Show only edge server errors
         _store.store.setState({
             ...partialState,
-            errors: serverWeb.errors,
+            errors: edgeServer.errors,
             warnings: null
         }, true);
     } else {
@@ -150,7 +150,7 @@ buildStore.subscribe((state)=>{
         const warnings = [
             ...client.warnings || [],
             ...server.warnings || [],
-            ...serverWeb && serverWeb.warnings || [], 
+            ...edgeServer && edgeServer.warnings || [], 
         ].concat(formatAmpMessages(amp) || []);
         _store.store.setState({
             ...partialState,
@@ -183,8 +183,8 @@ function ampValidation(page, errors, warnings) {
         , {})
     });
 }
-function watchCompilers(client, server, serverWeb) {
-    if (previousClient === client && previousServer === server && previousServerWeb === serverWeb) {
+function watchCompilers(client, server, edgeServer) {
+    if (previousClient === client && previousServer === server && previousEdgeServer === edgeServer) {
         return;
     }
     buildStore.setState({
@@ -194,7 +194,7 @@ function watchCompilers(client, server, serverWeb) {
         server: {
             loading: true
         },
-        serverWeb: serverWeb ? {
+        edgeServer: edgeServer ? {
             loading: true
         } : undefined,
         trigger: 'initial'
@@ -247,17 +247,17 @@ function watchCompilers(client, server, serverWeb) {
             });
         }
     });
-    if (serverWeb) {
-        tapCompiler('serverWeb', serverWeb, (status)=>{
+    if (edgeServer) {
+        tapCompiler('edgeServer', edgeServer, (status)=>{
             buildStore.setState({
-                serverWeb: status,
+                edgeServer: status,
                 trigger: undefined
             });
         });
     }
     previousClient = client;
     previousServer = server;
-    previousServerWeb = serverWeb;
+    previousEdgeServer = edgeServer;
 }
 function reportTrigger(trigger) {
     buildStore.setState({

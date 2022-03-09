@@ -8,5 +8,9 @@ export declare class Worker {
         exposedMethods: ReadonlyArray<string>;
     });
     end(): ReturnType<JestWorker['end']>;
+    /**
+     * Quietly end the worker if it exists
+     */
+    close(): void;
 }
 export {};

@@ -4,10 +4,10 @@ import type { Rewrite } from '../../../../lib/load-custom-routes';
 import type { BuildManifest } from '../../../../server/get-page-files';
 import type { NextConfig } from '../../../../server/config';
 import type { GetServerSideProps, GetStaticPaths, GetStaticProps } from '../../../../types';
+import type { BaseNextRequest } from '../../../../server/base-http';
 import { UrlWithParsedQuery } from 'url';
 import { ParsedUrlQuery } from 'querystring';
 import { __ApiPreviewProps } from '../../../../server/api-utils';
-import { BaseNextRequest } from '../../../../server/base-http';
 export declare const vercelHeader = "x-vercel-id";
 export declare type ServerlessHandlerCtx = {
     page: string;

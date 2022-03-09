@@ -2,12 +2,22 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.pitch = pitch;
 exports.default = swcLoader;
+exports.pitch = pitch;
 exports.raw = void 0;
 var _swc = require("../../swc");
 var _options = require("../../swc/options");
 var _path = require("path");
+function swcLoader(inputSource, inputSourceMap) {
+    const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader');
+    const callback = this.async();
+    loaderSpan.traceAsyncFn(()=>loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
+    ).then(([transformedSource, outputSourceMap])=>{
+        callback(null, transformedSource, outputSourceMap || inputSourceMap);
+    }, (err)=>{
+        callback(err);
+    });
+}
 async function loaderTransform(parentTrace, source, inputSourceMap) {
     // Make the loader async
     const filename = this.resourcePath;
@@ -68,16 +78,6 @@ function pitch() {
         if (r) return callback(null, ...r);
         callback();
     }, callback);
-}
-function swcLoader(inputSource, inputSourceMap) {
-    const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader');
-    const callback = this.async();
-    loaderSpan.traceAsyncFn(()=>loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
-    ).then(([transformedSource, outputSourceMap])=>{
-        callback(null, transformedSource, outputSourceMap || inputSourceMap);
-    }, (err)=>{
-        callback(err);
-    });
 }
 const raw = true;
 exports.raw = raw;

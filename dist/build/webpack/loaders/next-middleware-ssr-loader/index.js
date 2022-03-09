@@ -17,9 +17,9 @@ async function middlewareSSRLoader() {
 
     import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
 
-    import App from ${stringifiedAppPath}
     import Document from ${stringifiedDocumentPath}
 
+    const appMod = require(${stringifiedAppPath})
     const pageMod = require(${stringifiedPagePath})
     const errorMod = require(${stringifiedErrorPath})
     const error500Mod = ${stringified500Path} ? require(${stringified500Path}) : null
@@ -27,10 +27,6 @@ async function middlewareSSRLoader() {
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
-
-    if (typeof pageMod.default !== 'function') {
-      throw new Error('Your page must export a \`default\` component')
-    }
 
     // Set server context
     self.__server_context = {
@@ -41,10 +37,10 @@ async function middlewareSSRLoader() {
     const render = getRender({
       dev: ${dev},
       page: ${JSON.stringify(page)},
+      appMod,
       pageMod,
       errorMod,
       error500Mod,
-      App,
       Document,
       buildManifest,
       reactLoadableManifest,

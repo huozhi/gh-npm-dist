@@ -2,46 +2,86 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.isImageImport = isImageImport;
 exports.default = transformSource;
 var _swc = require("../../swc");
-var _options = require("../../swc/options");
 var _utils = require("../../utils");
-function isClientComponent(importSource, pageExtensions) {
-    return new RegExp(`\\.client(\\.(${pageExtensions.join('|')}))?`).test(importSource);
-}
-function isServerComponent(importSource, pageExtensions) {
-    return new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?`).test(importSource);
-}
-function isNextComponent(importSource) {
-    return importSource.includes('next/link') || importSource.includes('next/image');
-}
-function isImageImport(importSource) {
-    // TODO: share extension with next/image
-    // TODO: add other static assets, jpeg -> jpg
-    return [
-        'jpg',
-        'jpeg',
-        'png',
-        'webp',
-        'avif'
-    ].some((imageExt)=>importSource.endsWith('.' + imageExt)
-    );
-}
-async function parseImportsInfo(resourcePath, source, imports, isClientCompilation, pageExtensions) {
-    const opts = (0, _options).getBaseSWCOptions({
-        filename: resourcePath,
-        globalWindow: isClientCompilation
+async function transformSource(source) {
+    const { client: isClientCompilation , pageExtensions  } = this.getOptions();
+    const { resourcePath , resourceQuery  } = this;
+    if (typeof source !== 'string') {
+        throw new Error('Expected source to have been transformed to a string.');
+    }
+    // We currently assume that all components are shared components (unsuffixed)
+    // from node_modules.
+    if (resourcePath.includes('/node_modules/')) {
+        return source;
+    }
+    const rawRawPageExtensions = (0, _utils).getRawPageExtensions(pageExtensions);
+    const isServerComponent = createServerComponentFilter(rawRawPageExtensions);
+    const isClientComponent = createClientComponentFilter(rawRawPageExtensions);
+    if (!isClientCompilation) {
+        // We only apply the loader to server components, or shared components that
+        // are imported by a server component.
+        if (!isServerComponent(resourcePath) && resourceQuery !== '?__sc_server__') {
+            return source;
+        }
+    }
+    const { source: transformedSource , imports  } = await parseImportsInfo({
+        resourcePath,
+        source,
+        isClientCompilation,
+        isServerComponent,
+        isClientComponent
     });
+    /**
+   * For .server.js files, we handle this loader differently.
+   *
+   * Server compilation output:
+   *   (The content of the Server Component module will be kept.)
+   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
+   *
+   * Client compilation output:
+   *   (The content of the Server Component module will be removed.)
+   *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
+   */ let rscExports = `export const __next_rsc__={
+    __webpack_require__,
+    _: () => {${imports}}
+  }`;
+    if (isClientCompilation) {
+        rscExports += '\nexport default function RSC () {}';
+    }
+    return transformedSource + '\n' + rscExports;
+}
+const imageExtensions = [
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+    'avif'
+];
+const createClientComponentFilter = (pageExtensions)=>{
+    // Special cases for Next.js APIs that are considered as client components:
+    // - .client.[ext]
+    // - next/link, next/image
+    // - .[imageExt]
+    const regex = new RegExp('(' + `\\.client(\\.(${pageExtensions.join('|')}))?|` + `next/link|next/image|` + `\\.(${imageExtensions.join('|')})` + ')$');
+    return (importSource)=>regex.test(importSource)
+    ;
+};
+const createServerComponentFilter = (pageExtensions)=>{
+    const regex = new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?$`);
+    return (importSource)=>regex.test(importSource)
+    ;
+};
+async function parseImportsInfo({ resourcePath , source , isClientCompilation , isServerComponent , isClientComponent  }) {
     const ast = await (0, _swc).parse(source, {
-        ...opts.jsc.parser,
+        filename: resourcePath,
         isModule: true
     });
     const { body  } = ast;
-    const beginPos = ast.span.start;
     let transformedSource = '';
     let lastIndex = 0;
-    let defaultExportName;
+    let imports = '';
     for(let i = 0; i < body.length; i++){
         const node = body[i];
         switch(node.type){
@@ -49,34 +89,46 @@ async function parseImportsInfo(resourcePath, source, imports, isClientCompilati
                 {
                     const importSource = node.source.value;
                     if (!isClientCompilation) {
-                        if (!(isClientComponent(importSource, pageExtensions) || isNextComponent(importSource) || isImageImport(importSource))) {
+                        // Server compilation for .server.js.
+                        if (isServerComponent(importSource)) {
                             continue;
                         }
-                        const importDeclarations = source.substring(lastIndex, node.source.span.start - beginPos);
-                        transformedSource += importDeclarations;
-                        transformedSource += JSON.stringify(`${node.source.value}?flight`);
+                        const importDeclarations = source.substring(lastIndex, node.source.span.start);
+                        if (isClientComponent(importSource)) {
+                            // A client component. It should be loaded as module reference.
+                            transformedSource += importDeclarations;
+                            transformedSource += JSON.stringify(`${importSource}?__sc_client__`);
+                            imports += `require(${JSON.stringify(importSource)})\n`;
+                        } else {
+                            // FIXME
+                            // case: 'react'
+                            // Avoid module resolution error like Cannot find `./?__rsc_server__` in react/package.json
+                            // cases: 'react/jsx-runtime', 'react/jsx-dev-runtime'
+                            // This is a special case to avoid the Duplicate React error.
+                            // Since we already include React in the SSR runtime,
+                            // here we can't create a new module with the ?__rsc_server__ query.
+                            if ([
+                                'react',
+                                'react/jsx-runtime',
+                                'react/jsx-dev-runtime'
+                            ].includes(importSource)) {
+                                continue;
+                            }
+                            // A shared component. It should be handled as a server
+                            // component.
+                            transformedSource += importDeclarations;
+                            transformedSource += JSON.stringify(`${importSource}?__sc_server__`);
+                        }
                     } else {
                         // For the client compilation, we skip all modules imports but
                         // always keep client components in the bundle. All client components
                         // have to be imported from either server or client components.
-                        if (!(isClientComponent(importSource, pageExtensions) || isServerComponent(importSource, pageExtensions) || // Special cases for Next.js APIs that are considered as client
-                        // components:
-                        isNextComponent(importSource) || isImageImport(importSource))) {
+                        if (!(isClientComponent(importSource) || isServerComponent(importSource))) {
                             continue;
                         }
+                        imports += `require(${JSON.stringify(importSource)})\n`;
                     }
-                    lastIndex = node.source.span.end - beginPos;
-                    imports.push(`require(${JSON.stringify(importSource)})`);
-                    continue;
-                }
-            case 'ExportDefaultDeclaration':
-                {
-                    const def = node.decl;
-                    if (def.type === 'Identifier') {
-                        defaultExportName = def.name;
-                    } else if (def.type === 'FunctionExpression') {
-                        defaultExportName = def.identifier.value;
-                    }
+                    lastIndex = node.source.span.end;
                     break;
                 }
             default:
@@ -88,35 +140,8 @@ async function parseImportsInfo(resourcePath, source, imports, isClientCompilati
     }
     return {
         source: transformedSource,
-        defaultExportName
+        imports
     };
-}
-async function transformSource(source) {
-    const { client: isClientCompilation , pageExtensions: pageExtensionsJson  } = this.getOptions();
-    const { resourcePath  } = this;
-    const pageExtensions = JSON.parse(pageExtensionsJson);
-    if (typeof source !== 'string') {
-        throw new Error('Expected source to have been transformed to a string.');
-    }
-    if (resourcePath.includes('/node_modules/')) {
-        return source;
-    }
-    const imports = [];
-    const { source: transformedSource , defaultExportName  } = await parseImportsInfo(resourcePath, source, imports, isClientCompilation, (0, _utils).getRawPageExtensions(pageExtensions));
-    /**
-   * Server side component module output:
-   *
-   * export default function ServerComponent() { ... }
-   * + export const __rsc_noop__=()=>{ ... }
-   * + ServerComponent.__next_rsc__=1;
-   *
-   * Client side component module output:
-   *
-   * The function body of ServerComponent will be removed
-   */ const noop = `export const __rsc_noop__=()=>{${imports.join(';')}}`;
-    const defaultExportNoop = isClientCompilation ? `export default function ${defaultExportName}(){}\n${defaultExportName}.__next_rsc__=1;` : defaultExportName ? `${defaultExportName}.__next_rsc__=1;` : '';
-    const transformed = transformedSource + '\n' + noop + '\n' + defaultExportNoop;
-    return transformed;
 }
 
 //# sourceMappingURL=next-flight-server-loader.js.map

@@ -7,20 +7,6 @@ var _client = require("next/dist/compiled/@next/react-dev-overlay/client");
 var _stripAnsi = _interopRequireDefault(require("next/dist/compiled/strip-ansi"));
 var _websocket = require("./websocket");
 var _formatWebpackMessages = _interopRequireDefault(require("./format-webpack-messages"));
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-// This alternative WebpackDevServer combines the functionality of:
-// https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
-// https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
-// It only supports their simplest configuration (hot updates on same server).
-// It makes some opinionated choices on top, like adding a syntax error overlay
-// that looks similar to our console output. The error overlay is inspired by:
-// https://github.com/glenjamin/webpack-hot-middleware
-let hadRuntimeError = false;
-let customHmrEventHandler;
 function connect() {
     (0, _client).register();
     (0, _websocket).addMessageListener((event)=>{
@@ -40,6 +26,20 @@ function connect() {
         }
     };
 }
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+// This alternative WebpackDevServer combines the functionality of:
+// https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
+// https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
+// It only supports their simplest configuration (hot updates on same server).
+// It makes some opinionated choices on top, like adding a syntax error overlay
+// that looks similar to our console output. The error overlay is inspired by:
+// https://github.com/glenjamin/webpack-hot-middleware
+let hadRuntimeError = false;
+let customHmrEventHandler;
 // Remember some state related to hot module replacement.
 var isFirstCompilation = true;
 var mostRecentCompilationHash = null;
@@ -271,7 +271,7 @@ function hasAlreadyWarnedAboutFullRefresh() {
     return sessionStorage.getItem(FULL_REFRESH_STORAGE_KEY) !== null;
 }
 function clearFullRefreshStorage() {
-    sessionStorage.removeItem(FULL_REFRESH_STORAGE_KEY);
+    if (sessionStorage.getItem(FULL_REFRESH_STORAGE_KEY) !== 'ignore') sessionStorage.removeItem(FULL_REFRESH_STORAGE_KEY);
 }
 
 //# sourceMappingURL=hot-dev-client.js.map

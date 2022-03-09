@@ -4,11 +4,6 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = CommonJSModulePlugin;
 var _pluginTransformModulesCommonjs = _interopRequireDefault(require("next/dist/compiled/babel/plugin-transform-modules-commonjs"));
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
 function CommonJSModulePlugin(...args) {
     const commonjs = (0, _pluginTransformModulesCommonjs).default(...args);
     return {
@@ -30,6 +25,11 @@ function CommonJSModulePlugin(...args) {
                 }
             }
         }
+    };
+}
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
     };
 }
 

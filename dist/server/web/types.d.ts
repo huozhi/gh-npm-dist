@@ -38,6 +38,7 @@ export interface RequestData {
         };
     };
     url: string;
+    body?: ReadableStream<Uint8Array>;
 }
 export interface FetchEventResult {
     response: Response;

@@ -2,35 +2,17 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-Object.defineProperty(exports, "DocumentContext", {
-    enumerable: true,
-    get: function() {
-        return _utils.DocumentContext;
-    }
-});
-Object.defineProperty(exports, "DocumentInitialProps", {
-    enumerable: true,
-    get: function() {
-        return _utils.DocumentInitialProps;
-    }
-});
-Object.defineProperty(exports, "DocumentProps", {
-    enumerable: true,
-    get: function() {
-        return _utils.DocumentProps;
-    }
-});
 exports.Html = Html;
 exports.Main = Main;
 exports.default = void 0;
 var _react = _interopRequireWildcard(require("react"));
 var _constants = require("../shared/lib/constants");
-var _utils = require("../shared/lib/utils");
 var _getPageFiles = require("../server/get-page-files");
-var _utils1 = require("../server/utils");
+var _utils = require("../server/utils");
 var _htmlescape = require("../server/htmlescape");
 var _script = _interopRequireDefault(require("../client/script"));
 var _isError = _interopRequireDefault(require("../lib/is-error"));
+var _htmlContext = require("../shared/lib/html-context");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -147,7 +129,7 @@ class Document extends _react.Component {
 }
 exports.default = Document;
 function Html(props) {
-    const { inAmpMode , docComponentsRendered , locale  } = (0, _react).useContext(_utils.HtmlContext);
+    const { inAmpMode , docComponentsRendered , locale  } = (0, _react).useContext(_htmlContext.HtmlContext);
     docComponentsRendered.Html = true;
     return(/*#__PURE__*/ _react.default.createElement("html", Object.assign({}, props, {
         lang: props.lang || locale || undefined,
@@ -336,7 +318,8 @@ class Head extends _react.Component {
         }).filter(Boolean);
     }
     render() {
-        const { styles , ampPath , inAmpMode , hybridAmp , canonicalBase , __NEXT_DATA__ , dangerousAsPath , headTags , unstable_runtimeJS , unstable_JsPreload , disableOptimizedLoading , useMaybeDeferContent , optimizeCss , optimizeFonts , optimizeImages , concurrentFeatures ,  } = this.context;
+        const { styles , ampPath , inAmpMode , hybridAmp , canonicalBase , __NEXT_DATA__ , dangerousAsPath , headTags , unstable_runtimeJS , unstable_JsPreload , disableOptimizedLoading , optimizeCss , optimizeFonts , runtime ,  } = this.context;
+        const hasConcurrentFeatures = !!runtime;
         const disableRuntimeJS = unstable_runtimeJS === false;
         const disableJsPreload = unstable_JsPreload === false || !disableOptimizedLoading;
         this.context.docComponentsRendered.Head = true;
@@ -413,87 +396,69 @@ class Head extends _react.Component {
             return child;
         });
         const files = getDocumentFiles(this.context.buildManifest, this.context.__NEXT_DATA__.page, inAmpMode);
-        // Must use nested component to allow use of a custom hook
-        const DeferrableHead = ()=>{
-            const getDynamicHeadContent = ()=>{
-                return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, head, /*#__PURE__*/ _react.default.createElement("meta", {
-                    name: "next-head-count",
-                    content: _react.default.Children.count(head || []).toString()
-                })));
-            };
-            const getDynamicScriptPreloads = ()=>{
-                return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, !disableRuntimeJS && !disableJsPreload && this.getPreloadDynamicChunks(), !disableRuntimeJS && !disableJsPreload && this.getPreloadMainLinks(files)));
-            };
-            const getDynamicScriptContent = ()=>{
-                return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, !disableOptimizedLoading && !disableRuntimeJS && this.getPreNextScripts(), !disableOptimizedLoading && !disableRuntimeJS && this.getDynamicChunks(files), !disableOptimizedLoading && !disableRuntimeJS && this.getScripts(files)));
-            };
-            const [isDeferred] = useMaybeDeferContent('HEAD', ()=>{
-                return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, getDynamicHeadContent(), getDynamicScriptPreloads(), getDynamicScriptContent()));
-            });
-            var _nonce, _nonce1;
-            return(/*#__PURE__*/ _react.default.createElement("head", Object.assign({}, this.props), !concurrentFeatures && this.context.isDevelopment && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("style", {
-                "data-next-hide-fouc": true,
-                "data-ampdevmode": inAmpMode ? 'true' : undefined,
-                dangerouslySetInnerHTML: {
-                    __html: `body{display:none}`
-                }
-            }), /*#__PURE__*/ _react.default.createElement("noscript", {
-                "data-next-hide-fouc": true,
-                "data-ampdevmode": inAmpMode ? 'true' : undefined
-            }, /*#__PURE__*/ _react.default.createElement("style", {
-                dangerouslySetInnerHTML: {
-                    __html: `body{display:block}`
-                }
-            }))), !isDeferred && getDynamicHeadContent(), children, optimizeFonts && /*#__PURE__*/ _react.default.createElement("meta", {
-                name: "next-font-preconnect"
-            }), inAmpMode && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("meta", {
-                name: "viewport",
-                content: "width=device-width,minimum-scale=1,initial-scale=1"
-            }), !hasCanonicalRel && /*#__PURE__*/ _react.default.createElement("link", {
-                rel: "canonical",
-                href: canonicalBase + (0, _utils1).cleanAmpPath(dangerousAsPath)
-            }), /*#__PURE__*/ _react.default.createElement("link", {
-                rel: "preload",
-                as: "script",
-                href: "https://cdn.ampproject.org/v0.js"
-            }), /*#__PURE__*/ _react.default.createElement(AmpStyles, {
-                styles: styles
-            }), /*#__PURE__*/ _react.default.createElement("style", {
-                "amp-boilerplate": "",
-                dangerouslySetInnerHTML: {
-                    __html: `body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}`
-                }
-            }), /*#__PURE__*/ _react.default.createElement("noscript", null, /*#__PURE__*/ _react.default.createElement("style", {
-                "amp-boilerplate": "",
-                dangerouslySetInnerHTML: {
-                    __html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`
-                }
-            })), /*#__PURE__*/ _react.default.createElement("script", {
-                async: true,
-                src: "https://cdn.ampproject.org/v0.js"
-            })), !inAmpMode && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, !hasAmphtmlRel && hybridAmp && /*#__PURE__*/ _react.default.createElement("link", {
-                rel: "amphtml",
-                href: canonicalBase + getAmpPath(ampPath, dangerousAsPath)
-            }), !optimizeCss && this.getCssLinks(files), !optimizeCss && /*#__PURE__*/ _react.default.createElement("noscript", {
-                "data-n-css": (_nonce = this.props.nonce) !== null && _nonce !== void 0 ? _nonce : ''
-            }), optimizeImages && /*#__PURE__*/ _react.default.createElement("meta", {
-                name: "next-image-preload"
-            }), !isDeferred && getDynamicScriptPreloads(), !disableOptimizedLoading && !disableRuntimeJS && this.getPolyfillScripts(), !isDeferred && getDynamicScriptContent(), optimizeCss && this.getCssLinks(files), optimizeCss && /*#__PURE__*/ _react.default.createElement("noscript", {
-                "data-n-css": (_nonce1 = this.props.nonce) !== null && _nonce1 !== void 0 ? _nonce1 : ''
-            }), this.context.isDevelopment && // this element is used to mount development styles so the
-            // ordering matches production
-            // (by default, style-loader injects at the bottom of <head />)
-            /*#__PURE__*/ _react.default.createElement("noscript", {
-                id: "__next_css__DO_NOT_USE__"
-            }), styles || null), /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, {}, ...headTags || [])));
-        };
-        return(/*#__PURE__*/ _react.default.createElement(DeferrableHead, null));
+        var _nonce, _nonce1;
+        return(/*#__PURE__*/ _react.default.createElement("head", Object.assign({}, this.props), !hasConcurrentFeatures && this.context.isDevelopment && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("style", {
+            "data-next-hide-fouc": true,
+            "data-ampdevmode": inAmpMode ? 'true' : undefined,
+            dangerouslySetInnerHTML: {
+                __html: `body{display:none}`
+            }
+        }), /*#__PURE__*/ _react.default.createElement("noscript", {
+            "data-next-hide-fouc": true,
+            "data-ampdevmode": inAmpMode ? 'true' : undefined
+        }, /*#__PURE__*/ _react.default.createElement("style", {
+            dangerouslySetInnerHTML: {
+                __html: `body{display:block}`
+            }
+        }))), head, /*#__PURE__*/ _react.default.createElement("meta", {
+            name: "next-head-count",
+            content: _react.default.Children.count(head || []).toString()
+        }), children, optimizeFonts && /*#__PURE__*/ _react.default.createElement("meta", {
+            name: "next-font-preconnect"
+        }), inAmpMode && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("meta", {
+            name: "viewport",
+            content: "width=device-width,minimum-scale=1,initial-scale=1"
+        }), !hasCanonicalRel && /*#__PURE__*/ _react.default.createElement("link", {
+            rel: "canonical",
+            href: canonicalBase + (0, _utils).cleanAmpPath(dangerousAsPath)
+        }), /*#__PURE__*/ _react.default.createElement("link", {
+            rel: "preload",
+            as: "script",
+            href: "https://cdn.ampproject.org/v0.js"
+        }), /*#__PURE__*/ _react.default.createElement(AmpStyles, {
+            styles: styles
+        }), /*#__PURE__*/ _react.default.createElement("style", {
+            "amp-boilerplate": "",
+            dangerouslySetInnerHTML: {
+                __html: `body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}`
+            }
+        }), /*#__PURE__*/ _react.default.createElement("noscript", null, /*#__PURE__*/ _react.default.createElement("style", {
+            "amp-boilerplate": "",
+            dangerouslySetInnerHTML: {
+                __html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`
+            }
+        })), /*#__PURE__*/ _react.default.createElement("script", {
+            async: true,
+            src: "https://cdn.ampproject.org/v0.js"
+        })), !inAmpMode && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, !hasAmphtmlRel && hybridAmp && /*#__PURE__*/ _react.default.createElement("link", {
+            rel: "amphtml",
+            href: canonicalBase + getAmpPath(ampPath, dangerousAsPath)
+        }), !optimizeCss && this.getCssLinks(files), !optimizeCss && /*#__PURE__*/ _react.default.createElement("noscript", {
+            "data-n-css": (_nonce = this.props.nonce) !== null && _nonce !== void 0 ? _nonce : ''
+        }), !disableRuntimeJS && !disableJsPreload && this.getPreloadDynamicChunks(), !disableRuntimeJS && !disableJsPreload && this.getPreloadMainLinks(files), !disableOptimizedLoading && !disableRuntimeJS && this.getPolyfillScripts(), !disableOptimizedLoading && !disableRuntimeJS && this.getPreNextScripts(), !disableOptimizedLoading && !disableRuntimeJS && this.getDynamicChunks(files), !disableOptimizedLoading && !disableRuntimeJS && this.getScripts(files), optimizeCss && this.getCssLinks(files), optimizeCss && /*#__PURE__*/ _react.default.createElement("noscript", {
+            "data-n-css": (_nonce1 = this.props.nonce) !== null && _nonce1 !== void 0 ? _nonce1 : ''
+        }), this.context.isDevelopment && // this element is used to mount development styles so the
+        // ordering matches production
+        // (by default, style-loader injects at the bottom of <head />)
+        /*#__PURE__*/ _react.default.createElement("noscript", {
+            id: "__next_css__DO_NOT_USE__"
+        }), styles || null), /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, {}, ...headTags || [])));
     }
 }
 exports.Head = Head;
-Head.contextType = _utils.HtmlContext;
+Head.contextType = _htmlContext.HtmlContext;
 function Main() {
-    const { docComponentsRendered  } = (0, _react).useContext(_utils.HtmlContext);
+    const { docComponentsRendered  } = (0, _react).useContext(_htmlContext.HtmlContext);
     docComponentsRendered.Main = true;
     // @ts-ignore
     return(/*#__PURE__*/ _react.default.createElement("next-js-internal-body-render-target", null));
@@ -524,73 +489,66 @@ class NextScript extends _react.Component {
             }
             return (0, _htmlescape).htmlEscapeJsonString(data);
         } catch (err) {
-            if ((0, _isError).default(err) && err.message.indexOf('circular structure')) {
+            if ((0, _isError).default(err) && err.message.indexOf('circular structure') !== -1) {
                 throw new Error(`Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://nextjs.org/docs/messages/circular-structure`);
             }
             throw err;
         }
     }
     render() {
-        const { assetPrefix , inAmpMode , buildManifest , unstable_runtimeJS , docComponentsRendered , devOnlyCacheBusterQueryString , disableOptimizedLoading , useMaybeDeferContent , crossOrigin ,  } = this.context;
+        const { assetPrefix , inAmpMode , buildManifest , unstable_runtimeJS , docComponentsRendered , devOnlyCacheBusterQueryString , disableOptimizedLoading , crossOrigin ,  } = this.context;
         const disableRuntimeJS = unstable_runtimeJS === false;
         docComponentsRendered.NextScript = true;
-        // Must nest component to use custom hook
-        const DeferrableNextScript = ()=>{
-            const [, content] = useMaybeDeferContent('NEXT_SCRIPT', ()=>{
-                if (inAmpMode) {
-                    const ampDevFiles = [
-                        ...buildManifest.devFiles,
-                        ...buildManifest.polyfillFiles,
-                        ...buildManifest.ampDevFiles, 
-                    ];
-                    return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, disableRuntimeJS ? null : /*#__PURE__*/ _react.default.createElement("script", {
-                        id: "__NEXT_DATA__",
-                        type: "application/json",
-                        nonce: this.props.nonce,
-                        crossOrigin: this.props.crossOrigin || crossOrigin,
-                        dangerouslySetInnerHTML: {
-                            __html: NextScript.getInlineScriptSource(this.context)
-                        },
-                        "data-ampdevmode": true
-                    }), ampDevFiles.map((file)=>/*#__PURE__*/ _react.default.createElement("script", {
-                            key: file,
-                            src: `${assetPrefix}/_next/${file}${devOnlyCacheBusterQueryString}`,
-                            nonce: this.props.nonce,
-                            crossOrigin: this.props.crossOrigin || crossOrigin,
-                            "data-ampdevmode": true
-                        })
-                    )));
-                }
-                if (process.env.NODE_ENV !== 'production') {
-                    if (this.props.crossOrigin) console.warn('Warning: `NextScript` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated');
-                }
-                const files = getDocumentFiles(this.context.buildManifest, this.context.__NEXT_DATA__.page, inAmpMode);
-                return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, !disableRuntimeJS && buildManifest.devFiles ? buildManifest.devFiles.map((file)=>/*#__PURE__*/ _react.default.createElement("script", {
-                        key: file,
-                        src: `${assetPrefix}/_next/${encodeURI(file)}${devOnlyCacheBusterQueryString}`,
-                        nonce: this.props.nonce,
-                        crossOrigin: this.props.crossOrigin || crossOrigin
-                    })
-                ) : null, disableRuntimeJS ? null : /*#__PURE__*/ _react.default.createElement("script", {
-                    id: "__NEXT_DATA__",
-                    type: "application/json",
-                    nonce: this.props.nonce,
-                    crossOrigin: this.props.crossOrigin || crossOrigin,
-                    dangerouslySetInnerHTML: {
-                        __html: NextScript.getInlineScriptSource(this.context)
-                    }
-                }), disableOptimizedLoading && !disableRuntimeJS && this.getPolyfillScripts(), disableOptimizedLoading && !disableRuntimeJS && this.getPreNextScripts(), disableOptimizedLoading && !disableRuntimeJS && this.getDynamicChunks(files), disableOptimizedLoading && !disableRuntimeJS && this.getScripts(files)));
-            });
-            if (inAmpMode && process.env.NODE_ENV === 'production') {
+        if (inAmpMode) {
+            if (process.env.NODE_ENV === 'production') {
                 return null;
             }
-            return content;
-        };
-        return(/*#__PURE__*/ _react.default.createElement(DeferrableNextScript, null));
+            const ampDevFiles = [
+                ...buildManifest.devFiles,
+                ...buildManifest.polyfillFiles,
+                ...buildManifest.ampDevFiles, 
+            ];
+            return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, disableRuntimeJS ? null : /*#__PURE__*/ _react.default.createElement("script", {
+                id: "__NEXT_DATA__",
+                type: "application/json",
+                nonce: this.props.nonce,
+                crossOrigin: this.props.crossOrigin || crossOrigin,
+                dangerouslySetInnerHTML: {
+                    __html: NextScript.getInlineScriptSource(this.context)
+                },
+                "data-ampdevmode": true
+            }), ampDevFiles.map((file)=>/*#__PURE__*/ _react.default.createElement("script", {
+                    key: file,
+                    src: `${assetPrefix}/_next/${file}${devOnlyCacheBusterQueryString}`,
+                    nonce: this.props.nonce,
+                    crossOrigin: this.props.crossOrigin || crossOrigin,
+                    "data-ampdevmode": true
+                })
+            )));
+        }
+        if (process.env.NODE_ENV !== 'production') {
+            if (this.props.crossOrigin) console.warn('Warning: `NextScript` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated');
+        }
+        const files = getDocumentFiles(this.context.buildManifest, this.context.__NEXT_DATA__.page, inAmpMode);
+        return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, !disableRuntimeJS && buildManifest.devFiles ? buildManifest.devFiles.map((file)=>/*#__PURE__*/ _react.default.createElement("script", {
+                key: file,
+                src: `${assetPrefix}/_next/${encodeURI(file)}${devOnlyCacheBusterQueryString}`,
+                nonce: this.props.nonce,
+                crossOrigin: this.props.crossOrigin || crossOrigin
+            })
+        ) : null, disableRuntimeJS ? null : /*#__PURE__*/ _react.default.createElement("script", {
+            id: "__NEXT_DATA__",
+            type: "application/json",
+            nonce: this.props.nonce,
+            crossOrigin: this.props.crossOrigin || crossOrigin,
+            dangerouslySetInnerHTML: {
+                __html: NextScript.getInlineScriptSource(this.context)
+            }
+        }), disableOptimizedLoading && !disableRuntimeJS && this.getPolyfillScripts(), disableOptimizedLoading && !disableRuntimeJS && this.getPreNextScripts(), disableOptimizedLoading && !disableRuntimeJS && this.getDynamicChunks(files), disableOptimizedLoading && !disableRuntimeJS && this.getScripts(files)));
     }
 }
 exports.NextScript = NextScript;
-NextScript.contextType = _utils.HtmlContext;
+NextScript.contextType = _htmlContext.HtmlContext;
 NextScript.safariNomoduleFix = '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();';
 function getAmpPath(ampPath, asPath) {
     return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`;

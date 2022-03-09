@@ -10,8 +10,9 @@ import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url
 import type { ParsedUrlQuery } from 'querystring';
 import type { Server as HTTPServer } from 'http';
 import type { UrlWithParsedQuery } from 'url';
+import type { BaseNextRequest, BaseNextResponse } from '../base-http';
 import Server from '../next-server';
-import { BaseNextRequest, BaseNextResponse, NodeNextResponse, NodeNextRequest } from '../base-http';
+import { NodeNextResponse, NodeNextRequest } from '../base-http/node';
 export interface Options extends ServerOptions {
     /**
      * The HTTP Server that Next.js is running behind
@@ -60,6 +61,7 @@ export default class DevServer extends Server {
     protected getPagesManifest(): undefined;
     protected getMiddleware(): never[];
     protected getMiddlewareManifest(): undefined;
+    protected getServerComponentManifest(): undefined;
     protected hasMiddleware(pathname: string, isSSR?: boolean): Promise<boolean>;
     protected ensureMiddleware(pathname: string, isSSR?: boolean): Promise<any>;
     generateRoutes(): {

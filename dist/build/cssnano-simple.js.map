@@ -1,1 +1,1 @@
-{"version":3,"sources":["../../build/cssnano-simple.js"],"sourcesContent":["module.exports = require('next/dist/compiled/cssnano-simple')(\n  require('postcss')\n)\n"],"names":["module","exports","require"],"mappings":";AAAAA,MAAM,CAACC,OAAO,GAAGC,OAAO,CAAC,CAAmC,oCAC1DA,OAAO,CAAC,CAAS"}
+{"version":3,"sources":["../../build/cssnano-simple.js"],"names":["module","exports","require"],"mappings":"Y;AAAAA,MAAM,CAACC,OAAO,GAAGC,OAAO,CAAC,CAAmC,oCAC1DA,OAAO,CAAC,CAAS,U"}

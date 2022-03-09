@@ -1,8 +1,6 @@
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
-import { stringify } from 'querystring'
-import semver from 'next/dist/compiled/semver'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
@@ -15,7 +13,6 @@ import {
   MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
-import { getPackageVersion } from '../lib/get-package-version'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -38,7 +35,6 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import { TraceEntryPointsPlugin } from './webpack/plugins/next-trace-entrypoints-plugin'
-import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
@@ -53,10 +49,12 @@ import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
+import { shouldUseReactRoot } from '../server/config'
+import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
-  ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+  ignored: ['**/.git/**', '**/.next/**'],
 })
 
 function getSupportedBrowsers(
@@ -87,6 +85,7 @@ const devtoolRevertWarning = execOnce(
 )
 
 let loggedSwcDisabled = false
+let loggedIgnoredCompilerOptions = false
 
 function getOptimizedAliases(): { [pkg: string]: string } {
   const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
@@ -304,7 +303,7 @@ export default async function getBaseWebpackConfig(
     config,
     dev = false,
     isServer = false,
-    webServerRuntime = false,
+    isEdgeRuntime = false,
     pagesDir,
     target = 'server',
     reactProductionProfiling = false,
@@ -317,7 +316,7 @@ export default async function getBaseWebpackConfig(
     config: NextConfigComplete
     dev?: boolean
     isServer?: boolean
-    webServerRuntime?: boolean
+    isEdgeRuntime?: boolean
     pagesDir: string
     target?: string
     reactProductionProfiling?: boolean
@@ -337,20 +336,8 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
   const hasReactRefresh: boolean = dev && !isServer
-  const reactDomVersion = await getPackageVersion({
-    cwd: dir,
-    name: 'react-dom',
-  })
-  const isReactExperimental = Boolean(
-    reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
-  )
-  const hasReact18: boolean =
-    Boolean(reactDomVersion) &&
-    (semver.gte(reactDomVersion!, '18.0.0') ||
-      semver.coerce(reactDomVersion)?.version === '18.0.0')
-
-  const hasReactRoot: boolean =
-    config.experimental.reactRoot || hasReact18 || isReactExperimental
+  const hasReactRoot = shouldUseReactRoot()
+  const runtime = config.experimental.runtime
 
   // Make sure reactRoot is enabled when react 18 is detected
   if (hasReactRoot) {
@@ -358,37 +345,40 @@ export default async function getBaseWebpackConfig(
   }
 
   // Only inform during one of the builds
-  if (
-    !isServer &&
-    config.experimental.reactRoot &&
-    !(hasReact18 || isReactExperimental)
-  ) {
+  if (!isServer && config.experimental.reactRoot && !hasReactRoot) {
     // It's fine to only mention React 18 here as we don't recommend people to try experimental.
     Log.warn('You have to use React 18 to use `experimental.reactRoot`.')
   }
-  if (!isServer && config.experimental.concurrentFeatures && !hasReactRoot) {
+  if (!isServer && runtime && !hasReactRoot) {
     throw new Error(
-      '`experimental.concurrentFeatures` requires `experimental.reactRoot` to be enabled along with React 18.'
+      '`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.'
     )
   }
-  if (
-    config.experimental.serverComponents &&
-    !config.experimental.concurrentFeatures
-  ) {
+  if (config.experimental.serverComponents && !runtime) {
     throw new Error(
-      '`experimental.concurrentFeatures` is required to be enabled along with `experimental.serverComponents`.'
+      '`experimental.runtime` is required to be set along with `experimental.serverComponents`.'
     )
   }
-  const hasConcurrentFeatures =
-    config.experimental.concurrentFeatures && hasReactRoot
+
+  const targetWeb = isEdgeRuntime || !isServer
+  const hasConcurrentFeatures = !!runtime && hasReactRoot
   const hasServerComponents =
     hasConcurrentFeatures && !!config.experimental.serverComponents
-  const targetWeb = webServerRuntime || !isServer
+  const disableOptimizedLoading = hasConcurrentFeatures
+    ? true
+    : config.experimental.disableOptimizedLoading
 
-  if (webServerRuntime) {
-    Log.warn(
-      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
-    )
+  if (!isServer) {
+    if (runtime === 'edge') {
+      Log.warn(
+        'You are using the experimental Edge Runtime with `experimental.runtime`.'
+      )
+    }
+    if (runtime === 'nodejs') {
+      Log.warn(
+        'You are using the experimental Node.js Runtime with `experimental.runtime`.'
+      )
+    }
     if (hasServerComponents) {
       Log.warn(
         'You have experimental React Server Components enabled. Continue at your own risk.'
@@ -426,6 +416,13 @@ export default async function getBaseWebpackConfig(
       )}" https://nextjs.org/docs/messages/swc-disabled`
     )
     loggedSwcDisabled = true
+  }
+
+  if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
+    Log.info(
+      '`compiler` options in `next.config.js` will be ignored while using Babel https://next.js.org/docs/messages/ignored-compiler-options'
+    )
+    loggedIgnoredCompilerOptions = true
   }
 
   const getBabelOrSwcLoader = (isMiddleware: boolean) => {
@@ -562,7 +559,9 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_document${webServerRuntime ? '-web' : ''}.js`,
+      `next/dist/pages/_document${
+        hasConcurrentFeatures ? '-concurrent' : ''
+      }.js`,
     ]
   }
 
@@ -792,11 +791,6 @@ export default async function getBaseWebpackConfig(
             minChunks: 1,
             reuseExistingChunk: true,
           },
-          commons: {
-            name: 'commons',
-            minChunks: totalPages,
-            priority: 20,
-          },
           middleware: {
             chunks: (chunk: webpack.compilation.Chunk) =>
               chunk.name?.match(MIDDLEWARE_ROUTE),
@@ -971,7 +965,7 @@ export default async function getBaseWebpackConfig(
         // TODO: should we warn/error for this instead?
         [
           'next',
-          ...(webServerRuntime
+          ...(isEdgeRuntime
             ? [
                 {
                   'next/dist/compiled/etag': '{}',
@@ -1047,7 +1041,7 @@ export default async function getBaseWebpackConfig(
         ? dev
           ? false
           : ({
-              filename: webServerRuntime ? 'chunks/[name].js' : '[name].js',
+              filename: isEdgeRuntime ? 'chunks/[name].js' : '[name].js',
               // allow to split entrypoints
               chunks: ({ name }: any) => !name?.match(MIDDLEWARE_ROUTE),
               // size of files is not so relevant for server build
@@ -1108,12 +1102,12 @@ export default async function getBaseWebpackConfig(
       // auto which doesn't work in IE11
       publicPath: `${config.assetPrefix || ''}/_next/`,
       path:
-        isServer && !dev && !webServerRuntime
+        isServer && !dev && !isEdgeRuntime
           ? path.join(outputPath, 'chunks')
           : outputPath,
       // On the server we don't use hashes
       filename: isServer
-        ? !dev && !webServerRuntime
+        ? !dev && !isEdgeRuntime
           ? `../[name].js`
           : `[name].js`
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
@@ -1152,6 +1146,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
+        'next-middleware-wasm-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1178,45 +1173,41 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        ...(hasServerComponents && !isServer
-          ? [
-              {
-                ...codeCondition,
-                test: serverComponentsRegex,
-                use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    client: 1,
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+        ...(hasServerComponents
+          ? isServer
+            ? [
+                // RSC server compilation loaders
+                {
+                  ...codeCondition,
+                  use: {
+                    loader: 'next-flight-server-loader',
+                    options: {
+                      pageExtensions: rawPageExtensions,
+                    },
+                  },
                 },
-              },
-            ]
-          : []),
-        ...(hasServerComponents && webServerRuntime
-          ? [
-              {
-                ...codeCondition,
-                test: serverComponentsRegex,
-                use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
+                {
+                  test: codeCondition.test,
+                  resourceQuery: /__sc_client__/,
+                  use: {
+                    loader: 'next-flight-client-loader',
+                  },
                 },
-              },
-              {
-                ...codeCondition,
-                test: clientComponentsRegex,
-                use: {
-                  loader: 'next-flight-client-loader',
+              ]
+            : [
+                // RSC client compilation loaders
+                {
+                  ...codeCondition,
+                  test: serverComponentsRegex,
+                  use: {
+                    loader: 'next-flight-server-loader',
+                    options: {
+                      client: 1,
+                      pageExtensions: rawPageExtensions,
+                    },
+                  },
                 },
-              },
-              {
-                test: /next[\\/](dist[\\/]client[\\/])?(link|image)/,
-                use: {
-                  loader: 'next-flight-client-loader',
-                },
-              },
-            ]
+              ]
           : []),
         {
           test: /\.(js|cjs|mjs)$/,
@@ -1274,6 +1265,12 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      ...(!dev &&
+      !isServer &&
+      !!config.experimental.middlewareSourceMaps &&
+      !config.productionBrowserSourceMaps
+        ? getMiddlewareSourceMapPlugins()
+        : []),
       hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       targetWeb &&
@@ -1342,9 +1339,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
-        ),
-        'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
-          config.experimental.optimizeImages
         ),
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
@@ -1444,24 +1438,22 @@ export default async function getBaseWebpackConfig(
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
-      ((isServerless && isServer) || webServerRuntime) &&
-        new ServerlessPlugin(),
+      ((isServerless && isServer) || isEdgeRuntime) && new ServerlessPlugin(),
       isServer &&
-        !webServerRuntime &&
+        !isEdgeRuntime &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
-      (!isServer || webServerRuntime) &&
-        new MiddlewarePlugin({ dev, webServerRuntime }),
+      (!isServer || isEdgeRuntime) &&
+        new MiddlewarePlugin({ dev, isEdgeRuntime }),
       process.env.ENABLE_FILE_SYSTEM_API === '1' &&
-        webServerRuntime &&
+        isEdgeRuntime &&
         new FunctionsManifestPlugin({
           dev,
           pagesDir,
-          webServerRuntime,
+          isEdgeRuntime,
           pageExtensions: config.pageExtensions,
         }),
-      isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
           buildId,
@@ -1473,7 +1465,7 @@ export default async function getBaseWebpackConfig(
       config.optimizeFonts &&
         !dev &&
         isServer &&
-        !webServerRuntime &&
+        !isEdgeRuntime &&
         (function () {
           const { FontStylesheetGatheringPlugin } =
             require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
@@ -1505,6 +1497,18 @@ export default async function getBaseWebpackConfig(
           new Map([
             ['swcLoader', useSWCLoader],
             ['swcMinify', config.swcMinify],
+            ['swcRelay', !!config.compiler?.relay],
+            ['swcStyledComponents', !!config.compiler?.styledComponents],
+            [
+              'swcReactRemoveProperties',
+              !!config.compiler?.reactRemoveProperties,
+            ],
+            [
+              'swcExperimentalDecorators',
+              !!jsConfig?.compilerOptions?.experimentalDecorators,
+            ],
+            ['swcRemoveConsole', !!config.compiler?.removeConsole],
+            ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
           ])
         ),
     ].filter(Boolean as any as ExcludesFalse),
@@ -1522,6 +1526,14 @@ export default async function getBaseWebpackConfig(
   }
 
   const webpack5Config = webpackConfig as webpack5.Configuration
+
+  webpack5Config.module?.rules?.unshift({
+    test: /\.wasm$/,
+    issuerLayer: 'middleware',
+    loader: 'next-middleware-wasm-loader',
+    type: 'javascript/auto',
+    resourceQuery: /module/i,
+  })
 
   webpack5Config.experiments = {
     layers: true,
@@ -1583,7 +1595,12 @@ export default async function getBaseWebpackConfig(
     if (!webpack5Config.optimization) {
       webpack5Config.optimization = {}
     }
-    webpack5Config.optimization.providedExports = false
+
+    // For Server Components, it's necessary to have provided exports collected
+    // to generate the correct flight manifest.
+    if (!hasServerComponents) {
+      webpack5Config.optimization.providedExports = false
+    }
     webpack5Config.optimization.usedExports = false
   }
 
@@ -1598,27 +1615,26 @@ export default async function getBaseWebpackConfig(
     reactStrictMode: config.reactStrictMode,
     reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
-    optimizeImages: config.experimental.optimizeImages,
     optimizeCss: config.experimental.optimizeCss,
     scrollRestoration: config.experimental.scrollRestoration,
     basePath: config.basePath,
     pageEnv: config.experimental.pageEnv,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
-    disableOptimizedLoading: config.experimental.disableOptimizedLoading,
+    disableOptimizedLoading,
     target,
-    webServerRuntime,
+    isEdgeRuntime,
     reactProductionProfiling,
     webpack: !!config.webpack,
     hasRewrites,
     reactRoot: config.experimental.reactRoot,
-    concurrentFeatures: config.experimental.concurrentFeatures,
+    runtime,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
-    removeConsole: config.experimental.removeConsole,
-    reactRemoveProperties: config.experimental.reactRemoveProperties,
-    styledComponents: config.experimental.styledComponents,
-    relay: config.experimental.relay,
+    removeConsole: config.compiler?.removeConsole,
+    reactRemoveProperties: config.compiler?.reactRemoveProperties,
+    styledComponents: config.compiler?.styledComponents,
+    relay: config.compiler?.relay,
   })
 
   const cache: any = {
@@ -1705,7 +1721,7 @@ export default async function getBaseWebpackConfig(
     customAppFile: new RegExp(escapeStringRegexp(path.join(pagesDir, `_app`))),
     isDevelopment: dev,
     isServer,
-    webServerRuntime,
+    isEdgeRuntime,
     targetWeb,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
@@ -1844,11 +1860,11 @@ export default async function getBaseWebpackConfig(
     }
 
     const fileNames = [
-      '/tmp/test.css',
-      '/tmp/test.scss',
-      '/tmp/test.sass',
-      '/tmp/test.less',
-      '/tmp/test.styl',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.css',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.scss',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.sass',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.less',
+      '/tmp/NEXTJS_CSS_DETECTION_FILE.styl',
     ]
 
     if (rule instanceof RegExp && fileNames.some((input) => rule.test(input))) {
@@ -2070,7 +2086,7 @@ export default async function getBaseWebpackConfig(
       }
       delete entry['main.js']
 
-      if (!webServerRuntime) {
+      if (!isEdgeRuntime) {
         for (const name of Object.keys(entry)) {
           entry[name] = finalizeEntrypoint({
             value: entry[name],

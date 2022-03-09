@@ -149,7 +149,7 @@ export default class Router implements BaseRouter {
     private state;
     private _idx;
     static events: MittEmitter<RouterEvent>;
-    constructor(pathname: string, query: ParsedUrlQuery, as: string, { initialProps, pageLoader, App, wrapApp, Component, err, subscription, isFallback, locale, locales, defaultLocale, domainLocales, isPreview, }: {
+    constructor(pathname: string, query: ParsedUrlQuery, as: string, { initialProps, pageLoader, App, wrapApp, Component, err, subscription, isFallback, locale, locales, defaultLocale, domainLocales, isPreview, isRsc, }: {
         subscription: Subscription;
         initialProps: any;
         pageLoader: any;
@@ -163,6 +163,7 @@ export default class Router implements BaseRouter {
         defaultLocale?: string;
         domainLocales?: DomainLocale[];
         isPreview?: boolean;
+        isRsc?: boolean;
     });
     onPopState: (e: PopStateEvent) => void;
     reload(): void;

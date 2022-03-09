@@ -14,11 +14,12 @@ import type { UrlWithParsedQuery } from 'url';
 import type { CacheFs } from '../shared/lib/utils';
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin';
 import type { BaseNextRequest, BaseNextResponse } from './base-http';
+import type { PayloadOptions } from './send-payload';
 import { getRouteMatcher } from '../shared/lib/router/utils';
 import Router from './router';
-import { PayloadOptions } from './send-payload';
 import RenderResult from './render-result';
 import { PrerenderManifest } from '../build';
+import { ImageConfigComplete } from '../shared/lib/image-config';
 export declare type FindComponentsResult = {
     components: LoadComponentsReturnType;
     query: NextParsedUrlQuery;
@@ -93,9 +94,8 @@ export default abstract class Server {
         };
         basePath: string;
         optimizeFonts: boolean;
-        images: string;
+        images: ImageConfigComplete;
         fontManifest?: FontManifest;
-        optimizeImages: boolean;
         disableOptimizedLoading?: boolean;
         optimizeCss: any;
         locale?: string;
@@ -103,13 +103,14 @@ export default abstract class Server {
         defaultLocale?: string;
         domainLocales?: DomainLocale[];
         distDir: string;
-        concurrentFeatures?: boolean;
+        runtime?: 'nodejs' | 'edge';
         serverComponents?: boolean;
         crossOrigin?: string;
         supportsDynamicHTML?: boolean;
         serverComponentManifest?: any;
         renderServerComponentData?: boolean;
         serverComponentProps?: any;
+        reactRoot: boolean;
     };
     private incrementalCache;
     private responseCache;
@@ -118,6 +119,7 @@ export default abstract class Server {
     protected customRoutes: CustomRoutes;
     protected middlewareManifest?: MiddlewareManifest;
     protected middleware?: RoutingItem[];
+    protected serverComponentManifest?: any;
     readonly hostname?: string;
     readonly port?: number;
     protected abstract getPublicDir(): string;
@@ -150,6 +152,7 @@ export default abstract class Server {
     protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined;
     protected abstract getRoutesManifest(): CustomRoutes;
     protected abstract getPrerenderManifest(): PrerenderManifest;
+    protected abstract getServerComponentManifest(): any;
     protected abstract sendRenderResult(req: BaseNextRequest, res: BaseNextResponse, options: {
         result: RenderResult;
         type: 'html' | 'json';

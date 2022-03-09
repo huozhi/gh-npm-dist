@@ -26,7 +26,7 @@ var _verifyAndLint = require("../lib/verifyAndLint");
 var _verifyTypeScriptSetup = require("../lib/verifyTypeScriptSetup");
 var _constants1 = require("../shared/lib/constants");
 var _utils = require("../shared/lib/router/utils");
-var _config = _interopRequireDefault(require("../server/config"));
+var _config = _interopRequireWildcard(require("../server/config"));
 var _utils1 = require("../server/utils");
 var _normalizePagePath = require("../server/normalize-page-path");
 var _require = require("../server/require");
@@ -47,35 +47,9 @@ var _normalizeLocalePath = require("../shared/lib/i18n/normalize-locale-path");
 var _isError = _interopRequireDefault(require("../lib/is-error"));
 var _telemetryPlugin = require("./webpack/plugins/telemetry-plugin");
 var _recursiveCopy = require("../lib/recursive-copy");
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-        return obj;
-    } else {
-        var newObj = {};
-        if (obj != null) {
-            for(var key in obj){
-                if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
-                    if (desc.get || desc.set) {
-                        Object.defineProperty(newObj, key, desc);
-                    } else {
-                        newObj[key] = obj[key];
-                    }
-                }
-            }
-        }
-        newObj.default = obj;
-        return newObj;
-    }
-}
 async function build(dir, conf = null, reactProductionProfiling = false, debugOutput = false, runLint = true) {
     const nextBuildSpan = (0, _trace).trace('next-build', undefined, {
-        version: "12.0.11-canary.7"
+        version: "12.1.1-canary.7"
     });
     const buildResult = await nextBuildSpan.traceAsyncFn(async ()=>{
         // attempt to load global env values so they are available in next.config.js
@@ -86,8 +60,12 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         const distDir = _path.default.join(dir, config.distDir);
         (0, _trace).setGlobal('phase', _constants1.PHASE_PRODUCTION_BUILD);
         (0, _trace).setGlobal('distDir', distDir);
-        const hasConcurrentFeatures = !!config.experimental.concurrentFeatures;
-        const hasServerComponents = hasConcurrentFeatures && !!config.experimental.serverComponents;
+        // Currently, when the runtime option is set (either `nodejs` or `edge`),
+        // we enable concurrent features (Fizz-related rendering architecture).
+        const runtime = config.experimental.runtime;
+        const hasReactRoot = (0, _config).shouldUseReactRoot();
+        const hasConcurrentFeatures = !!runtime;
+        const hasServerComponents = hasReactRoot && !!config.experimental.serverComponents;
         const { target  } = config;
         const buildId = await nextBuildSpan.traceChild('generate-buildid').traceAsyncFn(()=>(0, _generateBuildId).generateBuildId(config.generateBuildId, _indexCjs.nanoid)
         );
@@ -177,10 +155,10 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         const mappedPages = nextBuildSpan.traceChild('create-pages-mapping').traceFn(()=>(0, _entries).createPagesMapping(pagePaths, config.pageExtensions, {
                 isDev: false,
                 hasServerComponents,
-                hasConcurrentFeatures
+                globalRuntime: runtime
             })
         );
-        const entrypoints = nextBuildSpan.traceChild('create-entrypoints').traceFn(()=>(0, _entries).createEntrypoints(mappedPages, target, buildId, previewProps, config, loadedEnvFiles)
+        const entrypoints = await nextBuildSpan.traceChild('create-entrypoints').traceAsyncFn(()=>(0, _entries).createEntrypoints(mappedPages, target, buildId, previewProps, config, loadedEnvFiles, pagesDir)
         );
         const pageKeys = Object.keys(mappedPages);
         const hasMiddleware = pageKeys.some((page)=>_constants.MIDDLEWARE_ROUTE.test(page)
@@ -295,6 +273,9 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         if (config.cleanDistDir) {
             await (0, _recursiveDelete).recursiveDelete(distDir, /^cache/);
         }
+        // Ensure commonjs handling is used for files in the distDir (generally .next)
+        // Files outside of the distDir can be "type": "module"
+        await _fs.promises.writeFile(_path.default.join(distDir, 'package.json'), '{"type": "commonjs"}');
         // We need to write the manifest with rewrites before build
         // so serverless can import the manifest
         await nextBuildSpan.traceChild('write-routes-manifest').traceAsyncFn(()=>_fs.promises.writeFile(routesManifestPath, JSON.stringify(routesManifest), 'utf8')
@@ -304,7 +285,11 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                 version: 1,
                 config: {
                     ...config,
-                    configFile: undefined
+                    configFile: undefined,
+                    experimental: {
+                        ...config.experimental,
+                        trustHostHeader: ciEnvironment.hasNextSupport
+                    }
                 },
                 appDir: dir,
                 files: [
@@ -313,7 +298,10 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                     _constants1.BUILD_MANIFEST,
                     _constants1.PRERENDER_MANIFEST,
                     _path.default.join(_constants1.SERVER_DIRECTORY, _constants1.MIDDLEWARE_MANIFEST),
-                    hasServerComponents ? _path.default.join(_constants1.SERVER_DIRECTORY, _constants1.MIDDLEWARE_FLIGHT_MANIFEST + '.js') : null,
+                    ...hasServerComponents ? [
+                        _path.default.join(_constants1.SERVER_DIRECTORY, _constants1.MIDDLEWARE_FLIGHT_MANIFEST + '.js'),
+                        _path.default.join(_constants1.SERVER_DIRECTORY, _constants1.MIDDLEWARE_FLIGHT_MANIFEST + '.json'), 
+                    ] : [],
                     _constants1.REACT_LOADABLE_MANIFEST,
                     config.optimizeFonts ? _path.default.join(isLikeServerless ? _constants1.SERVERLESS_DIRECTORY : _constants1.SERVER_DIRECTORY, _constants1.FONT_MANIFEST) : null,
                     _constants1.BUILD_ID_FILE, 
@@ -355,15 +343,15 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                         rewrites,
                         runWebpackSpan
                     }),
-                    hasConcurrentFeatures ? (0, _webpackConfig).default(dir, {
+                    hasReactRoot ? (0, _webpackConfig).default(dir, {
                         buildId,
                         reactProductionProfiling,
                         isServer: true,
-                        webServerRuntime: true,
+                        isEdgeRuntime: true,
                         config,
                         target,
                         pagesDir,
-                        entrypoints: entrypoints.serverWeb,
+                        entrypoints: entrypoints.edgeServer,
                         rewrites,
                         runWebpackSpan
                     }) : null, 
@@ -393,19 +381,19 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                     const serverResult = await (0, _compiler).runCompiler(configs[1], {
                         runWebpackSpan
                     });
-                    const serverWebResult = configs[2] ? await (0, _compiler).runCompiler(configs[2], {
+                    const edgeServerResult = configs[2] ? await (0, _compiler).runCompiler(configs[2], {
                         runWebpackSpan
                     }) : null;
                     result = {
                         warnings: [
                             ...clientResult.warnings,
                             ...serverResult.warnings,
-                            ...(serverWebResult === null || serverWebResult === void 0 ? void 0 : serverWebResult.warnings) || [], 
+                            ...(edgeServerResult === null || edgeServerResult === void 0 ? void 0 : edgeServerResult.warnings) || [], 
                         ],
                         errors: [
                             ...clientResult.errors,
                             ...serverResult.errors,
-                            ...(serverWebResult === null || serverWebResult === void 0 ? void 0 : serverWebResult.errors) || [], 
+                            ...(edgeServerResult === null || edgeServerResult === void 0 ? void 0 : edgeServerResult.errors) || [], 
                         ]
                     };
                 }
@@ -437,7 +425,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             // When using the web runtime, common Node.js native APIs are not available.
             const moduleName = (0, _utils2).getUnresolvedModuleFromError(error);
             if (hasConcurrentFeatures && moduleName) {
-                const err = new Error(`Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n\n`);
+                const err = new Error(`Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n\n`);
                 err.code = 'EDGE_RUNTIME_UNSUPPORTED_API';
                 throw err;
             }
@@ -1166,6 +1154,8 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                 console.log();
             });
         }
+        // ensure the worker is not left hanging
+        staticWorkers.close();
         const analysisEnd = process.hrtime(analysisBegin);
         var ref3;
         telemetry.record((0, _events).eventBuildOptimize(pagePaths, {
@@ -1256,7 +1246,16 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         if (config.experimental.outputStandalone) {
             for (const file of [
                 ...requiredServerFiles.files,
-                _path.default.join(config.distDir, _constants1.SERVER_FILES_MANIFEST), 
+                _path.default.join(config.distDir, _constants1.SERVER_FILES_MANIFEST),
+                ...loadedEnvFiles.reduce((acc, envFile)=>{
+                    if ([
+                        '.env',
+                        '.env.production'
+                    ].includes(envFile.path)) {
+                        acc.push(envFile.path);
+                    }
+                    return acc;
+                }, []), 
             ]){
                 const filePath = _path.default.join(dir, file);
                 await _fs.promises.copyFile(filePath, _path.default.join(distDir, 'standalone', _path.default.relative(outputFileTracingRoot, filePath)));
@@ -1298,6 +1297,32 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
     // Ensure all traces are flushed before finishing the command
     await (0, _trace).flushAllTraces();
     return buildResult;
+}
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _interopRequireWildcard(obj) {
+    if (obj && obj.__esModule) {
+        return obj;
+    } else {
+        var newObj = {};
+        if (obj != null) {
+            for(var key in obj){
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
+                    if (desc.get || desc.set) {
+                        Object.defineProperty(newObj, key, desc);
+                    } else {
+                        newObj[key] = obj[key];
+                    }
+                }
+            }
+        }
+        newObj.default = obj;
+        return newObj;
+    }
 }
 function generateClientSsgManifest(prerenderManifest, { buildId , distDir , locales  }) {
     const ssgPages = new Set([

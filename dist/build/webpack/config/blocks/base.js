@@ -11,9 +11,9 @@ function _interopRequireDefault(obj) {
 }
 const base = (0, _lodashCurry).default(function base(ctx, config) {
     config.mode = ctx.isDevelopment ? 'development' : 'production';
-    config.name = ctx.isServer ? ctx.webServerRuntime ? 'server-web' : 'server' : 'client';
+    config.name = ctx.isServer ? ctx.isEdgeRuntime ? 'edge-server' : 'server' : 'client';
     // @ts-ignore TODO webpack 5 typings
-    config.target = !ctx.targetWeb ? 'node12.22' : ctx.webServerRuntime ? [
+    config.target = !ctx.targetWeb ? 'node12.22' : ctx.isEdgeRuntime ? [
         'web',
         'es6'
     ] : [
@@ -25,7 +25,7 @@ const base = (0, _lodashCurry).default(function base(ctx, config) {
         if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
             config.devtool = false;
         } else {
-            if (!ctx.webServerRuntime) {
+            if (!ctx.isEdgeRuntime) {
                 // `eval-source-map` provides full-fidelity source maps for the
                 // original source, including columns and original variable names.
                 // This is desirable so the in-browser debugger can correctly pause

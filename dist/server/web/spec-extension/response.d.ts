@@ -19,7 +19,7 @@ export declare class NextResponse extends Response {
     clearCookie(name: string, opts?: CookieSerializeOptions): this;
     static json(body: any): NextResponse;
     static redirect(url: string | NextURL | URL, status?: number): NextResponse;
-    static rewrite(destination: string | NextURL): NextResponse;
+    static rewrite(destination: string | NextURL | URL): NextResponse;
     static next(): NextResponse;
 }
 interface ResponseInit extends globalThis.ResponseInit {

@@ -1,4 +1,5 @@
 import { webpack5 } from 'next/dist/compiled/webpack/webpack';
+import { PerRoute } from './middleware-plugin';
 export interface FunctionsManifest {
     version: 1;
     pages: {
@@ -16,14 +17,14 @@ export default class FunctionsManifestPlugin {
     dev: boolean;
     pagesDir: string;
     pageExtensions: string[];
-    webServerRuntime: boolean;
+    isEdgeRuntime: boolean;
     pagesRuntime: Map<string, string>;
-    constructor({ dev, pagesDir, pageExtensions, webServerRuntime, }: {
+    constructor({ dev, pagesDir, pageExtensions, isEdgeRuntime, }: {
         dev: boolean;
         pagesDir: string;
         pageExtensions: string[];
-        webServerRuntime: boolean;
+        isEdgeRuntime: boolean;
     });
-    createAssets(compilation: webpack5.Compilation, assets: any, envPerRoute: Map<string, string[]>, webServerRuntime: boolean): void;
+    createAssets(compilation: webpack5.Compilation, assets: any, perRoute: PerRoute, isEdgeRuntime: boolean): void;
     apply(compiler: webpack5.Compiler): void;
 }

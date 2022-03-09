@@ -4,19 +4,6 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = createSpinner;
 var _ora = _interopRequireDefault(require("next/dist/compiled/ora"));
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-const dotsSpinner = {
-    frames: [
-        '.',
-        '..',
-        '...'
-    ],
-    interval: 200
-};
 function createSpinner(text, options = {}, logFn = console.log) {
     let spinner;
     let prefixText = text && typeof text === 'object' && text.prefixText;
@@ -66,5 +53,18 @@ function createSpinner(text, options = {}, logFn = console.log) {
     }
     return spinner;
 }
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const dotsSpinner = {
+    frames: [
+        '.',
+        '..',
+        '...'
+    ],
+    interval: 200
+};
 
 //# sourceMappingURL=spinner.js.map

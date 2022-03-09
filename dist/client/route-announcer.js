@@ -16,7 +16,7 @@ function RouteAnnouncer() {
     const [routeAnnouncement, setRouteAnnouncement] = _react.default.useState('');
     // Only announce the path change, but not for the first load because screen
     // reader will do that automatically.
-    const initialPathLoaded = _react.default.useRef(false);
+    const previouslyLoadedPath = _react.default.useRef(asPath);
     // Every time the path changes, announce the new page’s title following this
     // priority: first the document title (from head), otherwise the first h1, or
     // if none of these exist, then the pathname from the URL. This methodology is
@@ -24,10 +24,9 @@ function RouteAnnouncer() {
     // information can be found here:
     // https://www.gatsbyjs.com/blog/2019-07-11-user-testing-accessible-client-routing/
     _react.default.useEffect(()=>{
-        if (!initialPathLoaded.current) {
-            initialPathLoaded.current = true;
-            return;
-        }
+        // If the path hasn't change, we do nothing.
+        if (previouslyLoadedPath.current === asPath) return;
+        previouslyLoadedPath.current = asPath;
         if (document.title) {
             setRouteAnnouncement(document.title);
         } else {

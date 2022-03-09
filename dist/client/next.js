@@ -6,10 +6,9 @@ window.next = {
     get router () {
         return _.router;
     },
-    emitter: _.emitter,
-    render: _.render,
-    renderError: _.renderError
+    emitter: _.emitter
 };
-(0, _).initNext().catch(console.error);
+(0, _).initialize({}).then(()=>(0, _).hydrate()
+).catch(console.error);
 
 //# sourceMappingURL=next.js.map

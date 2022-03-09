@@ -41,7 +41,7 @@ function generator() {
 }
 
 function parser() {
-  return require('next/dist/compiled/babel-packages').parser()
+  return require('@babel/parser')
 }
 
 function eslintParser() {

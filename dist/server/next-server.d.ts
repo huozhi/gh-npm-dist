@@ -7,12 +7,13 @@ import type RenderResult from './render-result';
 import type { FetchEventResult } from './web/types';
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url';
 import type { PrerenderManifest } from '../build';
+import type { BaseNextRequest, BaseNextResponse } from './base-http';
+import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin';
+import type { PayloadOptions } from './send-payload';
 import { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta';
 import { IncomingMessage, ServerResponse } from 'http';
-import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin';
 import { UrlWithParsedQuery } from 'url';
-import { BaseNextRequest, BaseNextResponse, NodeNextRequest, NodeNextResponse } from './base-http';
-import { PayloadOptions } from './send-payload';
+import { NodeNextRequest, NodeNextResponse } from './base-http/node';
 import { ParsedUrlQuery } from 'querystring';
 import { RenderOpts } from './render';
 import { ParsedUrl } from '../shared/lib/router/utils/parse-url';
@@ -23,6 +24,7 @@ export interface NodeRequestHandler {
     (req: IncomingMessage | BaseNextRequest, res: ServerResponse | BaseNextResponse, parsedUrl?: NextUrlWithParsedQuery | undefined): Promise<void>;
 }
 export default class NextNodeServer extends BaseServer {
+    private imageResponseCache?;
     constructor(options: Options);
     private compression;
     protected loadEnvConfig({ dev }: {
@@ -54,12 +56,15 @@ export default class NextNodeServer extends BaseServer {
     protected runApi(req: NodeNextRequest, res: NodeNextResponse, query: ParsedUrlQuery, params: Params | false, page: string, builtPagePath: string): Promise<boolean>;
     protected renderHTML(req: NodeNextRequest, res: NodeNextResponse, pathname: string, query: NextParsedUrlQuery, renderOpts: RenderOpts): Promise<RenderResult | null>;
     protected streamResponseChunk(res: NodeNextResponse, chunk: any): void;
-    protected imageOptimizer(req: NodeNextRequest, res: NodeNextResponse, parsedUrl: UrlWithParsedQuery): Promise<{
-        finished: boolean;
+    protected imageOptimizer(req: NodeNextRequest, res: NodeNextResponse, paramsResult: import('./image-optimizer').ImageParamsResult): Promise<{
+        buffer: Buffer;
+        contentType: string;
+        maxAge: number;
     }>;
     protected getPagePath(pathname: string, locales?: string[]): string;
     protected findPageComponents(pathname: string, query?: NextParsedUrlQuery, params?: Params | null): Promise<FindComponentsResult | null>;
     protected getFontManifest(): FontManifest;
+    protected getServerComponentManifest(): any;
     protected getCacheFilesystem(): CacheFs;
     private normalizeReq;
     private normalizeRes;
@@ -77,6 +82,7 @@ export default class NextNodeServer extends BaseServer {
         name: string;
         paths: string[];
         env: string[];
+        wasm: import("../build/webpack/loaders/next-middleware-wasm-loader").WasmBinding[];
     };
     protected getMiddlewareManifest(): MiddlewareManifest | undefined;
     protected generateRewrites({ restrictedRedirectPaths, }: {

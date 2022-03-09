@@ -1,6 +1,5 @@
-/// <reference types="react" />
+import type { AppType, DocumentType, NextComponentType } from '../shared/lib/utils';
 import { BuildManifest } from './get-page-files';
-import { AppType, DocumentType } from '../shared/lib/utils';
 import { PageConfig, GetStaticPaths, GetServerSideProps, GetStaticProps } from 'next/types';
 export declare type ManifestItem = {
     id: number | string;
@@ -10,7 +9,7 @@ export declare type ReactLoadableManifest = {
     [moduleId: string]: ManifestItem;
 };
 export declare type LoadComponentsReturnType = {
-    Component: React.ComponentType;
+    Component: NextComponentType;
     pageConfig: PageConfig;
     buildManifest: BuildManifest;
     reactLoadableManifest: ReactLoadableManifest;
@@ -20,8 +19,11 @@ export declare type LoadComponentsReturnType = {
     getStaticPaths?: GetStaticPaths;
     getServerSideProps?: GetServerSideProps;
     ComponentMod: any;
+    AppMod: any;
 };
-export declare function loadDefaultErrorComponents(distDir: string): Promise<{
+export declare function loadDefaultErrorComponents(distDir: string, { hasConcurrentFeatures }: {
+    hasConcurrentFeatures: boolean;
+}): Promise<{
     App: any;
     Document: any;
     Component: any;
@@ -29,5 +31,6 @@ export declare function loadDefaultErrorComponents(distDir: string): Promise<{
     buildManifest: any;
     reactLoadableManifest: {};
     ComponentMod: any;
+    AppMod: any;
 }>;
 export declare function loadComponents(distDir: string, pathname: string, serverless: boolean): Promise<LoadComponentsReturnType>;

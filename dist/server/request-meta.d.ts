@@ -2,7 +2,7 @@
 import type { IncomingMessage } from 'http';
 import type { ParsedUrlQuery } from 'querystring';
 import type { UrlWithParsedQuery } from 'url';
-import { BaseNextRequest } from './base-http';
+import type { BaseNextRequest } from './base-http';
 export declare const NEXT_REQUEST_META: unique symbol;
 export declare type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
     [NEXT_REQUEST_META]?: RequestMeta;
@@ -22,6 +22,7 @@ export declare function getRequestMeta<K extends keyof RequestMeta>(req: NextInc
 export declare function setRequestMeta(req: NextIncomingMessage, meta: RequestMeta): RequestMeta;
 export declare function addRequestMeta<K extends keyof RequestMeta>(request: NextIncomingMessage, key: K, value: RequestMeta[K]): RequestMeta;
 declare type NextQueryMetadata = {
+    __nextNotFoundSrcPage?: string;
     __nextDefaultLocale?: string;
     __nextFallback?: 'true';
     __nextLocale?: string;

@@ -25,14 +25,14 @@ function getPageFromEntrypointName(pagePath) {
     const page = result ? `/${result[1]}` : ssrEntryInfo ? pagePath.slice('pages'.length).replace(/\/index$/, '') || '/' : null;
     return page;
 }
-function getEntrypointInfo(compilation, envPerRoute, webServerRuntime) {
+function getEntrypointInfo(compilation, { envPerRoute , wasmPerRoute  }, isEdgeRuntime) {
     const entrypoints = compilation.entrypoints;
     const infos = [];
     for (const entrypoint of entrypoints.values()){
         if (!entrypoint.name) continue;
         const ssrEntryInfo = ssrEntries.get(entrypoint.name);
-        if (ssrEntryInfo && !webServerRuntime) continue;
-        if (!ssrEntryInfo && webServerRuntime) continue;
+        if (ssrEntryInfo && !isEdgeRuntime) continue;
+        if (!ssrEntryInfo && isEdgeRuntime) continue;
         const page = getPageFromEntrypointName(entrypoint.name);
         if (!page) {
             continue;
@@ -49,6 +49,7 @@ function getEntrypointInfo(compilation, envPerRoute, webServerRuntime) {
         );
         infos.push({
             env: envPerRoute.get(entrypoint.name) || [],
+            wasm: wasmPerRoute.get(entrypoint.name) || [],
             files,
             name: entrypoint.name,
             page,
@@ -58,12 +59,15 @@ function getEntrypointInfo(compilation, envPerRoute, webServerRuntime) {
     return infos;
 }
 class MiddlewarePlugin {
-    constructor({ dev , webServerRuntime  }){
+    constructor({ dev , isEdgeRuntime  }){
         this.dev = dev;
-        this.webServerRuntime = webServerRuntime;
+        this.isEdgeRuntime = isEdgeRuntime;
     }
-    createAssets(compilation, assets, envPerRoute, webServerRuntime) {
-        const infos = getEntrypointInfo(compilation, envPerRoute, webServerRuntime);
+    createAssets(compilation, assets, { envPerRoute , wasmPerRoute  }, isEdgeRuntime) {
+        const infos = getEntrypointInfo(compilation, {
+            envPerRoute,
+            wasmPerRoute
+        }, isEdgeRuntime);
         infos.forEach((info)=>{
             middlewareManifest.middleware[info.page] = info;
         });
@@ -76,13 +80,13 @@ class MiddlewarePlugin {
                 !!ssrEntryInfo
             ];
         });
-        assets[this.webServerRuntime ? _constants.MIDDLEWARE_MANIFEST : `server/${_constants.MIDDLEWARE_MANIFEST}`] = new _webpack.sources.RawSource(JSON.stringify(middlewareManifest, null, 2));
+        assets[this.isEdgeRuntime ? _constants.MIDDLEWARE_MANIFEST : `server/${_constants.MIDDLEWARE_MANIFEST}`] = new _webpack.sources.RawSource(JSON.stringify(middlewareManifest, null, 2));
     }
     apply(compiler) {
         collectAssets(compiler, this.createAssets.bind(this), {
             dev: this.dev,
             pluginName: PLUGIN_NAME,
-            webServerRuntime: this.webServerRuntime
+            isEdgeRuntime: this.isEdgeRuntime
         });
     }
 }
@@ -97,6 +101,7 @@ function collectAssets(compiler, createAssets, options) {
             }
         });
         const envPerRoute = new Map();
+        const wasmPerRoute = new Map();
         compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, ()=>{
             const { moduleGraph  } = compilation;
             envPerRoute.clear();
@@ -104,6 +109,7 @@ function collectAssets(compiler, createAssets, options) {
                 if (info.options.runtime === _constants.MIDDLEWARE_SSR_RUNTIME_WEBPACK || info.options.runtime === _constants.MIDDLEWARE_RUNTIME_WEBPACK) {
                     const middlewareEntries = new Set();
                     const env = new Set();
+                    const wasm = new Set();
                     const addEntriesFromDependency = (dep)=>{
                         const module = moduleGraph.getModule(dep);
                         if (module) {
@@ -116,6 +122,9 @@ function collectAssets(compiler, createAssets, options) {
                     const queue = new Set(middlewareEntries);
                     for (const module1 of queue){
                         const { buildInfo  } = module1;
+                        if (buildInfo.nextWasmMiddlewareBinding) {
+                            wasm.add(buildInfo.nextWasmMiddlewareBinding);
+                        }
                         if (!options.dev && buildInfo && isUsedByExports({
                             module: module1,
                             moduleGraph,
@@ -140,6 +149,7 @@ function collectAssets(compiler, createAssets, options) {
                         }
                     }
                     envPerRoute.set(name, Array.from(env));
+                    wasmPerRoute.set(name, Array.from(wasm));
                 }
             }
         });
@@ -218,7 +228,10 @@ function collectAssets(compiler, createAssets, options) {
             // @ts-ignore TODO: Remove ignore when webpack 5 is stable
             stage: _webpack.webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS
         }, (assets)=>{
-            createAssets(compilation, assets, envPerRoute, options.webServerRuntime);
+            createAssets(compilation, assets, {
+                envPerRoute,
+                wasmPerRoute
+            }, options.isEdgeRuntime);
         });
     });
 }

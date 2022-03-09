@@ -24,102 +24,6 @@ var _storage = require("../telemetry/storage");
 var _normalizePagePath = require("../server/normalize-page-path");
 var _env = require("@next/env");
 var _require = require("../server/require");
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-        return obj;
-    } else {
-        var newObj = {};
-        if (obj != null) {
-            for(var key in obj){
-                if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
-                    if (desc.get || desc.set) {
-                        Object.defineProperty(newObj, key, desc);
-                    } else {
-                        newObj[key] = obj[key];
-                    }
-                }
-            }
-        }
-        newObj.default = obj;
-        return newObj;
-    }
-}
-const exists = (0, _util).promisify(_fs.exists);
-function divideSegments(number, segments) {
-    const result = [];
-    while(number > 0 && segments > 0){
-        const dividedNumber = number < segments ? number : Math.floor(number / segments);
-        number -= dividedNumber;
-        segments--;
-        result.push(dividedNumber);
-    }
-    return result;
-}
-const createProgress = (total, label)=>{
-    const segments = divideSegments(total, 4);
-    if (total === 0) {
-        throw new Error('invariant: progress total can not be zero');
-    }
-    let currentSegmentTotal = segments.shift();
-    let currentSegmentCount = 0;
-    let lastProgressOutput = Date.now();
-    let curProgress = 0;
-    let progressSpinner = (0, _spinner).default(`${label} (${curProgress}/${total})`, {
-        spinner: {
-            frames: [
-                '[    ]',
-                '[=   ]',
-                '[==  ]',
-                '[=== ]',
-                '[ ===]',
-                '[  ==]',
-                '[   =]',
-                '[    ]',
-                '[   =]',
-                '[  ==]',
-                '[ ===]',
-                '[====]',
-                '[=== ]',
-                '[==  ]',
-                '[=   ]', 
-            ],
-            interval: 500
-        }
-    });
-    return ()=>{
-        curProgress++;
-        // Make sure we only log once
-        // - per fully generated segment, or
-        // - per minute
-        // when not showing the spinner
-        if (!progressSpinner) {
-            currentSegmentCount++;
-            if (currentSegmentCount === currentSegmentTotal) {
-                currentSegmentTotal = segments.shift();
-                currentSegmentCount = 0;
-            } else if (lastProgressOutput + 60000 > Date.now()) {
-                return;
-            }
-            lastProgressOutput = Date.now();
-        }
-        const newText = `${label} (${curProgress}/${total})`;
-        if (progressSpinner) {
-            progressSpinner.text = newText;
-        } else {
-            console.log(newText);
-        }
-        if (curProgress === total && progressSpinner) {
-            progressSpinner.stop();
-            console.log(newText);
-        }
-    };
-};
 async function exportApp(dir, options, span, configuration) {
     const nextExportSpan = span.traceChild('next-export');
     return nextExportSpan.traceAsyncFn(async ()=>{
@@ -280,11 +184,11 @@ async function exportApp(dir, options, span, configuration) {
             disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
             // Exported pages do not currently support dynamic HTML.
             supportsDynamicHTML: false,
-            concurrentFeatures: nextConfig.experimental.concurrentFeatures,
+            runtime: nextConfig.experimental.runtime,
             crossOrigin: nextConfig.crossOrigin,
             optimizeCss: nextConfig.experimental.optimizeCss,
             optimizeFonts: nextConfig.optimizeFonts,
-            optimizeImages: nextConfig.experimental.optimizeImages
+            reactRoot: nextConfig.experimental.reactRoot || false
         };
         const { serverRuntimeConfig , publicRuntimeConfig  } = nextConfig;
         if (Object.keys(publicRuntimeConfig).length > 0) {
@@ -414,7 +318,6 @@ async function exportApp(dir, options, span, configuration) {
                     buildExport: options.buildExport,
                     serverless: (0, _utils).isTargetLikeServerless(nextConfig.target),
                     optimizeFonts: nextConfig.optimizeFonts,
-                    optimizeImages: nextConfig.experimental.optimizeImages,
                     optimizeCss: nextConfig.experimental.optimizeCss,
                     disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
                     parentSpanId: pageExportSpan.id,
@@ -502,5 +405,101 @@ async function exportApp(dir, options, span, configuration) {
         await endWorkerPromise;
     });
 }
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _interopRequireWildcard(obj) {
+    if (obj && obj.__esModule) {
+        return obj;
+    } else {
+        var newObj = {};
+        if (obj != null) {
+            for(var key in obj){
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
+                    if (desc.get || desc.set) {
+                        Object.defineProperty(newObj, key, desc);
+                    } else {
+                        newObj[key] = obj[key];
+                    }
+                }
+            }
+        }
+        newObj.default = obj;
+        return newObj;
+    }
+}
+const exists = (0, _util).promisify(_fs.exists);
+function divideSegments(number, segments) {
+    const result = [];
+    while(number > 0 && segments > 0){
+        const dividedNumber = number < segments ? number : Math.floor(number / segments);
+        number -= dividedNumber;
+        segments--;
+        result.push(dividedNumber);
+    }
+    return result;
+}
+const createProgress = (total, label)=>{
+    const segments = divideSegments(total, 4);
+    if (total === 0) {
+        throw new Error('invariant: progress total can not be zero');
+    }
+    let currentSegmentTotal = segments.shift();
+    let currentSegmentCount = 0;
+    let lastProgressOutput = Date.now();
+    let curProgress = 0;
+    let progressSpinner = (0, _spinner).default(`${label} (${curProgress}/${total})`, {
+        spinner: {
+            frames: [
+                '[    ]',
+                '[=   ]',
+                '[==  ]',
+                '[=== ]',
+                '[ ===]',
+                '[  ==]',
+                '[   =]',
+                '[    ]',
+                '[   =]',
+                '[  ==]',
+                '[ ===]',
+                '[====]',
+                '[=== ]',
+                '[==  ]',
+                '[=   ]', 
+            ],
+            interval: 500
+        }
+    });
+    return ()=>{
+        curProgress++;
+        // Make sure we only log once
+        // - per fully generated segment, or
+        // - per minute
+        // when not showing the spinner
+        if (!progressSpinner) {
+            currentSegmentCount++;
+            if (currentSegmentCount === currentSegmentTotal) {
+                currentSegmentTotal = segments.shift();
+                currentSegmentCount = 0;
+            } else if (lastProgressOutput + 60000 > Date.now()) {
+                return;
+            }
+            lastProgressOutput = Date.now();
+        }
+        const newText = `${label} (${curProgress}/${total})`;
+        if (progressSpinner) {
+            progressSpinner.text = newText;
+        } else {
+            console.log(newText);
+        }
+        if (curProgress === total && progressSpinner) {
+            progressSpinner.stop();
+            console.log(newText);
+        }
+    };
+};
 
 //# sourceMappingURL=index.js.map

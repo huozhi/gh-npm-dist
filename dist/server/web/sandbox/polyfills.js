@@ -2,12 +2,16 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.atob = atob;
-exports.btoa = btoa;
 Object.defineProperty(exports, "CryptoKey", {
     enumerable: true,
     get: function() {
         return _webcrypto.CryptoKey;
+    }
+});
+Object.defineProperty(exports, "process", {
+    enumerable: true,
+    get: function() {
+        return _process.default;
     }
 });
 Object.defineProperty(exports, "ReadableStream", {
@@ -16,8 +20,11 @@ Object.defineProperty(exports, "ReadableStream", {
         return _readableStream.ReadableStream;
     }
 });
+exports.atob = atob;
+exports.btoa = btoa;
 var _webcrypto = require("next/dist/compiled/@peculiar/webcrypto");
 var _uuid = require("next/dist/compiled/uuid");
+var _process = _interopRequireDefault(require("next/dist/compiled/process"));
 var _readableStream = require("./readable-stream");
 var _crypto = _interopRequireDefault(require("crypto"));
 function _interopRequireDefault(obj) {

@@ -3,12 +3,8 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = void 0;
-var _escapeRegexp = require("./escape-regexp");
 var _nodeHtmlParser = require("next/dist/compiled/node-html-parser");
 var _constants = require("./constants");
-// const MIDDLEWARE_TIME_BUDGET = parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
-const MAXIMUM_IMAGE_PRELOADS = 2;
-const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500;
 const middlewareRegistry = [];
 function registerPostProcessor(name, middleware, condition) {
     middlewareRegistry.push({
@@ -109,89 +105,10 @@ class FontOptimizerMiddleware {
         };
     }
 }
-class ImageOptimizerMiddleware {
-    inspect(originalDom) {
-        const imgPreloads = [];
-        const imgElements = originalDom.querySelectorAll('img');
-        let eligibleImages = [];
-        for(let i = 0; i < imgElements.length; i++){
-            if (isImgEligible(imgElements[i])) {
-                eligibleImages.push(imgElements[i]);
-            }
-            if (eligibleImages.length >= MAXIMUM_IMAGE_PRELOADS) {
-                break;
-            }
-        }
-        for (const imgEl of eligibleImages){
-            const src = imgEl.getAttribute('src');
-            if (src) {
-                imgPreloads.push(src);
-            }
-        }
-        return imgPreloads;
-    }
-    constructor(){
-        this.mutate = async (markup, imgPreloads)=>{
-            let result = markup;
-            let imagePreloadTags = imgPreloads.filter((imgHref)=>!preloadTagAlreadyExists(markup, imgHref)
-            ).reduce((acc, imgHref)=>acc + `<link rel="preload" href="${imgHref}" as="image"/>`
-            , '');
-            return result.replace('<meta name="next-image-preload"/>', imagePreloadTags);
-        };
-    }
-}
-function isImgEligible(imgElement) {
-    let imgSrc = imgElement.getAttribute('src');
-    return !!imgSrc && sourceIsSupportedType(imgSrc) && imageIsNotTooSmall(imgElement) && imageIsNotHidden(imgElement);
-}
-function preloadTagAlreadyExists(html, href) {
-    const escapedHref = (0, _escapeRegexp).escapeStringRegexp(href);
-    const regex = new RegExp(`<link[^>]*href[^>]*${escapedHref}`);
-    return html.match(regex);
-}
-function imageIsNotTooSmall(imgElement) {
-    // Skip images without both height and width--we don't know enough to say if
-    // they are too small
-    if (!(imgElement.hasAttribute('height') && imgElement.hasAttribute('width'))) {
-        return true;
-    }
-    try {
-        const heightAttr = imgElement.getAttribute('height');
-        const widthAttr = imgElement.getAttribute('width');
-        if (!heightAttr || !widthAttr) {
-            return true;
-        }
-        if (parseInt(heightAttr) * parseInt(widthAttr) <= IMAGE_PRELOAD_SIZE_THRESHOLD) {
-            return false;
-        }
-    } catch (err) {
-        return true;
-    }
-    return true;
-}
-// Traverse up the dom from each image to see if it or any of it's
-// ancestors have the hidden attribute.
-function imageIsNotHidden(imgElement) {
-    let activeElement = imgElement;
-    while(activeElement.parentNode){
-        if (activeElement.hasAttribute('hidden')) {
-            return false;
-        }
-        activeElement = activeElement.parentNode;
-    }
-    return true;
-}
-// Currently only filters out svg images--could be made more specific in the future.
-function sourceIsSupportedType(imgSrc) {
-    return !imgSrc.includes('.svg');
-}
 // Initialization
 registerPostProcessor('Inline-Fonts', new FontOptimizerMiddleware(), // Using process.env because passing Experimental flag through loader is not possible.
 // @ts-ignore
 (options)=>options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
-);
-registerPostProcessor('Preload Images', new ImageOptimizerMiddleware(), // @ts-ignore
-(options)=>options.optimizeImages || process.env.__NEXT_OPTIMIZE_IMAGES
 );
 var _default = processHTML;
 exports.default = _default;

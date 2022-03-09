@@ -79,7 +79,7 @@ class PageLoader {
         const route = normalizeRoute(hrefPathname);
         const getHrefForSlug = (path)=>{
             if (rsc) {
-                return path + search + (search ? `&` : '?') + '__flight__';
+                return path + search + (search ? `&` : '?') + '__flight__=1';
             }
             const dataRoute = (0, _getAssetPathFromRoute).default((0, _normalizeTrailingSlash).removePathTrailingSlash((0, _router).addLocale(path, locale)), '.json');
             return (0, _router).addBasePath(`/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`);

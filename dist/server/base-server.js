@@ -16,12 +16,12 @@ var _url = require("url");
 var _loadCustomRoutes = require("../lib/load-custom-routes");
 var _constants = require("../shared/lib/constants");
 var _utils = require("../shared/lib/router/utils");
+var _apiUtils = require("./api-utils");
 var envConfig = _interopRequireWildcard(require("../shared/lib/runtime-config"));
 var _utils1 = require("../shared/lib/utils");
-var _apiUtils = require("./api-utils");
 var _utils2 = require("./utils");
 var _router = _interopRequireWildcard(require("./router"));
-var _sendPayload = require("./send-payload");
+var _revalidateHeaders = require("./send-payload/revalidate-headers");
 var _incrementalCache = require("./incremental-cache");
 var _renderResult = _interopRequireDefault(require("./render-result"));
 var _normalizeTrailingSlash = require("../client/normalize-trailing-slash");
@@ -87,7 +87,9 @@ class Server {
         // publicRuntimeConfig gets it's default in client/index.js
         const { serverRuntimeConfig ={} , publicRuntimeConfig , assetPrefix , generateEtags ,  } = this.nextConfig;
         this.buildId = this.getBuildId();
-        this.minimalMode = minimalMode;
+        this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE;
+        const serverComponents = this.nextConfig.experimental.serverComponents;
+        this.serverComponentManifest = serverComponents ? this.getServerComponentManifest() : undefined;
         this.renderOpts = {
             poweredByHeader: this.nextConfig.poweredByHeader,
             canonicalBase: this.nextConfig.amp.canonicalBase || '',
@@ -97,17 +99,17 @@ class Server {
             customServer: customServer === true ? true : undefined,
             ampOptimizerConfig: (ref = this.nextConfig.experimental.amp) === null || ref === void 0 ? void 0 : ref.optimizer,
             basePath: this.nextConfig.basePath,
-            images: JSON.stringify(this.nextConfig.images),
+            images: this.nextConfig.images,
             optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
             fontManifest: this.nextConfig.optimizeFonts && !dev ? this.getFontManifest() : undefined,
-            optimizeImages: !!this.nextConfig.experimental.optimizeImages,
             optimizeCss: this.nextConfig.experimental.optimizeCss,
-            disableOptimizedLoading: this.nextConfig.experimental.disableOptimizedLoading,
+            disableOptimizedLoading: this.nextConfig.experimental.runtime ? true : this.nextConfig.experimental.disableOptimizedLoading,
             domainLocales: (ref1 = this.nextConfig.i18n) === null || ref1 === void 0 ? void 0 : ref1.domains,
             distDir: this.distDir,
-            concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
-            serverComponents: this.nextConfig.experimental.serverComponents,
-            crossOrigin: this.nextConfig.crossOrigin ? this.nextConfig.crossOrigin : undefined
+            runtime: this.nextConfig.experimental.runtime,
+            serverComponents,
+            crossOrigin: this.nextConfig.crossOrigin ? this.nextConfig.crossOrigin : undefined,
+            reactRoot: this.nextConfig.experimental.reactRoot === true
         };
         // Only the `publicRuntimeConfig` key is exposed to the client side
         // It'll be rendered as part of __NEXT_DATA__ on the client side
@@ -146,7 +148,7 @@ class Server {
                 }
             }
         });
-        this.responseCache = new _responseCache.default(this.incrementalCache);
+        this.responseCache = new _responseCache.default(this.incrementalCache, this.minimalMode);
     }
     logError(err) {
         if (this.quiet) return;
@@ -276,9 +278,6 @@ class Server {
             if ((ref5 = url.locale) === null || ref5 === void 0 ? void 0 : ref5.path.detectedLocale) {
                 req.url = (0, _url).format(url);
                 (0, _requestMeta).addRequestMeta(req, '__nextStrippedLocale', true);
-                if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-                    return this.render404(req, res, parsedUrl);
-                }
             }
             if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
                 var ref12;
@@ -593,12 +592,12 @@ class Server {
         await this.render404(req, res, parsedUrl);
     }
     async pipe(fn, partialContext) {
-        const userAgent = partialContext.req.headers['user-agent'];
+        const isBotRequest = (0, _utils2).isBot(partialContext.req.headers['user-agent'] || '');
         const ctx = {
             ...partialContext,
             renderOpts: {
                 ...this.renderOpts,
-                supportsDynamicHTML: userAgent ? !(0, _utils2).isBot(userAgent) : false
+                supportsDynamicHTML: !isBotRequest
             }
         };
         const payload = await fn(ctx);
@@ -679,25 +678,39 @@ class Server {
         };
     }
     async renderToResponseWithComponents({ req , res , pathname , renderOpts: opts  }, { components , query  }) {
-        var ref, ref14, ref15;
+        var ref, ref14, ref15, ref16;
         const is404Page = pathname === '/404';
         const is500Page = pathname === '/500';
         const isLikeServerless = typeof components.ComponentMod === 'object' && typeof components.ComponentMod.renderReqToHTML === 'function';
         const isSSG = !!components.getStaticProps;
         const hasServerProps = !!components.getServerSideProps;
         const hasStaticPaths = !!components.getStaticPaths;
-        const hasGetInitialProps = !!components.Component.getInitialProps;
+        const hasGetInitialProps = !!((ref = components.Component) === null || ref === void 0 ? void 0 : ref.getInitialProps);
         // Toggle whether or not this is a Data request
         const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps);
         delete query._nextDataReq;
+        // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
+        const isFlightRequest = Boolean(this.serverComponentManifest && query.__flight__);
         // we need to ensure the status code if /404 is visited directly
-        if (is404Page && !isDataReq) {
+        if (is404Page && !isDataReq && !isFlightRequest) {
             res.statusCode = 404;
         }
         // ensure correct status is set when visiting a status page
         // directly e.g. /500
         if (_constants.STATIC_STATUS_PAGES.includes(pathname)) {
             res.statusCode = parseInt(pathname.substr(1), 10);
+        }
+        // static pages can only respond to GET/HEAD
+        // requests so ensure we respond with 405 for
+        // invalid requests
+        if (!is404Page && !is500Page && pathname !== '/_error' && req.method !== 'HEAD' && req.method !== 'GET' && (typeof components.Component === 'string' || isSSG)) {
+            res.statusCode = 405;
+            res.setHeader('Allow', [
+                'GET',
+                'HEAD'
+            ]);
+            await this.renderError(null, req, res, pathname);
+            return null;
         }
         // handle static page
         if (typeof components.Component === 'string') {
@@ -711,19 +724,28 @@ class Server {
             delete query.amp;
         }
         if (opts.supportsDynamicHTML === true) {
-            var ref16;
+            var ref17;
+            const isBotRequest = (0, _utils2).isBot(req.headers['user-agent'] || '');
             // Disable dynamic HTML in cases that we know it won't be generated,
             // so that we can continue generating a cache key when possible.
-            opts.supportsDynamicHTML = !isSSG && !isLikeServerless && !query.amp && !this.minimalMode && typeof ((ref16 = components.Document) === null || ref16 === void 0 ? void 0 : ref16.getInitialProps) !== 'function';
+            opts.supportsDynamicHTML = !isSSG && !isLikeServerless && !isBotRequest && !query.amp && typeof ((ref17 = components.Document) === null || ref17 === void 0 ? void 0 : ref17.getInitialProps) !== 'function';
         }
-        const defaultLocale = isSSG ? (ref = this.nextConfig.i18n) === null || ref === void 0 ? void 0 : ref.defaultLocale : query.__nextDefaultLocale;
+        const defaultLocale = isSSG ? (ref14 = this.nextConfig.i18n) === null || ref14 === void 0 ? void 0 : ref14.defaultLocale : query.__nextDefaultLocale;
         const locale = query.__nextLocale;
-        const locales = (ref14 = this.nextConfig.i18n) === null || ref14 === void 0 ? void 0 : ref14.locales;
+        const locales = (ref15 = this.nextConfig.i18n) === null || ref15 === void 0 ? void 0 : ref15.locales;
         let previewData;
         let isPreviewMode = false;
         if (hasServerProps || isSSG) {
-            previewData = (0, _apiUtils).tryGetPreviewData(req, res, this.renderOpts.previewProps);
-            isPreviewMode = previewData !== false;
+            // For the edge runtime, we don't support preview mode in SSG.
+            if (!process.browser) {
+                const { tryGetPreviewData  } = require('./api-utils/node');
+                previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps);
+                isPreviewMode = previewData !== false;
+            }
+        }
+        let isManualRevalidate = false;
+        if (isSSG) {
+            isManualRevalidate = (0, _apiUtils).checkIsManualRevalidate(req, this.renderOpts.previewProps);
         }
         // Compute the iSSG cache key. We use the rewroteUrl since
         // pages with fallback: false are allowed to be rewritten to
@@ -731,7 +753,7 @@ class Server {
         let urlPathname = (0, _url).parse(req.url || '').pathname || '/';
         let resolvedUrlPathname = (0, _requestMeta).getRequestMeta(req, '_nextRewroteUrl') || urlPathname;
         urlPathname = (0, _normalizeTrailingSlash).removePathTrailingSlash(urlPathname);
-        resolvedUrlPathname = (0, _normalizeLocalePath).normalizeLocalePath((0, _normalizeTrailingSlash).removePathTrailingSlash(resolvedUrlPathname), (ref15 = this.nextConfig.i18n) === null || ref15 === void 0 ? void 0 : ref15.locales).pathname;
+        resolvedUrlPathname = (0, _normalizeLocalePath).normalizeLocalePath((0, _normalizeTrailingSlash).removePathTrailingSlash(resolvedUrlPathname), (ref16 = this.nextConfig.i18n) === null || ref16 === void 0 ? void 0 : ref16.locales).pathname;
         const stripNextDataPath = (path)=>{
             if (path.includes(this.buildId)) {
                 const splitPath = path.substring(path.indexOf(this.buildId) + this.buildId.length);
@@ -764,7 +786,7 @@ class Server {
             resolvedUrlPathname = stripNextDataPath(resolvedUrlPathname);
             urlPathname = stripNextDataPath(urlPathname);
         }
-        let ssgCacheKey = isPreviewMode || !isSSG || this.minimalMode || opts.supportsDynamicHTML ? null // Preview mode bypasses the cache
+        let ssgCacheKey = isPreviewMode || !isSSG || opts.supportsDynamicHTML ? null // Preview mode and manual revalidate bypasses the cache
          : `${locale ? `/${locale}` : ''}${(pathname === '/' || resolvedUrlPathname === '/') && locale ? '' : resolvedUrlPathname}${query.amp ? '.amp' : ''}`;
         if ((is404Page || is500Page) && isSSG) {
             ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${query.amp ? '.amp' : ''}`;
@@ -865,7 +887,7 @@ class Server {
                 value
             };
         };
-        const cacheEntry = await this.responseCache.get(ssgCacheKey, async (hasResolved)=>{
+        const cacheEntry = await this.responseCache.get(ssgCacheKey, async (hasResolved, hadCache)=>{
             const isProduction = !this.renderOpts.dev;
             const isDynamicPathname = (0, _utils).isDynamicRoute(pathname);
             const didRespond = hasResolved || res.sent;
@@ -874,6 +896,11 @@ class Server {
                 fallbackMode: false
             };
             if (fallbackMode === 'static' && (0, _utils2).isBot(req.headers['user-agent'] || '')) {
+                fallbackMode = 'blocking';
+            }
+            // only allow manual revalidate for fallback: true/blocking
+            // or for prerendered fallback: false paths
+            if (isManualRevalidate && (fallbackMode !== false || hadCache)) {
                 fallbackMode = 'blocking';
             }
             // When we did not respond from cache, we need to choose to block on
@@ -936,6 +963,8 @@ class Server {
                 ...result,
                 revalidate: result.revalidate !== undefined ? result.revalidate : /* default to minimum revalidate (this should be an invariant) */ 1
             };
+        }, {
+            isManualRevalidate
         });
         if (!cacheEntry) {
             if (ssgCacheKey) {
@@ -948,6 +977,11 @@ class Server {
             }
             return null;
         }
+        if (isSSG) {
+            // set x-nextjs-cache header to match the header
+            // we set for the image-optimizer
+            res.setHeader('x-nextjs-cache', isManualRevalidate ? 'REVALIDATED' : cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT');
+        }
         const { revalidate , value: cachedData  } = cacheEntry;
         const revalidateOptions = typeof revalidate !== 'undefined' && (!this.renderOpts.dev || hasServerProps && !isDataReq) ? {
             // When the page is 404 cache-control should not be added unless
@@ -959,13 +993,16 @@ class Server {
         } : undefined;
         if (!cachedData) {
             if (revalidateOptions) {
-                (0, _sendPayload).setRevalidateHeaders(res, revalidateOptions);
+                (0, _revalidateHeaders).setRevalidateHeaders(res, revalidateOptions);
             }
             if (isDataReq) {
                 res.statusCode = 404;
                 res.body('{"notFound":true}').send();
                 return null;
             } else {
+                if (this.renderOpts.dev) {
+                    query.__nextNotFoundSrcPage = pathname;
+                }
                 await this.render404(req, res, {
                     pathname,
                     query
@@ -983,6 +1020,8 @@ class Server {
                 await handleRedirect(cachedData.props);
                 return null;
             }
+        } else if (cachedData.kind === 'IMAGE') {
+            throw new Error('invariant SSG should not return an image cache value');
         } else {
             return {
                 type: isDataReq ? 'json' : 'html',

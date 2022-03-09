@@ -113,6 +113,7 @@ class BaseHeaders {
         return createHeadersIterator(this, 'key+value');
     }
 }
+exports.Headers = BaseHeaders;
 function createHeadersIterator(target, kind) {
     const iterator = Object.create(HeadersIteratorPrototype);
     iterator[INTERNAL] = {
@@ -219,6 +220,5 @@ Object.defineProperty(HeadersIteratorPrototype, Symbol.toStringTag, {
     enumerable: false,
     configurable: true
 });
-exports.Headers = BaseHeaders;
 
 //# sourceMappingURL=headers.js.map

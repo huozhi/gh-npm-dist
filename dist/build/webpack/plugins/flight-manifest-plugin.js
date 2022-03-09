@@ -29,12 +29,12 @@ class FlightManifestPlugin {
         });
     }
     createAsset(assets, compilation) {
-        const json = {};
+        const manifest = {};
         const { clientComponentsRegex  } = this;
         compilation.chunkGroups.forEach((chunkGroup)=>{
             function recordModule(id, _chunk, mod) {
                 var ref;
-                const resource = (ref = mod.resource) === null || ref === void 0 ? void 0 : ref.replace(/\?flight$/, '');
+                const resource = (ref = mod.resource) === null || ref === void 0 ? void 0 : ref.replace(/\?__sc_client__$/, '');
                 // TODO: Hook into deps instead of the target module.
                 // That way we know by the type of dep whether to include.
                 // It also resolves conflicts when the same module is in multiple chunks.
@@ -42,14 +42,19 @@ class FlightManifestPlugin {
                 if (!clientComponentsRegex.test(resource) && !isNextClientComponent) {
                     return;
                 }
-                const moduleExports = json[resource] || {};
+                const moduleExports = manifest[resource] || {};
                 const exportsInfo = compilation.moduleGraph.getExportsInfo(mod);
-                const providedExports = exportsInfo.getProvidedExports();
                 const moduleExportedKeys = [
                     '',
                     '*'
-                ].concat(// TODO: improve exports detection
-                providedExports === true || providedExports == null ? 'default' : providedExports);
+                ].concat([
+                    ...exportsInfo.exports
+                ].map((exportInfo)=>{
+                    if (exportInfo.provided) {
+                        return exportInfo.name;
+                    }
+                    return null;
+                }).filter(Boolean));
                 moduleExportedKeys.forEach((name)=>{
                     if (!moduleExports[name]) {
                         moduleExports[name] = {
@@ -59,7 +64,7 @@ class FlightManifestPlugin {
                         };
                     }
                 });
-                json[resource] = moduleExports;
+                manifest[resource] = moduleExports;
             }
             chunkGroup.chunks.forEach((chunk)=>{
                 const chunkModules = compilation.chunkGraph.getChunkModulesIterable(chunk);
@@ -79,8 +84,12 @@ class FlightManifestPlugin {
                 }
             });
         });
-        const output = `self.__RSC_MANIFEST=` + JSON.stringify(json);
-        assets[`server/${_constants.MIDDLEWARE_FLIGHT_MANIFEST}.js`] = new _webpack.sources.RawSource(output);
+        // With switchable runtime, we need to emit the manifest files for both
+        // runtimes.
+        const file = `server/${_constants.MIDDLEWARE_FLIGHT_MANIFEST}`;
+        const json = JSON.stringify(manifest);
+        assets[file + '.js'] = new _webpack.sources.RawSource('self.__RSC_MANIFEST=' + json);
+        assets[file + '.json'] = new _webpack.sources.RawSource(json);
     }
 }
 exports.FlightManifestPlugin = FlightManifestPlugin;

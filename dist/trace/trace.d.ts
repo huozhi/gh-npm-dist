@@ -12,6 +12,7 @@ export declare class Span {
         [key: string]: any;
     };
     status: SpanStatus;
+    now: number;
     _start: bigint;
     constructor({ name, parentId, attrs, startTime, }: {
         name: string;
@@ -23,7 +24,7 @@ export declare class Span {
     traceChild(name: string, attrs?: Object): Span;
     manualTraceChild(name: string, startTime: bigint, stopTime: bigint, attrs?: Object): void;
     setAttribute(key: string, value: any): void;
-    traceFn(fn: any): any;
+    traceFn<T>(fn: () => T): T;
     traceAsyncFn<T>(fn: () => T | Promise<T>): Promise<T>;
 }
 export declare const trace: (name: string, parentId?: number | undefined, attrs?: {

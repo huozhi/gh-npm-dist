@@ -2,34 +2,10 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.noSSR = noSSR;
 exports.default = dynamic;
+exports.noSSR = noSSR;
 var _react = _interopRequireDefault(require("react"));
 var _loadable = _interopRequireDefault(require("./loadable"));
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-const isServerSide = typeof window === 'undefined';
-function noSSR(LoadableInitializer, loadableOptions) {
-    // Removing webpack and modules means react-loadable won't try preloading
-    delete loadableOptions.webpack;
-    delete loadableOptions.modules;
-    // This check is necessary to prevent react-loadable from initializing on the server
-    if (!isServerSide) {
-        return LoadableInitializer(loadableOptions);
-    }
-    const Loading = loadableOptions.loading;
-    // This will only be rendered on the server side
-    return ()=>/*#__PURE__*/ _react.default.createElement(Loading, {
-            error: null,
-            isLoading: true,
-            pastDelay: false,
-            timedOut: false
-        })
-    ;
-}
 function dynamic(dynamicOptions, options) {
     let loadableFn = _loadable.default;
     let loadableOptions = {
@@ -97,6 +73,30 @@ function dynamic(dynamicOptions, options) {
         delete loadableOptions.ssr;
     }
     return loadableFn(loadableOptions);
+}
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const isServerSide = typeof window === 'undefined';
+function noSSR(LoadableInitializer, loadableOptions) {
+    // Removing webpack and modules means react-loadable won't try preloading
+    delete loadableOptions.webpack;
+    delete loadableOptions.modules;
+    // This check is necessary to prevent react-loadable from initializing on the server
+    if (!isServerSide) {
+        return LoadableInitializer(loadableOptions);
+    }
+    const Loading = loadableOptions.loading;
+    // This will only be rendered on the server side
+    return ()=>/*#__PURE__*/ _react.default.createElement(Loading, {
+            error: null,
+            isLoading: true,
+            pastDelay: false,
+            timedOut: false
+        })
+    ;
 }
 
 //# sourceMappingURL=dynamic.js.map

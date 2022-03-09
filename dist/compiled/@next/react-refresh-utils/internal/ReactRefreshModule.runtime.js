@@ -13,22 +13,25 @@ function default_1() {
         if (typeof self !== 'undefined' &&
             // AMP / No-JS mode does not inject these helpers:
             '$RefreshHelpers$' in self) {
-            var currentExports = module.__proto__.exports;
-            var prevExports = (_b = (_a = module.hot.data) === null || _a === void 0 ? void 0 : _a.prevExports) !== null && _b !== void 0 ? _b : null;
+            // @ts-ignore __webpack_module__ is global
+            var currentExports = __webpack_module__.exports;
+            // @ts-ignore __webpack_module__ is global
+            var prevExports = (_b = (_a = __webpack_module__.hot.data) === null || _a === void 0 ? void 0 : _a.prevExports) !== null && _b !== void 0 ? _b : null;
             // This cannot happen in MainTemplate because the exports mismatch between
             // templating and execution.
-            self.$RefreshHelpers$.registerExportsForReactRefresh(currentExports, module.id);
+            self.$RefreshHelpers$.registerExportsForReactRefresh(currentExports, __webpack_module__.id);
             // A module can be accepted automatically based on its exports, e.g. when
             // it is a Refresh Boundary.
             if (self.$RefreshHelpers$.isReactRefreshBoundary(currentExports)) {
                 // Save the previous exports on update so we can compare the boundary
                 // signatures.
-                module.hot.dispose(function (data) {
+                __webpack_module__.hot.dispose(function (data) {
                     data.prevExports = currentExports;
                 });
                 // Unconditionally accept an update to this module, we'll check if it's
                 // still a Refresh Boundary later.
-                module.hot.accept();
+                // @ts-ignore importMeta is replaced in the loader
+                global.importMeta.webpackHot.accept();
                 // This field is set when the previous version of this module was a
                 // Refresh Boundary, letting us know we need to check for invalidation or
                 // enqueue an update.
@@ -41,7 +44,7 @@ function default_1() {
                     // re-render. Similarly, if you convert a class component to a
                     // function, we want to invalidate the boundary.
                     if (self.$RefreshHelpers$.shouldInvalidateReactRefreshBoundary(prevExports, currentExports)) {
-                        module.hot.invalidate();
+                        __webpack_module__.hot.invalidate();
                     }
                     else {
                         self.$RefreshHelpers$.scheduleUpdate();
@@ -55,7 +58,7 @@ function default_1() {
                 // because we already accepted this update (accidental side effect).
                 var isNoLongerABoundary = prevExports !== null;
                 if (isNoLongerABoundary) {
-                    module.hot.invalidate();
+                    __webpack_module__.hot.invalidate();
                 }
             }
         }

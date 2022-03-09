@@ -6,11 +6,6 @@ exports.default = loader;
 var _warning = _interopRequireDefault(require("./Warning"));
 var _error = _interopRequireDefault(require("./Error"));
 var _utils = require("./utils");
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
 async function loader(content, sourceMap, meta) {
     const loaderSpan = this.currentTraceSpan.traceChild('postcss-loader');
     const callback = this.async();
@@ -105,6 +100,11 @@ async function loader(content, sourceMap, meta) {
     }, (err)=>{
         callback === null || callback === void 0 ? void 0 : callback(err);
     });
+}
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
 }
 
 //# sourceMappingURL=index.js.map

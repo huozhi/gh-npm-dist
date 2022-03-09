@@ -9,6 +9,34 @@ var _core = require("next/dist/compiled/babel/core");
 var _coreLibConfig = _interopRequireDefault(require("next/dist/compiled/babel/core-lib-config"));
 var _util = require("./util");
 var Log = _interopRequireWildcard(require("../../output/log"));
+function getConfig({ source , target , loaderOptions , filename , inputSourceMap  }) {
+    const cacheCharacteristics = getCacheCharacteristics(loaderOptions, source, filename);
+    if (loaderOptions.configFile) {
+        // Ensures webpack invalidates the cache for this loader when the config file changes
+        this.addDependency(loaderOptions.configFile);
+    }
+    const cacheKey = getCacheKey(cacheCharacteristics);
+    if (configCache.has(cacheKey)) {
+        const cachedConfig = configCache.get(cacheKey);
+        return {
+            ...cachedConfig,
+            options: {
+                ...cachedConfig.options,
+                cwd: loaderOptions.cwd,
+                root: loaderOptions.cwd,
+                filename,
+                sourceFileName: filename
+            }
+        };
+    }
+    if (loaderOptions.configFile && !configFiles.has(loaderOptions.configFile)) {
+        configFiles.add(loaderOptions.configFile);
+        Log.info(`Using external babel configuration from ${loaderOptions.configFile}`);
+    }
+    const freshConfig = getFreshConfig.call(this, cacheCharacteristics, loaderOptions, target, filename, inputSourceMap);
+    configCache.set(cacheKey, freshConfig);
+    return freshConfig;
+}
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -212,33 +240,5 @@ const isJsFile = /\.js$/;
 }
 const configCache = new Map();
 const configFiles = new Set();
-function getConfig({ source , target , loaderOptions , filename , inputSourceMap  }) {
-    const cacheCharacteristics = getCacheCharacteristics(loaderOptions, source, filename);
-    if (loaderOptions.configFile) {
-        // Ensures webpack invalidates the cache for this loader when the config file changes
-        this.addDependency(loaderOptions.configFile);
-    }
-    const cacheKey = getCacheKey(cacheCharacteristics);
-    if (configCache.has(cacheKey)) {
-        const cachedConfig = configCache.get(cacheKey);
-        return {
-            ...cachedConfig,
-            options: {
-                ...cachedConfig.options,
-                cwd: loaderOptions.cwd,
-                root: loaderOptions.cwd,
-                filename,
-                sourceFileName: filename
-            }
-        };
-    }
-    if (loaderOptions.configFile && !configFiles.has(loaderOptions.configFile)) {
-        configFiles.add(loaderOptions.configFile);
-        Log.info(`Using external babel configuration from ${loaderOptions.configFile}`);
-    }
-    const freshConfig = getFreshConfig.call(this, cacheCharacteristics, loaderOptions, target, filename, inputSourceMap);
-    configCache.set(cacheKey, freshConfig);
-    return freshConfig;
-}
 
 //# sourceMappingURL=get-config.js.map

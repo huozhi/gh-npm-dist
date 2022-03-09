@@ -100,7 +100,7 @@ class RotatingWriteStream {
         });
     }
 }
-const reportToLocalHost = (name, duration, timestamp, id, parentId, attrs)=>{
+const reportToLocalHost = (name, duration, timestamp, id, parentId, attrs, startTime)=>{
     const distDir = _shared.traceGlobals.get('distDir');
     const phase = _shared.traceGlobals.get('phase');
     if (!distDir || !phase) {
@@ -134,7 +134,8 @@ const reportToLocalHost = (name, duration, timestamp, id, parentId, attrs)=>{
         id,
         timestamp,
         duration,
-        tags: attrs
+        tags: attrs,
+        startTime
     });
 };
 var _default = {

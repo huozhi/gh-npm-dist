@@ -37,6 +37,7 @@ var Log = _interopRequireWildcard(require("../../build/output/log"));
 var _isError = _interopRequireWildcard(require("../../lib/is-error"));
 var _getMiddlewareRegex = require("../../shared/lib/router/utils/get-middleware-regex");
 var _utils3 = require("../../build/utils");
+var _entries = require("../../build/entries");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -194,14 +195,12 @@ class DevServer extends _nextServer.default {
             wp.watch([], [
                 pagesDir
             ], 0);
-            wp.on('aggregated', ()=>{
+            wp.on('aggregated', async ()=>{
                 const routedMiddleware = [];
                 const routedPages = [];
                 const knownFiles = wp.getTimeInfoEntries();
                 const ssrMiddleware = new Set();
-                const isWebServerRuntime = this.nextConfig.experimental.concurrentFeatures;
-                const hasServerComponents = isWebServerRuntime && this.nextConfig.experimental.serverComponents;
-                for (const [fileName, { accuracy  }] of knownFiles){
+                for (const [fileName, { accuracy , safeTime  }] of knownFiles){
                     if (accuracy === undefined || !regexPageExtension.test(fileName)) {
                         continue;
                     }
@@ -212,10 +211,10 @@ class DevServer extends _nextServer.default {
                     let pageName = '/' + (0, _path).relative(pagesDir, fileName).replace(/\\+/g, '/');
                     pageName = pageName.replace(regexPageExtension, '');
                     pageName = pageName.replace(/\/index$/, '') || '/';
-                    if (hasServerComponents && pageName.endsWith('.server')) {
-                        routedMiddleware.push(pageName);
-                        ssrMiddleware.add(pageName);
-                    } else if (isWebServerRuntime && !((0, _utils3).isReservedPage(pageName) || (0, _utils3).isCustomErrorPage(pageName))) {
+                    (0, _entries).invalidatePageRuntimeCache(fileName, safeTime);
+                    const pageRuntimeConfig = await (0, _entries).getPageRuntime(fileName, this.nextConfig.experimental.runtime);
+                    const isEdgeRuntime = pageRuntimeConfig === 'edge';
+                    if (isEdgeRuntime && !((0, _utils3).isReservedPage(pageName) || (0, _utils3).isCustomErrorPage(pageName))) {
                         routedMiddleware.push(pageName);
                         ssrMiddleware.add(pageName);
                     }
@@ -281,6 +280,7 @@ class DevServer extends _nextServer.default {
         }
         this.hotReloader = new _hotReloader.default(this.dir, {
             pagesDir: this.pagesDir,
+            distDir: this.distDir,
             config: this.nextConfig,
             previewProps: this.getPreviewProps(),
             buildId: this.buildId,
@@ -400,9 +400,12 @@ class DevServer extends _nextServer.default {
             return result;
         } catch (error) {
             this.logErrorWithOriginalStack(error, undefined, 'client');
+            const preflight = params.request.method === 'HEAD' && params.request.headers['x-middleware-preflight'];
+            if (preflight) throw error;
             const err = (0, _isError).getProperError(error);
             err.middleware = true;
             const { request , response , parsedUrl  } = params;
+            response.statusCode = 500;
             this.renderError(err, request, response, parsedUrl.pathname);
             return null;
         }
@@ -523,6 +526,9 @@ class DevServer extends _nextServer.default {
         return [];
     }
     getMiddlewareManifest() {
+        return undefined;
+    }
+    getServerComponentManifest() {
         return undefined;
     }
     async hasMiddleware(pathname, isSSR) {
@@ -658,6 +664,11 @@ class DevServer extends _nextServer.default {
         }
         try {
             await this.hotReloader.ensurePage(pathname);
+            // When the new page is compiled, we need to reload the server component
+            // manifest.
+            if (this.nextConfig.experimental.serverComponents) {
+                this.serverComponentManifest = super.getServerComponentManifest();
+            }
             return super.findPageComponents(pathname, query, params);
         } catch (err) {
             if (err.code !== 'ENOENT') {
@@ -671,7 +682,9 @@ class DevServer extends _nextServer.default {
         // Build the error page to ensure the fallback is built too.
         // TODO: See if this can be moved into hotReloader or removed.
         await this.hotReloader.ensurePage('/_error');
-        return await (0, _loadComponents).loadDefaultErrorComponents(this.distDir);
+        return await (0, _loadComponents).loadDefaultErrorComponents(this.distDir, {
+            hasConcurrentFeatures: !!this.renderOpts.runtime
+        });
     }
     setImmutableAssetCacheControl(res) {
         res.setHeader('Cache-Control', 'no-store, must-revalidate');

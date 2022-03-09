@@ -41,10 +41,10 @@ class Error extends _react.default.Component {
         }, this.props.title || statusCode ? title : /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, "Application error: a client-side exception has occurred (see the browser console for more information)"), ".")))));
     }
 }
+exports.default = Error;
 Error.displayName = 'ErrorPage';
 Error.getInitialProps = _getInitialProps;
 Error.origGetInitialProps = _getInitialProps;
-exports.default = Error;
 const styles = {
     error: {
         color: '#000',

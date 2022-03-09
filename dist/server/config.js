@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.default = loadConfig;
 Object.defineProperty(exports, "DomainLocale", {
     enumerable: true,
     get: function() {
@@ -20,22 +21,107 @@ Object.defineProperty(exports, "normalizeConfig", {
         return _configShared.normalizeConfig;
     }
 });
-exports.default = loadConfig;
+exports.shouldUseReactRoot = shouldUseReactRoot;
 exports.setHttpAgentOptions = setHttpAgentOptions;
-var _chalk = _interopRequireDefault(require("../lib/chalk"));
-var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
 var _path = require("path");
 var _url = require("url");
 var _http = require("http");
 var _https = require("https");
+var _semver = _interopRequireDefault(require("next/dist/compiled/semver"));
+var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
+var _chalk = _interopRequireDefault(require("../lib/chalk"));
 var Log = _interopRequireWildcard(require("../build/output/log"));
 var _constants = require("../shared/lib/constants");
 var _utils = require("../shared/lib/utils");
 var _configShared = require("./config-shared");
 var _configUtils = require("./config-utils");
-var _imageConfig = require("./image-config");
+var _imageConfig = require("../shared/lib/image-config");
 var _env = require("@next/env");
 var _ciInfo = require("../telemetry/ci-info");
+async function loadConfig(phase, dir, customConfig) {
+    await (0, _env).loadEnvConfig(dir, phase === _constants.PHASE_DEVELOPMENT_SERVER, Log);
+    await (0, _configUtils).loadWebpackHook();
+    let configFileName = 'next.config.js';
+    if (customConfig) {
+        return assignDefaults({
+            configOrigin: 'server',
+            configFileName,
+            ...customConfig
+        });
+    }
+    const path = await (0, _findUp).default(_constants.CONFIG_FILES, {
+        cwd: dir
+    });
+    // If config file was found
+    if (path === null || path === void 0 ? void 0 : path.length) {
+        var ref;
+        configFileName = (0, _path).basename(path);
+        let userConfigModule;
+        try {
+            // `import()` expects url-encoded strings, so the path must be properly
+            // escaped and (especially on Windows) absolute paths must pe prefixed
+            // with the `file://` protocol
+            if (process.env.__NEXT_TEST_MODE === 'jest') {
+                // dynamic import does not currently work inside of vm which
+                // jest relies on so we fall back to require for this case
+                // https://github.com/nodejs/node/issues/35889
+                userConfigModule = require(path);
+            } else {
+                userConfigModule = await import((0, _url).pathToFileURL(path).href);
+            }
+        } catch (err) {
+            Log.error(`Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`);
+            throw err;
+        }
+        const userConfig = await (0, _configShared).normalizeConfig(phase, userConfigModule.default || userConfigModule);
+        if (Object.keys(userConfig).length === 0) {
+            Log.warn(`Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`);
+        }
+        if (userConfig.target && !targets.includes(userConfig.target)) {
+            throw new Error(`Specified target is invalid. Provided: "${userConfig.target}" should be one of ${targets.join(', ')}`);
+        }
+        if (userConfig.target && userConfig.target !== 'server') {
+            Log.warn('The `target` config is deprecated and will be removed in a future version.\n' + 'See more info here https://nextjs.org/docs/messages/deprecated-target-config');
+        }
+        const hasReactRoot = shouldUseReactRoot();
+        if (hasReactRoot) {
+            // users might not have the `experimental` key in their config
+            userConfig.experimental = userConfig.experimental || {};
+            userConfig.experimental.reactRoot = true;
+        }
+        if ((ref = userConfig.amp) === null || ref === void 0 ? void 0 : ref.canonicalBase) {
+            const { canonicalBase  } = userConfig.amp || {};
+            userConfig.amp = userConfig.amp || {};
+            userConfig.amp.canonicalBase = (canonicalBase.endsWith('/') ? canonicalBase.slice(0, -1) : canonicalBase) || '';
+        }
+        if (process.env.NEXT_PRIVATE_TARGET || _ciInfo.hasNextSupport) {
+            userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server';
+        }
+        return assignDefaults({
+            configOrigin: (0, _path).relative(dir, path),
+            configFile: path,
+            configFileName,
+            ...userConfig
+        });
+    } else {
+        const configBaseName = (0, _path).basename(_constants.CONFIG_FILES[0], (0, _path).extname(_constants.CONFIG_FILES[0]));
+        const nonJsPath = _findUp.default.sync([
+            `${configBaseName}.jsx`,
+            `${configBaseName}.ts`,
+            `${configBaseName}.tsx`,
+            `${configBaseName}.json`, 
+        ], {
+            cwd: dir
+        });
+        if (nonJsPath === null || nonJsPath === void 0 ? void 0 : nonJsPath.length) {
+            throw new Error(`Configuring Next.js via '${(0, _path).basename(nonJsPath)}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`);
+        }
+    }
+    const completeConfig = _configShared.defaultConfig;
+    completeConfig.configFileName = configFileName;
+    setHttpAgentOptions(completeConfig.httpAgentOptions);
+    return completeConfig;
+}
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -98,7 +184,7 @@ function assignDefaults(userConfig) {
         if (value === undefined || value === null) {
             return currentConfig;
         }
-        if (key === 'experimental' && value !== undefined && value !== _configShared.defaultConfig[key]) {
+        if (key === 'experimental' && value !== _configShared.defaultConfig[key] && typeof value === 'object' && Object.keys(value).length > 0) {
             experimentalWarning();
         }
         if (key === 'distDir') {
@@ -269,6 +355,16 @@ function assignDefaults(userConfig) {
                 throw new Error(`Specified images.formats should be an Array of mime type strings, received invalid values (${invalid.join(', ')}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
             }
         }
+        if (typeof images.dangerouslyAllowSVG !== 'undefined' && typeof images.dangerouslyAllowSVG !== 'boolean') {
+            throw new Error(`Specified images.dangerouslyAllowSVG should be a boolean
+          ', '
+        )}), received  (${images.dangerouslyAllowSVG}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
+        }
+        if (typeof images.contentSecurityPolicy !== 'undefined' && typeof images.contentSecurityPolicy !== 'string') {
+            throw new Error(`Specified images.contentSecurityPolicy should be a string
+          ', '
+        )}), received  (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
+        }
     }
     if (result.webpack5 === false) {
         throw new Error(`Webpack 4 is no longer supported in Next.js. Please upgrade to webpack 5 by removing "webpack5: false" from ${configFileName}. https://nextjs.org/docs/messages/webpack5`);
@@ -276,6 +372,26 @@ function assignDefaults(userConfig) {
     if (result.experimental && 'swcMinify' in result.experimental) {
         Log.warn(`\`swcMinify\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`);
         result.swcMinify = result.experimental.swcMinify;
+    }
+    if (result.experimental && 'relay' in result.experimental) {
+        Log.warn(`\`relay\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`);
+        result.compiler = result.compiler || {};
+        result.compiler.relay = result.experimental.relay;
+    }
+    if (result.experimental && 'styledComponents' in result.experimental) {
+        Log.warn(`\`styledComponents\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`);
+        result.compiler = result.compiler || {};
+        result.compiler.styledComponents = result.experimental.styledComponents;
+    }
+    if (result.experimental && 'reactRemoveProperties' in result.experimental) {
+        Log.warn(`\`reactRemoveProperties\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`);
+        result.compiler = result.compiler || {};
+        result.compiler.reactRemoveProperties = result.experimental.reactRemoveProperties;
+    }
+    if (result.experimental && 'removeConsole' in result.experimental) {
+        Log.warn(`\`removeConsole\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`);
+        result.compiler = result.compiler || {};
+        result.compiler.removeConsole = result.experimental.removeConsole;
     }
     if (result.swcMinify) {
         Log.warn('SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled');
@@ -376,83 +492,12 @@ function assignDefaults(userConfig) {
     }
     return result;
 }
-async function loadConfig(phase, dir, customConfig) {
-    await (0, _env).loadEnvConfig(dir, phase === _constants.PHASE_DEVELOPMENT_SERVER, Log);
-    await (0, _configUtils).loadWebpackHook();
-    let configFileName = 'next.config.js';
-    if (customConfig) {
-        return assignDefaults({
-            configOrigin: 'server',
-            configFileName,
-            ...customConfig
-        });
-    }
-    const path = await (0, _findUp).default(_constants.CONFIG_FILES, {
-        cwd: dir
-    });
-    // If config file was found
-    if (path === null || path === void 0 ? void 0 : path.length) {
-        var ref;
-        configFileName = (0, _path).basename(path);
-        let userConfigModule;
-        try {
-            // `import()` expects url-encoded strings, so the path must be properly
-            // escaped and (especially on Windows) absolute paths must pe prefixed
-            // with the `file://` protocol
-            if (process.env.__NEXT_TEST_MODE === 'jest') {
-                // dynamic import does not currently work inside of vm which
-                // jest relies on so we fall back to require for this case
-                // https://github.com/nodejs/node/issues/35889
-                userConfigModule = require(path);
-            } else {
-                userConfigModule = await import((0, _url).pathToFileURL(path).href);
-            }
-        } catch (err) {
-            Log.error(`Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`);
-            throw err;
-        }
-        const userConfig = await (0, _configShared).normalizeConfig(phase, userConfigModule.default || userConfigModule);
-        if (Object.keys(userConfig).length === 0) {
-            Log.warn(`Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`);
-        }
-        if (userConfig.target && !targets.includes(userConfig.target)) {
-            throw new Error(`Specified target is invalid. Provided: "${userConfig.target}" should be one of ${targets.join(', ')}`);
-        }
-        if (userConfig.target && userConfig.target !== 'server') {
-            Log.warn('The `target` config is deprecated and will be removed in a future version.\n' + 'See more info here https://nextjs.org/docs/messages/deprecated-target-config');
-        }
-        if ((ref = userConfig.amp) === null || ref === void 0 ? void 0 : ref.canonicalBase) {
-            const { canonicalBase  } = userConfig.amp || {};
-            userConfig.amp = userConfig.amp || {};
-            userConfig.amp.canonicalBase = (canonicalBase.endsWith('/') ? canonicalBase.slice(0, -1) : canonicalBase) || '';
-        }
-        if (process.env.NEXT_PRIVATE_TARGET || _ciInfo.hasNextSupport) {
-            userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server';
-        }
-        return assignDefaults({
-            configOrigin: (0, _path).relative(dir, path),
-            configFile: path,
-            configFileName,
-            ...userConfig
-        });
-    } else {
-        const configBaseName = (0, _path).basename(_constants.CONFIG_FILES[0], (0, _path).extname(_constants.CONFIG_FILES[0]));
-        const nonJsPath = _findUp.default.sync([
-            `${configBaseName}.jsx`,
-            `${configBaseName}.ts`,
-            `${configBaseName}.tsx`,
-            `${configBaseName}.json`, 
-        ], {
-            cwd: dir
-        });
-        if (nonJsPath === null || nonJsPath === void 0 ? void 0 : nonJsPath.length) {
-            throw new Error(`Configuring Next.js via '${(0, _path).basename(nonJsPath)}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`);
-        }
-    }
-    const completeConfig = _configShared.defaultConfig;
-    completeConfig.configFileName = configFileName;
-    setHttpAgentOptions(completeConfig.httpAgentOptions);
-    return completeConfig;
+function shouldUseReactRoot() {
+    var ref;
+    const reactDomVersion = require('react-dom').version;
+    const isReactExperimental = Boolean(reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion));
+    const hasReact18 = Boolean(reactDomVersion) && (_semver.default.gte(reactDomVersion, '18.0.0') || ((ref = _semver.default.coerce(reactDomVersion)) === null || ref === void 0 ? void 0 : ref.version) === '18.0.0');
+    return hasReact18 || isReactExperimental;
 }
 function setHttpAgentOptions(options) {
     if (global.__NEXT_HTTP_AGENT) {

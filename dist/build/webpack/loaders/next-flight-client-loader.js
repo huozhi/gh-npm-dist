@@ -4,7 +4,34 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = transformSource;
 var _swc = require("../../swc");
-var _options = require("../../swc/options");
+async function transformSource(source) {
+    const { resourcePath  } = this;
+    const transformedSource = source;
+    if (typeof transformedSource !== 'string') {
+        throw new Error('Expected source to have been transformed to a string.');
+    }
+    const names = [];
+    await parseExportNamesInto(resourcePath, transformedSource, names);
+    // next.js/packages/next/<component>.js
+    if (/[\\/]next[\\/](link|image)\.js$/.test(resourcePath)) {
+        names.push('default');
+    }
+    let newSrc = "const MODULE_REFERENCE = Symbol.for('react.module.reference');\n";
+    for(let i = 0; i < names.length; i++){
+        const name = names[i];
+        if (name === 'default') {
+            newSrc += 'export default ';
+        } else {
+            newSrc += 'export const ' + name + ' = ';
+        }
+        newSrc += '{ $$typeof: MODULE_REFERENCE, filepath: ';
+        newSrc += JSON.stringify(resourcePath);
+        newSrc += ', name: ';
+        newSrc += JSON.stringify(name);
+        newSrc += '};\n';
+    }
+    return newSrc;
+}
 function addExportNames(names, node) {
     switch(node.type){
         case 'Identifier':
@@ -36,12 +63,8 @@ function addExportNames(names, node) {
     }
 }
 async function parseExportNamesInto(resourcePath, transformedSource, names) {
-    const opts = (0, _options).getBaseSWCOptions({
-        filename: resourcePath,
-        globalWindow: true
-    });
     const { body  } = await (0, _swc).parse(transformedSource, {
-        ...opts.jsc.parser,
+        filename: resourcePath,
         isModule: true
     });
     for(let i = 0; i < body.length; i++){
@@ -49,6 +72,7 @@ async function parseExportNamesInto(resourcePath, transformedSource, names) {
         switch(node.type){
             // TODO: support export * from module path
             // case 'ExportAllDeclaration':
+            case 'ExportDefaultExpression':
             case 'ExportDefaultDeclaration':
                 names.push('default');
                 continue;
@@ -70,40 +94,16 @@ async function parseExportNamesInto(resourcePath, transformedSource, names) {
                     }
                 }
                 continue;
+            case 'ExportDeclaration':
+                var ref;
+                if ((ref = node.declaration) === null || ref === void 0 ? void 0 : ref.identifier) {
+                    addExportNames(names, node.declaration.identifier);
+                }
+                continue;
             default:
                 break;
         }
     }
-}
-async function transformSource(source) {
-    const { resourcePath , resourceQuery  } = this;
-    if (resourceQuery !== '?flight') return source;
-    let url = resourcePath;
-    const transformedSource = source;
-    if (typeof transformedSource !== 'string') {
-        throw new Error('Expected source to have been transformed to a string.');
-    }
-    const names = [];
-    await parseExportNamesInto(resourcePath, transformedSource, names);
-    // next.js/packages/next/<component>.js
-    if (/[\\/]next[\\/](link|image)\.js$/.test(url)) {
-        names.push('default');
-    }
-    let newSrc = "const MODULE_REFERENCE = Symbol.for('react.module.reference');\n";
-    for(let i = 0; i < names.length; i++){
-        const name = names[i];
-        if (name === 'default') {
-            newSrc += 'export default ';
-        } else {
-            newSrc += 'export const ' + name + ' = ';
-        }
-        newSrc += '{ $$typeof: MODULE_REFERENCE, filepath: ';
-        newSrc += JSON.stringify(url);
-        newSrc += ', name: ';
-        newSrc += JSON.stringify(name);
-        newSrc += '};\n';
-    }
-    return newSrc;
 }
 
 //# sourceMappingURL=next-flight-client-loader.js.map

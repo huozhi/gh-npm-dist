@@ -132,8 +132,10 @@ function validateURL(url) {
     try {
         return String(new URL(String(url)));
     } catch (error) {
-        console.log(`warn  -`, 'using relative URLs for Middleware will be deprecated soon - https://nextjs.org/docs/messages/middleware-relative-urls');
-        return String(url);
+        throw new Error(`URLs is malformed. Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls`, // @ts-expect-error This will work for people who enable the error causes polyfill
+        {
+            cause: error
+        });
     }
 }
 

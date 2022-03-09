@@ -5,10 +5,10 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
-} from './image-config'
+} from '../shared/lib/image-config'
 
 export type NextConfigComplete = Required<NextConfig> & {
-  images: ImageConfigComplete
+  images: Required<ImageConfigComplete>
   typescript: Required<TypeScriptConfig>
   configOrigin?: string
   configFile?: string
@@ -75,17 +75,6 @@ export interface NextJsWebpackConfig {
 
 export interface ExperimentalConfig {
   disablePostcssPresetEnv?: boolean
-  removeConsole?:
-    | boolean
-    | {
-        exclude?: string[]
-      }
-  reactRemoveProperties?:
-    | boolean
-    | {
-        properties?: string[]
-      }
-  styledComponents?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
@@ -96,7 +85,6 @@ export interface ExperimentalConfig {
   reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
   pageEnv?: boolean
-  optimizeImages?: boolean
   optimizeCss?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
@@ -112,17 +100,13 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  concurrentFeatures?: boolean
+  runtime?: 'nodejs' | 'edge'
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   outputStandalone?: boolean
-  relay?: {
-    src: string
-    artifactDirectory?: string
-    language?: 'typescript' | 'flow'
-  }
+  middlewareSourceMaps?: boolean
 }
 
 /**
@@ -377,6 +361,30 @@ export interface NextConfig extends Record<string, any> {
   swcMinify?: boolean
 
   /**
+   * Optionally enable compiler transforms
+   *
+   * @see [Supported Compiler Options](https://nextjs.org/docs/advanced-features/compiler#supported-features)
+   */
+  compiler?: {
+    reactRemoveProperties?:
+      | boolean
+      | {
+          properties?: string[]
+        }
+    relay?: {
+      src: string
+      artifactDirectory?: string
+      language?: 'typescript' | 'flow'
+    }
+    removeConsole?:
+      | boolean
+      | {
+          exclude?: string[]
+        }
+    styledComponents?: boolean
+  }
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
@@ -446,7 +454,6 @@ export const defaultConfig: NextConfig = {
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
-    optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
     externalDir: false,
@@ -458,7 +465,6 @@ export const defaultConfig: NextConfig = {
     esmExternals: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    concurrentFeatures: false,
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',

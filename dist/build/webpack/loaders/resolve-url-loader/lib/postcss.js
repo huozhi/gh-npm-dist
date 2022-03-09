@@ -5,12 +5,6 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = process;
 var _path = _interopRequireDefault(require("path"));
 var _fileProtocol = _interopRequireDefault(require("./file-protocol"));
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-const ORPHAN_CR_REGEX = /\r(?!\n)(.|\n)?/g;
 function process(postcss, sourceFile, sourceContent, params) {
     // #107 libsass emits orphan CR not considered newline, postcss does consider newline (content vs source-map mismatch)
     // prepend file protocol to all sources to avoid problems with source map
@@ -54,5 +48,11 @@ function process(postcss, sourceFile, sourceContent, params) {
         }
     }
 }
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const ORPHAN_CR_REGEX = /\r(?!\n)(.|\n)?/g;
 
 //# sourceMappingURL=postcss.js.map

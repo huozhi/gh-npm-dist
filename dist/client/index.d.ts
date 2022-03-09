@@ -1,7 +1,6 @@
 import '../build/polyfills/polyfill-module';
 import { MittEmitter } from '../shared/lib/mitt';
 import type Router from '../shared/lib/router/router';
-import { AppComponent, PrivateRouteInfo } from '../shared/lib/router/router';
 import { NEXT_DATA } from '../shared/lib/utils';
 declare global {
     interface Window {
@@ -12,21 +11,14 @@ declare global {
         __NEXT_P: any[];
     }
 }
-declare type RenderRouteInfo = PrivateRouteInfo & {
-    App: AppComponent;
-    scroll?: {
-        x: number;
-        y: number;
-    } | null;
-};
-declare type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>;
 export declare const version: string | undefined;
 export declare let router: Router;
 export declare const emitter: MittEmitter<string>;
-export declare function initNext(opts?: {
+export declare function initialize(opts?: {
     webpackHMR?: any;
+}): Promise<{
+    assetPrefix: string;
+}>;
+export declare function hydrate(opts?: {
     beforeRender?: () => Promise<void>;
 }): Promise<void>;
-export declare function render(renderingProps: RenderRouteInfo): Promise<void>;
-export declare function renderError(renderErrorProps: RenderErrorProps): Promise<any>;
-export {};

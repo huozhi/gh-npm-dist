@@ -8,8 +8,9 @@ var _utils = require("../../../../shared/lib/utils");
 var _sendPayload = require("../../../../server/send-payload");
 var _utils1 = require("./utils");
 var _render = require("../../../../server/render");
-var _apiUtils = require("../../../../server/api-utils");
+var _node = require("../../../../server/api-utils/node");
 var _denormalizePagePath = require("../../../../server/denormalize-page-path");
+var _apiUtils = require("../../../../server/api-utils");
 var _loadCustomRoutes = require("../../../../lib/load-custom-routes");
 var _getRouteFromAssetPath = _interopRequireDefault(require("../../../../shared/lib/router/utils/get-route-from-asset-path"));
 var _constants = require("../../../../shared/lib/constants");
@@ -117,9 +118,7 @@ function getPageHandler(ctx) {
                 locale: detectedLocale,
                 defaultLocale,
                 domainLocales: i18n === null || i18n === void 0 ? void 0 : i18n.domains,
-                optimizeImages: process.env.__NEXT_OPTIMIZE_IMAGES,
                 optimizeCss: process.env.__NEXT_OPTIMIZE_CSS,
-                concurrentFeatures: process.env.__NEXT_CONCURRENT_FEATURES,
                 crossOrigin: process.env.__NEXT_CROSS_ORIGIN
             }, options);
             if (page === '/_error' && !res.statusCode) {
@@ -172,7 +171,7 @@ function getPageHandler(ctx) {
                 }) : renderOpts.resolvedUrl;
             }
             const isFallback = parsedUrl.query.__nextFallback;
-            const previewData = (0, _apiUtils).tryGetPreviewData(req, res, options.previewProps);
+            const previewData = (0, _node).tryGetPreviewData(req, res, options.previewProps);
             const isPreviewMode = previewData !== false;
             if (process.env.__NEXT_OPTIMIZE_FONTS) {
                 renderOpts.optimizeFonts = true;

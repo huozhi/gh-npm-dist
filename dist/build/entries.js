@@ -4,8 +4,11 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.getPageFromPath = getPageFromPath;
 exports.createPagesMapping = createPagesMapping;
+exports.getPageRuntime = getPageRuntime;
+exports.invalidatePageRuntimeCache = invalidatePageRuntimeCache;
 exports.createEntrypoints = createEntrypoints;
 exports.finalizeEntrypoint = finalizeEntrypoint;
+var _fs = _interopRequireDefault(require("fs"));
 var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _path = require("path");
 var _querystring = require("querystring");
@@ -13,6 +16,7 @@ var _constants = require("../lib/constants");
 var _utils = require("../server/utils");
 var _normalizePagePath = require("../server/normalize-page-path");
 var _log = require("./output/log");
+var _swc = require("../build/swc");
 var _utils1 = require("./utils");
 var _middlewarePlugin = require("./webpack/plugins/middleware-plugin");
 var _constants1 = require("../shared/lib/constants");
@@ -26,7 +30,7 @@ function getPageFromPath(pagePath, extensions) {
     page = page.replace(/\\/g, '/').replace(/\/index$/, '');
     return page === '' ? '/' : page;
 }
-function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents , hasConcurrentFeatures  }) {
+function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents , globalRuntime  }) {
     const previousPages = {};
     // Do not process .d.ts files inside the `pages` folder
     pagePaths = extensions.includes('ts') ? pagePaths.filter((pagePath)=>!pagePath.endsWith('.d.ts')
@@ -49,7 +53,7 @@ function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents
     // we alias these in development and allow webpack to
     // allow falling back to the correct source file so
     // that HMR can work properly when a file is added/removed
-    const documentPage = `_document${hasConcurrentFeatures ? '-web' : ''}`;
+    const documentPage = `_document${globalRuntime ? '-concurrent' : ''}`;
     if (isDev) {
         pages['/_app'] = `${_constants.PAGES_DIR_ALIAS}/_app`;
         pages['/_error'] = `${_constants.PAGES_DIR_ALIAS}/_error`;
@@ -61,10 +65,84 @@ function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents
     }
     return pages;
 }
-function createEntrypoints(pages, target, buildId, previewMode, config, loadedEnvFiles) {
+const cachedPageRuntimeConfig = new Map();
+async function getPageRuntime(pageFilePath, globalRuntimeFallback) {
+    const cached = cachedPageRuntimeConfig.get(pageFilePath);
+    if (cached) {
+        return cached[1];
+    }
+    let pageContent;
+    try {
+        pageContent = await _fs.default.promises.readFile(pageFilePath, {
+            encoding: 'utf8'
+        });
+    } catch (err) {
+        return undefined;
+    }
+    // When gSSP or gSP is used, this page requires an execution runtime. If the
+    // page config is not present, we fallback to the global runtime. Related
+    // discussion:
+    // https://github.com/vercel/next.js/discussions/34179
+    let isRuntimeRequired = false;
+    let pageRuntime = undefined;
+    // Since these configurations should always be static analyzable, we can
+    // skip these cases that "runtime" and "gSP", "gSSP" are not included in the
+    // source code.
+    if (/runtime|getStaticProps|getServerSideProps/.test(pageContent)) {
+        try {
+            const { body  } = await (0, _swc).parse(pageContent, {
+                filename: pageFilePath,
+                isModule: true
+            });
+            for (const node of body){
+                const { type , declaration  } = node;
+                if (type === 'ExportDeclaration') {
+                    var ref, ref1;
+                    // `export const config`
+                    const valueNode = declaration === null || declaration === void 0 ? void 0 : (ref = declaration.declarations) === null || ref === void 0 ? void 0 : ref[0];
+                    if ((valueNode === null || valueNode === void 0 ? void 0 : (ref1 = valueNode.id) === null || ref1 === void 0 ? void 0 : ref1.value) === 'config') {
+                        var ref2;
+                        const props = valueNode.init.properties;
+                        const runtimeKeyValue = props.find((prop)=>prop.key.value === 'runtime'
+                        );
+                        const runtime = runtimeKeyValue === null || runtimeKeyValue === void 0 ? void 0 : (ref2 = runtimeKeyValue.value) === null || ref2 === void 0 ? void 0 : ref2.value;
+                        pageRuntime = runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime;
+                    } else if ((declaration === null || declaration === void 0 ? void 0 : declaration.type) === 'FunctionDeclaration') {
+                        var ref3, ref4;
+                        // `export function getStaticProps` and
+                        // `export function getServerSideProps`
+                        if (((ref3 = declaration.identifier) === null || ref3 === void 0 ? void 0 : ref3.value) === 'getStaticProps' || ((ref4 = declaration.identifier) === null || ref4 === void 0 ? void 0 : ref4.value) === 'getServerSideProps') {
+                            isRuntimeRequired = true;
+                        }
+                    }
+                }
+            }
+        } catch (err) {}
+    }
+    if (!pageRuntime) {
+        if (isRuntimeRequired) {
+            pageRuntime = globalRuntimeFallback;
+        } else {
+            // @TODO: Remove this branch to fully implement the RFC.
+            pageRuntime = globalRuntimeFallback;
+        }
+    }
+    cachedPageRuntimeConfig.set(pageFilePath, [
+        Date.now(),
+        pageRuntime
+    ]);
+    return pageRuntime;
+}
+function invalidatePageRuntimeCache(pageFilePath, safeTime) {
+    const cached = cachedPageRuntimeConfig.get(pageFilePath);
+    if (cached && cached[0] < safeTime) {
+        cachedPageRuntimeConfig.delete(pageFilePath);
+    }
+}
+async function createEntrypoints(pages, target, buildId, previewMode, config, loadedEnvFiles, pagesDir) {
     const client = {};
     const server = {};
-    const serverWeb = {};
+    const edgeServer = {};
     const hasRuntimeConfig = Object.keys(config.publicRuntimeConfig).length > 0 || Object.keys(config.serverRuntimeConfig).length > 0;
     const defaultServerlessOptions = {
         absoluteAppPath: pages['/_app'],
@@ -85,9 +163,11 @@ function createEntrypoints(pages, target, buildId, previewMode, config, loadedEn
         previewProps: JSON.stringify(previewMode),
         // base64 encode to make sure contents don't break webpack URL loading
         loadedEnvFiles: Buffer.from(JSON.stringify(loadedEnvFiles)).toString('base64'),
-        i18n: config.i18n ? JSON.stringify(config.i18n) : ''
+        i18n: config.i18n ? JSON.stringify(config.i18n) : '',
+        reactRoot: config.experimental.reactRoot ? 'true' : ''
     };
-    Object.keys(pages).forEach((page)=>{
+    const globalRuntime = config.experimental.runtime;
+    await Promise.all(Object.keys(pages).map(async (page)=>{
         const absolutePagePath = pages[page];
         const bundleFile = (0, _normalizePagePath).normalizePagePath(page);
         const isApiRoute = page.match(_constants.API_ROUTE);
@@ -97,7 +177,7 @@ function createEntrypoints(pages, target, buildId, previewMode, config, loadedEn
         const isReserved = (0, _utils1).isReservedPage(page);
         const isCustomError = (0, _utils1).isCustomErrorPage(page);
         const isFlight = (0, _utils1).isFlightPage(config, absolutePagePath);
-        const webServerRuntime = !!config.experimental.concurrentFeatures;
+        const isEdgeRuntime = await getPageRuntime((0, _path).join(pagesDir, absolutePagePath.slice(_constants.PAGES_DIR_ALIAS.length + 1)), globalRuntime) === 'edge';
         if (page.match(_constants.MIDDLEWARE_ROUTE)) {
             const loaderOpts = {
                 absolutePagePath: pages[page],
@@ -106,11 +186,11 @@ function createEntrypoints(pages, target, buildId, previewMode, config, loadedEn
             client[clientBundlePath] = `next-middleware-loader?${(0, _querystring).stringify(loaderOpts)}!`;
             return;
         }
-        if (webServerRuntime && !isReserved && !isCustomError && !isApiRoute) {
+        if (isEdgeRuntime && !isReserved && !isCustomError && !isApiRoute) {
             _middlewarePlugin.ssrEntries.set(clientBundlePath, {
                 requireFlightManifest: isFlight
             });
-            serverWeb[serverBundlePath] = finalizeEntrypoint({
+            edgeServer[serverBundlePath] = finalizeEntrypoint({
                 name: '[name].js',
                 value: `next-middleware-ssr-loader?${(0, _querystring).stringify({
                     dev: false,
@@ -122,7 +202,7 @@ function createEntrypoints(pages, target, buildId, previewMode, config, loadedEn
                     ...defaultServerlessOptions
                 })}!`,
                 isServer: false,
-                isServerWeb: true
+                isEdgeServer: true
             });
         }
         if (isApiRoute && isLikeServerless) {
@@ -133,12 +213,12 @@ function createEntrypoints(pages, target, buildId, previewMode, config, loadedEn
             };
             server[serverBundlePath] = `next-serverless-loader?${(0, _querystring).stringify(serverlessLoaderOptions)}!`;
         } else if (isApiRoute || target === 'server') {
-            if (!webServerRuntime || isReserved || isCustomError) {
+            if (!isEdgeRuntime || isReserved || isCustomError) {
                 server[serverBundlePath] = [
                     absolutePagePath
                 ];
             }
-        } else if (isLikeServerless && page !== '/_app' && page !== '/_document' && !webServerRuntime) {
+        } else if (isLikeServerless && page !== '/_app' && page !== '/_document' && !isEdgeRuntime) {
             const serverlessLoaderOptions = {
                 page,
                 absolutePagePath,
@@ -163,14 +243,14 @@ function createEntrypoints(pages, target, buildId, previewMode, config, loadedEn
                 require.resolve('../client/router')
             ] : pageLoader;
         }
-    });
+    }));
     return {
         client,
         server,
-        serverWeb
+        edgeServer
     };
 }
-function finalizeEntrypoint({ name , value , isServer , isMiddleware , isServerWeb  }) {
+function finalizeEntrypoint({ name , value , isServer , isMiddleware , isEdgeServer  }) {
     const entry = typeof value !== 'object' || Array.isArray(value) ? {
         import: value
     } : value;
@@ -183,7 +263,7 @@ function finalizeEntrypoint({ name , value , isServer , isMiddleware , isServerW
             ...entry
         };
     }
-    if (isServerWeb) {
+    if (isEdgeServer) {
         const ssrMiddlewareEntry = {
             library: {
                 name: [

@@ -1,8 +1,8 @@
 /// <reference types="node" />
 import type { ParsedUrlQuery } from 'querystring';
+import type { BaseNextRequest, BaseNextResponse } from './base-http';
 import { NextUrlWithParsedQuery } from './request-meta';
 import { RouteHas } from '../lib/load-custom-routes';
-import { BaseNextRequest, BaseNextResponse } from './base-http';
 export declare const route: (path: string, regexModifier?: ((regex: string) => string) | undefined) => (pathname: string | null | undefined, params?: any) => any;
 export declare type Params = {
     [param: string]: any;

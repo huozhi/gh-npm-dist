@@ -5,16 +5,16 @@ Object.defineProperty(exports, "__esModule", {
 exports.getApiHandler = getApiHandler;
 var _url = require("url");
 var _http = require("http");
-var _apiUtils = require("../../../../server/api-utils");
+var _node = require("../../../../server/api-utils/node");
 var _utils = require("./utils");
 var _utils1 = require("../../../../shared/lib/utils");
-var _baseHttp = require("../../../../server/base-http");
+var _node1 = require("../../../../server/base-http/node");
 function getApiHandler(ctx) {
     const { pageModule , encodedPreviewProps , pageIsDynamic  } = ctx;
     const { handleRewrites , handleBasePath , dynamicRouteMatcher , normalizeDynamicRouteParams ,  } = (0, _utils).getUtils(ctx);
     return async (rawReq, rawRes)=>{
-        const req = rawReq instanceof _http.IncomingMessage ? new _baseHttp.NodeNextRequest(rawReq) : rawReq;
-        const res = rawRes instanceof _http.ServerResponse ? new _baseHttp.NodeNextResponse(rawRes) : rawRes;
+        const req = rawReq instanceof _http.IncomingMessage ? new _node1.NodeNextRequest(rawReq) : rawReq;
+        const res = rawRes instanceof _http.ServerResponse ? new _node1.NodeNextResponse(rawRes) : rawRes;
         try {
             // We need to trust the dynamic route params from the proxy
             // to ensure we are using the correct values
@@ -29,7 +29,7 @@ function getApiHandler(ctx) {
                 const result = normalizeDynamicRouteParams(trustQuery ? parsedUrl.query : dynamicRouteMatcher(parsedUrl.pathname));
                 params = result.params;
             }
-            await (0, _apiUtils).apiResolver(req.originalRequest, res.originalResponse, Object.assign({}, parsedUrl.query, params), await pageModule, encodedPreviewProps, true);
+            await (0, _node).apiResolver(req.originalRequest, res.originalResponse, Object.assign({}, parsedUrl.query, params), await pageModule, encodedPreviewProps, true);
         } catch (err) {
             console.error(err);
             if (err instanceof _utils1.DecodeError) {

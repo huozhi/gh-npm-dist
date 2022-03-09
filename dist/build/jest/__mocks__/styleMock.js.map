@@ -1,1 +1,1 @@
-{"version":3,"sources":["../../../../build/jest/__mocks__/styleMock.js"],"sourcesContent":["module.exports = {}\n"],"names":["module","exports"],"mappings":";AAAAA,MAAM,CAACC,OAAO,GAAG,CAAC,CAAC"}
+{"version":3,"sources":["../../../../build/jest/__mocks__/styleMock.js"],"names":["module","exports"],"mappings":"Y;AAAAA,MAAM,CAACC,OAAO,GAAG,CAAC,CAAC,A"}

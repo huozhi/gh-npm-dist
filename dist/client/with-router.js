@@ -5,11 +5,6 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = withRouter;
 var _react = _interopRequireDefault(require("react"));
 var _router = require("./router");
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
 function withRouter(ComposedComponent) {
     function WithRouterWrapper(props) {
         return(/*#__PURE__*/ _react.default.createElement(ComposedComponent, Object.assign({
@@ -23,6 +18,11 @@ function withRouter(ComposedComponent) {
         WithRouterWrapper.displayName = `withRouter(${name})`;
     }
     return WithRouterWrapper;
+}
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
 }
 
 //# sourceMappingURL=with-router.js.map

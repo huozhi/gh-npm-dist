@@ -1,4 +1,4 @@
-import type { WebNextRequest, WebNextResponse } from './base-http';
+import type { WebNextRequest, WebNextResponse } from './base-http/web';
 import type { RenderOpts } from './render';
 import type RenderResult from './render-result';
 import type { NextParsedUrlQuery } from './request-meta';
@@ -59,6 +59,7 @@ export default class NextWebServer extends BaseServer {
             previewModeEncryptionKey: string;
         };
     };
+    protected getServerComponentManifest(): undefined;
     protected renderHTML(req: WebNextRequest, _res: WebNextResponse, pathname: string, query: NextParsedUrlQuery, renderOpts: RenderOpts): Promise<RenderResult | null>;
     protected sendRenderResult(_req: WebNextRequest, res: WebNextResponse, options: {
         result: RenderResult;
@@ -71,6 +72,7 @@ export default class NextWebServer extends BaseServer {
     protected findPageComponents(pathname: string, query?: NextParsedUrlQuery, params?: Params | null): Promise<{
         query: {
             [x: string]: any;
+            __nextNotFoundSrcPage?: string | undefined;
             __nextDefaultLocale?: string | undefined;
             __nextFallback?: "true" | undefined;
             __nextLocale?: string | undefined;

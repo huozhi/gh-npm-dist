@@ -10,6 +10,45 @@ var _getTypeScriptConfiguration = require("../lib/typescript/getTypeScriptConfig
 var _fs = require("fs");
 var _isError = _interopRequireDefault(require("../lib/is-error"));
 var _codeFrame = require("next/dist/compiled/babel/code-frame");
+async function loadJsConfig(dir, config) {
+    var ref;
+    let typeScriptPath;
+    try {
+        typeScriptPath = require.resolve('typescript', {
+            paths: [
+                dir
+            ]
+        });
+    } catch (_) {}
+    const tsConfigPath = _path.default.join(dir, config.typescript.tsconfigPath);
+    const useTypeScript = Boolean(typeScriptPath && await (0, _fileExists).fileExists(tsConfigPath));
+    let jsConfig;
+    // jsconfig is a subset of tsconfig
+    if (useTypeScript) {
+        if (config.typescript.tsconfigPath !== 'tsconfig.json' && TSCONFIG_WARNED === false) {
+            TSCONFIG_WARNED = true;
+            Log.info(`Using tsconfig file: ${config.typescript.tsconfigPath}`);
+        }
+        const ts = await Promise.resolve(require(typeScriptPath));
+        const tsConfig = await (0, _getTypeScriptConfiguration).getTypeScriptConfiguration(ts, tsConfigPath, true);
+        jsConfig = {
+            compilerOptions: tsConfig.options
+        };
+    }
+    const jsConfigPath = _path.default.join(dir, 'jsconfig.json');
+    if (!useTypeScript && await (0, _fileExists).fileExists(jsConfigPath)) {
+        jsConfig = parseJsonFile(jsConfigPath);
+    }
+    let resolvedBaseUrl;
+    if (jsConfig === null || jsConfig === void 0 ? void 0 : (ref = jsConfig.compilerOptions) === null || ref === void 0 ? void 0 : ref.baseUrl) {
+        resolvedBaseUrl = _path.default.resolve(dir, jsConfig.compilerOptions.baseUrl);
+    }
+    return {
+        useTypeScript,
+        jsConfig,
+        resolvedBaseUrl
+    };
+}
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -59,45 +98,6 @@ function parseJsonFile(filePath) {
         });
         throw new Error(`Failed to parse "${filePath}":\n${codeFrame}`);
     }
-}
-async function loadJsConfig(dir, config) {
-    var ref;
-    let typeScriptPath;
-    try {
-        typeScriptPath = require.resolve('typescript', {
-            paths: [
-                dir
-            ]
-        });
-    } catch (_) {}
-    const tsConfigPath = _path.default.join(dir, config.typescript.tsconfigPath);
-    const useTypeScript = Boolean(typeScriptPath && await (0, _fileExists).fileExists(tsConfigPath));
-    let jsConfig;
-    // jsconfig is a subset of tsconfig
-    if (useTypeScript) {
-        if (config.typescript.tsconfigPath !== 'tsconfig.json' && TSCONFIG_WARNED === false) {
-            TSCONFIG_WARNED = true;
-            Log.info(`Using tsconfig file: ${config.typescript.tsconfigPath}`);
-        }
-        const ts = await Promise.resolve(require(typeScriptPath));
-        const tsConfig = await (0, _getTypeScriptConfiguration).getTypeScriptConfiguration(ts, tsConfigPath, true);
-        jsConfig = {
-            compilerOptions: tsConfig.options
-        };
-    }
-    const jsConfigPath = _path.default.join(dir, 'jsconfig.json');
-    if (!useTypeScript && await (0, _fileExists).fileExists(jsConfigPath)) {
-        jsConfig = parseJsonFile(jsConfigPath);
-    }
-    let resolvedBaseUrl;
-    if (jsConfig === null || jsConfig === void 0 ? void 0 : (ref = jsConfig.compilerOptions) === null || ref === void 0 ? void 0 : ref.baseUrl) {
-        resolvedBaseUrl = _path.default.resolve(dir, jsConfig.compilerOptions.baseUrl);
-    }
-    return {
-        useTypeScript,
-        jsConfig,
-        resolvedBaseUrl
-    };
 }
 
 //# sourceMappingURL=load-jsconfig.js.map

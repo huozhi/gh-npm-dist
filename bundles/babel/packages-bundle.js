@@ -1,9 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
 
-function parser() {
-  return require('@babel/parser')
-}
-
 function eslintParser() {
   return require('@babel/eslint-parser')
 }
@@ -69,7 +65,6 @@ function presetTypescript() {
 }
 
 module.exports = {
-  parser,
   eslintParser,
   pluginProposalClassProperties,
   pluginProposalExportNamespaceFrom,

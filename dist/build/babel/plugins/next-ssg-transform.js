@@ -6,70 +6,6 @@ exports.default = nextTransformSsg;
 exports.EXPORT_NAME_GET_SERVER_PROPS = exports.EXPORT_NAME_GET_STATIC_PATHS = exports.EXPORT_NAME_GET_STATIC_PROPS = void 0;
 var _constants = require("../../../lib/constants");
 var _constants1 = require("../../../shared/lib/constants");
-const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps';
-exports.EXPORT_NAME_GET_STATIC_PROPS = EXPORT_NAME_GET_STATIC_PROPS;
-const EXPORT_NAME_GET_STATIC_PATHS = 'getStaticPaths';
-exports.EXPORT_NAME_GET_STATIC_PATHS = EXPORT_NAME_GET_STATIC_PATHS;
-const EXPORT_NAME_GET_SERVER_PROPS = 'getServerSideProps';
-exports.EXPORT_NAME_GET_SERVER_PROPS = EXPORT_NAME_GET_SERVER_PROPS;
-const ssgExports = new Set([
-    EXPORT_NAME_GET_STATIC_PROPS,
-    EXPORT_NAME_GET_STATIC_PATHS,
-    EXPORT_NAME_GET_SERVER_PROPS,
-    // legacy methods added so build doesn't fail from importing
-    // server-side only methods
-    `unstable_getStaticProps`,
-    `unstable_getStaticPaths`,
-    `unstable_getServerProps`,
-    `unstable_getServerSideProps`, 
-]);
-function decorateSsgExport(t, path, state) {
-    const gsspName = state.isPrerender ? _constants1.STATIC_PROPS_ID : _constants1.SERVER_PROPS_ID;
-    const gsspId = t.identifier(gsspName);
-    const addGsspExport = (exportPath)=>{
-        if (state.done) {
-            return;
-        }
-        state.done = true;
-        const [pageCompPath] = exportPath.replaceWithMultiple([
-            t.exportNamedDeclaration(t.variableDeclaration(// We use 'var' instead of 'let' or 'const' for ES5 support. Since
-            // this runs in `Program#exit`, no ES2015 transforms (preset env)
-            // will be ran against this code.
-            'var', [
-                t.variableDeclarator(gsspId, t.booleanLiteral(true))
-            ]), [
-                t.exportSpecifier(gsspId, gsspId)
-            ]),
-            exportPath.node, 
-        ]);
-        exportPath.scope.registerDeclaration(pageCompPath);
-    };
-    path.traverse({
-        ExportDefaultDeclaration (exportDefaultPath) {
-            addGsspExport(exportDefaultPath);
-        },
-        ExportNamedDeclaration (exportNamedPath) {
-            addGsspExport(exportNamedPath);
-        }
-    });
-}
-const isDataIdentifier = (name, state)=>{
-    if (ssgExports.has(name)) {
-        if (name === EXPORT_NAME_GET_SERVER_PROPS) {
-            if (state.isPrerender) {
-                throw new Error(_constants.SERVER_PROPS_SSG_CONFLICT);
-            }
-            state.isServerProps = true;
-        } else {
-            if (state.isServerProps) {
-                throw new Error(_constants.SERVER_PROPS_SSG_CONFLICT);
-            }
-            state.isPrerender = true;
-        }
-        return true;
-    }
-    return false;
-};
 function nextTransformSsg({ types: t  }) {
     function getIdentifier(path) {
         const parentPath = path.parentPath;
@@ -298,12 +234,76 @@ function nextTransformSsg({ types: t  }) {
                             ImportDefaultSpecifier: sweepImport,
                             ImportNamespaceSpecifier: sweepImport
                         });
-                    }while (count)
+                    }while (count);
                     decorateSsgExport(t, path, state);
                 }
             }
         }
     };
 }
+const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps';
+exports.EXPORT_NAME_GET_STATIC_PROPS = EXPORT_NAME_GET_STATIC_PROPS;
+const EXPORT_NAME_GET_STATIC_PATHS = 'getStaticPaths';
+exports.EXPORT_NAME_GET_STATIC_PATHS = EXPORT_NAME_GET_STATIC_PATHS;
+const EXPORT_NAME_GET_SERVER_PROPS = 'getServerSideProps';
+exports.EXPORT_NAME_GET_SERVER_PROPS = EXPORT_NAME_GET_SERVER_PROPS;
+const ssgExports = new Set([
+    EXPORT_NAME_GET_STATIC_PROPS,
+    EXPORT_NAME_GET_STATIC_PATHS,
+    EXPORT_NAME_GET_SERVER_PROPS,
+    // legacy methods added so build doesn't fail from importing
+    // server-side only methods
+    `unstable_getStaticProps`,
+    `unstable_getStaticPaths`,
+    `unstable_getServerProps`,
+    `unstable_getServerSideProps`, 
+]);
+function decorateSsgExport(t, path, state) {
+    const gsspName = state.isPrerender ? _constants1.STATIC_PROPS_ID : _constants1.SERVER_PROPS_ID;
+    const gsspId = t.identifier(gsspName);
+    const addGsspExport = (exportPath)=>{
+        if (state.done) {
+            return;
+        }
+        state.done = true;
+        const [pageCompPath] = exportPath.replaceWithMultiple([
+            t.exportNamedDeclaration(t.variableDeclaration(// We use 'var' instead of 'let' or 'const' for ES5 support. Since
+            // this runs in `Program#exit`, no ES2015 transforms (preset env)
+            // will be ran against this code.
+            'var', [
+                t.variableDeclarator(gsspId, t.booleanLiteral(true))
+            ]), [
+                t.exportSpecifier(gsspId, gsspId)
+            ]),
+            exportPath.node, 
+        ]);
+        exportPath.scope.registerDeclaration(pageCompPath);
+    };
+    path.traverse({
+        ExportDefaultDeclaration (exportDefaultPath) {
+            addGsspExport(exportDefaultPath);
+        },
+        ExportNamedDeclaration (exportNamedPath) {
+            addGsspExport(exportNamedPath);
+        }
+    });
+}
+const isDataIdentifier = (name, state)=>{
+    if (ssgExports.has(name)) {
+        if (name === EXPORT_NAME_GET_SERVER_PROPS) {
+            if (state.isPrerender) {
+                throw new Error(_constants.SERVER_PROPS_SSG_CONFLICT);
+            }
+            state.isServerProps = true;
+        } else {
+            if (state.isServerProps) {
+                throw new Error(_constants.SERVER_PROPS_SSG_CONFLICT);
+            }
+            state.isPrerender = true;
+        }
+        return true;
+    }
+    return false;
+};
 
 //# sourceMappingURL=next-ssg-transform.js.map

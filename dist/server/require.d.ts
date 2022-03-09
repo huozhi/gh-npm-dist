@@ -1,3 +1,4 @@
+import type { WasmBinding } from '../build/webpack/loaders/next-middleware-wasm-loader';
 export declare function pageNotFoundError(page: string): Error;
 export declare function getPagePath(page: string, distDir: string, serverless: boolean, dev?: boolean, locales?: string[]): string;
 export declare function requirePage(page: string, distDir: string, serverless: boolean): any;
@@ -11,4 +12,5 @@ export declare function getMiddlewareInfo(params: {
     name: string;
     paths: string[];
     env: string[];
+    wasm: WasmBinding[];
 };

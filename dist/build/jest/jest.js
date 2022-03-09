@@ -9,50 +9,6 @@ var _config = _interopRequireDefault(require("../../server/config"));
 var _constants = require("../../shared/lib/constants");
 var _loadJsconfig = _interopRequireDefault(require("../load-jsconfig"));
 var Log = _interopRequireWildcard(require("../output/log"));
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-        return obj;
-    } else {
-        var newObj = {};
-        if (obj != null) {
-            for(var key in obj){
-                if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
-                    if (desc.get || desc.set) {
-                        Object.defineProperty(newObj, key, desc);
-                    } else {
-                        newObj[key] = obj[key];
-                    }
-                }
-            }
-        }
-        newObj.default = obj;
-        return newObj;
-    }
-}
-async function getConfig(dir) {
-    const conf = await (0, _config).default(_constants.PHASE_TEST, dir);
-    return conf;
-}
-/**
- * Loads closest package.json in the directory hierarchy
- */ function loadClosestPackageJson(dir, attempts = 1) {
-    if (attempts > 5) {
-        throw new Error("Can't resolve main package.json file");
-    }
-    var mainPath = attempts === 1 ? './' : Array(attempts).join('../');
-    try {
-        return require((0, _path).join(dir, mainPath + 'package.json'));
-    } catch (e) {
-        return loadClosestPackageJson(dir, attempts + 1);
-    }
-}
-console.warn('"next/jest" is currently experimental. https://nextjs.org/docs/messages/experimental-jest-transformer');
 function nextJest(options = {}) {
     // createJestConfig
     return (customJestConfig)=>{
@@ -86,7 +42,7 @@ function nextJest(options = {}) {
                     // Handle CSS imports (without CSS modules)
                     '^.+\\.(css|sass|scss)$': require.resolve('./__mocks__/styleMock.js'),
                     // Handle image imports
-                    '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$': require.resolve(`./__mocks__/fileMock.js`),
+                    '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$': require.resolve(`./__mocks__/fileMock.js`),
                     // Custom config will be able to override the default mappings
                     ...resolvedJestConfig.moduleNameMapper || {}
                 },
@@ -130,6 +86,49 @@ function nextJest(options = {}) {
             };
         };
     };
+}
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _interopRequireWildcard(obj) {
+    if (obj && obj.__esModule) {
+        return obj;
+    } else {
+        var newObj = {};
+        if (obj != null) {
+            for(var key in obj){
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
+                    if (desc.get || desc.set) {
+                        Object.defineProperty(newObj, key, desc);
+                    } else {
+                        newObj[key] = obj[key];
+                    }
+                }
+            }
+        }
+        newObj.default = obj;
+        return newObj;
+    }
+}
+async function getConfig(dir) {
+    const conf = await (0, _config).default(_constants.PHASE_TEST, dir);
+    return conf;
+}
+/**
+ * Loads closest package.json in the directory hierarchy
+ */ function loadClosestPackageJson(dir, attempts = 1) {
+    if (attempts > 5) {
+        throw new Error("Can't resolve main package.json file");
+    }
+    var mainPath = attempts === 1 ? './' : Array(attempts).join('../');
+    try {
+        return require((0, _path).join(dir, mainPath + 'package.json'));
+    } catch (e) {
+        return loadClosestPackageJson(dir, attempts + 1);
+    }
 }
 
 //# sourceMappingURL=jest.js.map

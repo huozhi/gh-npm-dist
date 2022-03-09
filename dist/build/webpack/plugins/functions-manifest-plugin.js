@@ -15,24 +15,24 @@ function containsPath(outer, inner) {
     return !rel.startsWith('../') && rel !== '..';
 }
 class FunctionsManifestPlugin {
-    constructor({ dev , pagesDir , pageExtensions , webServerRuntime  }){
+    constructor({ dev , pagesDir , pageExtensions , isEdgeRuntime  }){
         this.dev = dev;
         this.pagesDir = pagesDir;
-        this.webServerRuntime = webServerRuntime;
+        this.isEdgeRuntime = isEdgeRuntime;
         this.pageExtensions = pageExtensions;
         this.pagesRuntime = new Map();
     }
-    createAssets(compilation, assets, envPerRoute, webServerRuntime) {
+    createAssets(compilation, assets, perRoute, isEdgeRuntime) {
         const functionsManifest = {
             version: 1,
             pages: {}
         };
-        const infos = (0, _middlewarePlugin).getEntrypointInfo(compilation, envPerRoute, webServerRuntime);
+        const infos = (0, _middlewarePlugin).getEntrypointInfo(compilation, perRoute, isEdgeRuntime);
         infos.forEach((info)=>{
             const { page  } = info;
             // TODO: use global default runtime instead of 'web'
             const pageRuntime = this.pagesRuntime.get(page);
-            const isWebRuntime = pageRuntime === 'edge' || this.webServerRuntime && !pageRuntime;
+            const isWebRuntime = pageRuntime === 'edge' || this.isEdgeRuntime && !pageRuntime;
             functionsManifest.pages[page] = {
                 // Not assign if it's nodejs runtime, project configured node version is used instead
                 ...isWebRuntime && {
@@ -41,7 +41,7 @@ class FunctionsManifestPlugin {
                 ...info
             };
         });
-        const assetPath = (this.webServerRuntime ? '' : 'server/') + _constants.FUNCTIONS_MANIFEST;
+        const assetPath = (this.isEdgeRuntime ? '' : 'server/') + _constants.FUNCTIONS_MANIFEST;
         assets[assetPath] = new _webpack.sources.RawSource(JSON.stringify(functionsManifest, null, 2));
     }
     apply(compiler) {
@@ -100,7 +100,7 @@ class FunctionsManifestPlugin {
         (0, _middlewarePlugin).collectAssets(compiler, this.createAssets.bind(this), {
             dev: this.dev,
             pluginName: PLUGIN_NAME,
-            webServerRuntime: this.webServerRuntime
+            isEdgeRuntime: this.isEdgeRuntime
         });
     }
 }

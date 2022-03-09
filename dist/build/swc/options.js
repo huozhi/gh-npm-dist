@@ -2,15 +2,32 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.getBaseSWCOptions = getBaseSWCOptions;
+exports.getParserOptions = getParserOptions;
 exports.getJestSWCOptions = getJestSWCOptions;
 exports.getLoaderSWCOptions = getLoaderSWCOptions;
 const nextDistPath = /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/;
 const regeneratorRuntimePath = require.resolve('next/dist/compiled/regenerator-runtime');
-function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , globalWindow , nextConfig , resolvedBaseUrl , jsConfig ,  }) {
-    var ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7;
+function getParserOptions({ filename , jsConfig , ...rest }) {
+    var ref;
     const isTSFile = filename.endsWith('.ts');
     const isTypeScript = isTSFile || filename.endsWith('.tsx');
+    const enableDecorators = Boolean(jsConfig === null || jsConfig === void 0 ? void 0 : (ref = jsConfig.compilerOptions) === null || ref === void 0 ? void 0 : ref.experimentalDecorators);
+    return {
+        ...rest,
+        syntax: isTypeScript ? 'typescript' : 'ecmascript',
+        dynamicImport: true,
+        decorators: enableDecorators,
+        // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
+        [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+        importAssertions: true
+    };
+}
+function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , globalWindow , nextConfig , resolvedBaseUrl , jsConfig ,  }) {
+    var ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7;
+    const parserConfig = getParserOptions({
+        filename,
+        jsConfig
+    });
     const paths = jsConfig === null || jsConfig === void 0 ? void 0 : (ref = jsConfig.compilerOptions) === null || ref === void 0 ? void 0 : ref.paths;
     const enableDecorators = Boolean(jsConfig === null || jsConfig === void 0 ? void 0 : (ref1 = jsConfig.compilerOptions) === null || ref1 === void 0 ? void 0 : ref1.experimentalDecorators);
     const emitDecoratorMetadata = Boolean(jsConfig === null || jsConfig === void 0 ? void 0 : (ref2 = jsConfig.compilerOptions) === null || ref2 === void 0 ? void 0 : ref2.emitDecoratorMetadata);
@@ -20,14 +37,7 @@ function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , g
                 baseUrl: resolvedBaseUrl,
                 paths
             } : {},
-            parser: {
-                syntax: isTypeScript ? 'typescript' : 'ecmascript',
-                dynamicImport: true,
-                importAssertions: true,
-                decorators: enableDecorators,
-                // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-                [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true
-            },
+            parser: parserConfig,
             experimental: {
                 keepImportAssertions: true
             },
@@ -67,12 +77,12 @@ function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , g
             }
         },
         sourceMaps: jest ? 'inline' : undefined,
-        styledComponents: (nextConfig === null || nextConfig === void 0 ? void 0 : (ref4 = nextConfig.experimental) === null || ref4 === void 0 ? void 0 : ref4.styledComponents) ? {
+        styledComponents: (nextConfig === null || nextConfig === void 0 ? void 0 : (ref4 = nextConfig.compiler) === null || ref4 === void 0 ? void 0 : ref4.styledComponents) ? {
             displayName: Boolean(development)
         } : null,
-        removeConsole: nextConfig === null || nextConfig === void 0 ? void 0 : (ref5 = nextConfig.experimental) === null || ref5 === void 0 ? void 0 : ref5.removeConsole,
-        reactRemoveProperties: nextConfig === null || nextConfig === void 0 ? void 0 : (ref6 = nextConfig.experimental) === null || ref6 === void 0 ? void 0 : ref6.reactRemoveProperties,
-        relay: nextConfig === null || nextConfig === void 0 ? void 0 : (ref7 = nextConfig.experimental) === null || ref7 === void 0 ? void 0 : ref7.relay
+        removeConsole: nextConfig === null || nextConfig === void 0 ? void 0 : (ref5 = nextConfig.compiler) === null || ref5 === void 0 ? void 0 : ref5.removeConsole,
+        reactRemoveProperties: nextConfig === null || nextConfig === void 0 ? void 0 : (ref6 = nextConfig.compiler) === null || ref6 === void 0 ? void 0 : ref6.reactRemoveProperties,
+        relay: nextConfig === null || nextConfig === void 0 ? void 0 : (ref7 = nextConfig.compiler) === null || ref7 === void 0 ? void 0 : ref7.relay
     };
 }
 function getJestSWCOptions({ isServer , filename , esm , nextConfig , jsConfig ,  }) {

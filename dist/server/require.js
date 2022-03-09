@@ -64,12 +64,17 @@ function getMiddlewareInfo(params) {
     if (!pageInfo) {
         throw pageNotFoundError(page);
     }
-    var _env;
+    var _env, _wasm;
     return {
         name: pageInfo.name,
         paths: pageInfo.files.map((file)=>(0, _path).join(params.distDir, file)
         ),
-        env: (_env = pageInfo.env) !== null && _env !== void 0 ? _env : []
+        env: (_env = pageInfo.env) !== null && _env !== void 0 ? _env : [],
+        wasm: ((_wasm = pageInfo.wasm) !== null && _wasm !== void 0 ? _wasm : []).map((binding)=>({
+                ...binding,
+                filePath: (0, _path).join(params.distDir, binding.filePath)
+            })
+        )
     };
 }
 

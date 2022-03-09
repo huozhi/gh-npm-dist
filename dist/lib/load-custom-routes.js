@@ -2,10 +2,10 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.default = loadCustomRoutes;
 exports.getRedirectStatus = getRedirectStatus;
 exports.normalizeRouteRegex = normalizeRouteRegex;
 exports.modifyRouteRegex = modifyRouteRegex;
-exports.default = loadCustomRoutes;
 exports.allowedStatusCodes = void 0;
 var _chalk = _interopRequireDefault(require("./chalk"));
 var _url = require("url");
@@ -13,6 +13,66 @@ var pathToRegexp = _interopRequireWildcard(require("next/dist/compiled/path-to-r
 var _escapeRegexp = require("../shared/lib/escape-regexp");
 var _constants = require("../shared/lib/constants");
 var _isError = _interopRequireDefault(require("./is-error"));
+async function loadCustomRoutes(config) {
+    const [headers, rewrites, redirects] = await Promise.all([
+        loadHeaders(config),
+        loadRewrites(config),
+        loadRedirects(config), 
+    ]);
+    const totalRewrites = rewrites.beforeFiles.length + rewrites.afterFiles.length + rewrites.fallback.length;
+    const totalRoutes = headers.length + redirects.length + totalRewrites;
+    if (totalRoutes > 1000) {
+        console.warn(_chalk.default.bold.yellow(`Warning: `) + `total number of custom routes exceeds 1000, this can reduce performance. Route counts:\n` + `headers: ${headers.length}\n` + `rewrites: ${totalRewrites}\n` + `redirects: ${redirects.length}\n` + `See more info: https://nextjs.org/docs/messages/max-custom-routes-reached`);
+    }
+    if (config.trailingSlash) {
+        redirects.unshift({
+            source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
+            destination: '/:file',
+            permanent: true,
+            locale: config.i18n ? false : undefined,
+            internal: true
+        }, {
+            source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
+            destination: '/:notfile/',
+            permanent: true,
+            locale: config.i18n ? false : undefined,
+            internal: true
+        });
+        if (config.basePath) {
+            redirects.unshift({
+                source: config.basePath,
+                destination: config.basePath + '/',
+                permanent: true,
+                basePath: false,
+                locale: config.i18n ? false : undefined,
+                internal: true
+            });
+        }
+    } else {
+        redirects.unshift({
+            source: '/:path+/',
+            destination: '/:path+',
+            permanent: true,
+            locale: config.i18n ? false : undefined,
+            internal: true
+        });
+        if (config.basePath) {
+            redirects.unshift({
+                source: config.basePath + '/',
+                destination: config.basePath,
+                permanent: true,
+                basePath: false,
+                locale: config.i18n ? false : undefined,
+                internal: true
+            });
+        }
+    }
+    return {
+        headers,
+        rewrites,
+        redirects
+    };
+}
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -446,66 +506,6 @@ async function loadHeaders(config) {
     headers = processRoutes(headers, config, 'header');
     checkCustomRoutes(headers, 'header');
     return headers;
-}
-async function loadCustomRoutes(config) {
-    const [headers, rewrites, redirects] = await Promise.all([
-        loadHeaders(config),
-        loadRewrites(config),
-        loadRedirects(config), 
-    ]);
-    const totalRewrites = rewrites.beforeFiles.length + rewrites.afterFiles.length + rewrites.fallback.length;
-    const totalRoutes = headers.length + redirects.length + totalRewrites;
-    if (totalRoutes > 1000) {
-        console.warn(_chalk.default.bold.yellow(`Warning: `) + `total number of custom routes exceeds 1000, this can reduce performance. Route counts:\n` + `headers: ${headers.length}\n` + `rewrites: ${totalRewrites}\n` + `redirects: ${redirects.length}\n` + `See more info: https://nextjs.org/docs/messages/max-custom-routes-reached`);
-    }
-    if (config.trailingSlash) {
-        redirects.unshift({
-            source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
-            destination: '/:file',
-            permanent: true,
-            locale: config.i18n ? false : undefined,
-            internal: true
-        }, {
-            source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
-            destination: '/:notfile/',
-            permanent: true,
-            locale: config.i18n ? false : undefined,
-            internal: true
-        });
-        if (config.basePath) {
-            redirects.unshift({
-                source: config.basePath,
-                destination: config.basePath + '/',
-                permanent: true,
-                basePath: false,
-                locale: config.i18n ? false : undefined,
-                internal: true
-            });
-        }
-    } else {
-        redirects.unshift({
-            source: '/:path+/',
-            destination: '/:path+',
-            permanent: true,
-            locale: config.i18n ? false : undefined,
-            internal: true
-        });
-        if (config.basePath) {
-            redirects.unshift({
-                source: config.basePath + '/',
-                destination: config.basePath,
-                permanent: true,
-                basePath: false,
-                locale: config.i18n ? false : undefined,
-                internal: true
-            });
-        }
-    }
-    return {
-        headers,
-        rewrites,
-        redirects
-    };
 }
 
 //# sourceMappingURL=load-custom-routes.js.map

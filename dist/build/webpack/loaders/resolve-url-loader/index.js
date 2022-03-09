@@ -7,11 +7,6 @@ var _sourceMap = require("next/dist/compiled/source-map");
 var _valueProcessor = _interopRequireDefault(require("./lib/value-processor"));
 var _joinFunction = require("./lib/join-function");
 var _postcss = _interopRequireDefault(require("./lib/postcss"));
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
 async function resolveUrlLoader(content, sourceMap) {
     const options = Object.assign({
         sourceMap: this.sourceMap,
@@ -60,6 +55,11 @@ async function resolveUrlLoader(content, sourceMap) {
             ] || []).filter(Boolean).join('\n  '), 
         ].join(''));
     }
+}
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
 }
 
 //# sourceMappingURL=index.js.map

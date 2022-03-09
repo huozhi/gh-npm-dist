@@ -18,7 +18,7 @@ declare class BaseResponse extends Body implements Response {
     get statusText(): string;
     get headers(): Headers;
     get redirected(): boolean;
-    get type(): "error" | "default";
+    get type(): "default" | "error";
     clone(): BaseResponse;
     get [Symbol.toStringTag](): string;
 }

@@ -2,9 +2,53 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.isEqualNode = isEqualNode;
 exports.default = initHeadManager;
+exports.isEqualNode = isEqualNode;
 exports.DOMAttributeNames = void 0;
+function initHeadManager() {
+    let updatePromise = null;
+    return {
+        mountedInstances: new Set(),
+        updateHead: (head)=>{
+            const promise = updatePromise = Promise.resolve().then(()=>{
+                if (promise !== updatePromise) return;
+                updatePromise = null;
+                const tags = {};
+                head.forEach((h)=>{
+                    if (// If the font tag is loaded only on client navigation
+                    // it won't be inlined. In this case revert to the original behavior
+                    h.type === 'link' && h.props['data-optimized-fonts']) {
+                        if (document.querySelector(`style[data-href="${h.props['data-href']}"]`)) {
+                            return;
+                        } else {
+                            h.props.href = h.props['data-href'];
+                            h.props['data-href'] = undefined;
+                        }
+                    }
+                    const components = tags[h.type] || [];
+                    components.push(h);
+                    tags[h.type] = components;
+                });
+                const titleComponent = tags.title ? tags.title[0] : null;
+                let title = '';
+                if (titleComponent) {
+                    const { children  } = titleComponent.props;
+                    title = typeof children === 'string' ? children : Array.isArray(children) ? children.join('') : '';
+                }
+                if (title !== document.title) document.title = title;
+                [
+                    'meta',
+                    'base',
+                    'link',
+                    'style',
+                    'script'
+                ].forEach((type)=>{
+                    updateElements(type, tags[type] || []);
+                });
+            });
+        }
+    };
+}
 const DOMAttributeNames = {
     acceptCharset: 'accept-charset',
     className: 'class',
@@ -83,50 +127,6 @@ function updateElements(type, components) {
     newTags.forEach((t)=>headEl.insertBefore(t, headCountEl)
     );
     headCountEl.content = (headCount - oldTags.length + newTags.length).toString();
-}
-function initHeadManager() {
-    let updatePromise = null;
-    return {
-        mountedInstances: new Set(),
-        updateHead: (head)=>{
-            const promise = updatePromise = Promise.resolve().then(()=>{
-                if (promise !== updatePromise) return;
-                updatePromise = null;
-                const tags = {};
-                head.forEach((h)=>{
-                    if (// If the font tag is loaded only on client navigation
-                    // it won't be inlined. In this case revert to the original behavior
-                    h.type === 'link' && h.props['data-optimized-fonts']) {
-                        if (document.querySelector(`style[data-href="${h.props['data-href']}"]`)) {
-                            return;
-                        } else {
-                            h.props.href = h.props['data-href'];
-                            h.props['data-href'] = undefined;
-                        }
-                    }
-                    const components = tags[h.type] || [];
-                    components.push(h);
-                    tags[h.type] = components;
-                });
-                const titleComponent = tags.title ? tags.title[0] : null;
-                let title = '';
-                if (titleComponent) {
-                    const { children  } = titleComponent.props;
-                    title = typeof children === 'string' ? children : Array.isArray(children) ? children.join('') : '';
-                }
-                if (title !== document.title) document.title = title;
-                [
-                    'meta',
-                    'base',
-                    'link',
-                    'style',
-                    'script'
-                ].forEach((type)=>{
-                    updateElements(type, tags[type] || []);
-                });
-            });
-        }
-    };
 }
 
 //# sourceMappingURL=head-manager.js.map

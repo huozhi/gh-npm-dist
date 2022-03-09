@@ -4,11 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.getParametrizedRoute = getParametrizedRoute;
 exports.getRouteRegex = getRouteRegex;
-// this isn't importing the escape-string-regex module
-// to reduce bytes
-function escapeRegex(str) {
-    return str.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&');
-}
+var _escapeRegexp = require("../../escape-regexp");
 function parseParameter(param) {
     const optional = param.startsWith('[') && param.endsWith(']');
     if (optional) {
@@ -38,7 +34,7 @@ function getParametrizedRoute(route) {
             };
             return repeat ? optional ? '(?:/(.+?))?' : '/(.+?)' : '/([^/]+?)';
         } else {
-            return `/${escapeRegex(segment)}`;
+            return `/${(0, _escapeRegexp).escapeStringRegexp(segment)}`;
         }
     }).join('');
     // dead code eliminate for browser since it's only needed
@@ -81,7 +77,7 @@ function getParametrizedRoute(route) {
                 routeKeys[cleanedKey] = key;
                 return repeat ? optional ? `(?:/(?<${cleanedKey}>.+?))?` : `/(?<${cleanedKey}>.+?)` : `/(?<${cleanedKey}>[^/]+?)`;
             } else {
-                return `/${escapeRegex(segment)}`;
+                return `/${(0, _escapeRegexp).escapeStringRegexp(segment)}`;
             }
         }).join('');
         return {

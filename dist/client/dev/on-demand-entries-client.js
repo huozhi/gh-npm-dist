@@ -53,9 +53,14 @@ var _default = function() {
         } else {
             _router.default.ready(()=>{
                 setInterval(()=>{
+                    // when notFound: true is returned we should use the notFoundPage
+                    // as the Router.pathname will point to the 404 page but we want
+                    // to ping the source page that returned notFound: true instead
+                    const notFoundSrcPage = self.__NEXT_DATA__.notFoundSrcPage;
+                    const pathname = (_router.default.pathname === '/404' || _router.default.pathname === '/_error') && notFoundSrcPage ? notFoundSrcPage : _router.default.pathname;
                     (0, _websocket).sendMessage(JSON.stringify({
                         event: 'ping',
-                        page: _router.default.pathname
+                        page: pathname
                     }));
                 }, 2500);
             });

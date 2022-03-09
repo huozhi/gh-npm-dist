@@ -12,6 +12,7 @@ declare type Event = {
     duration: number;
     localEndpoint?: typeof localEndpoint;
     tags?: Object;
+    startTime?: number;
 };
 export declare function batcher(reportEvents: (evts: Event[]) => Promise<void>): {
     flushAll: () => Promise<void>;
@@ -19,6 +20,6 @@ export declare function batcher(reportEvents: (evts: Event[]) => Promise<void>):
 };
 declare const _default: {
     flushAll: () => Promise<void> | undefined;
-    report: (name: string, duration: number, timestamp: number, id: number, parentId?: number | undefined, attrs?: Object | undefined) => void;
+    report: (name: string, duration: number, timestamp: number, id: number, parentId?: number | undefined, attrs?: Object | undefined, startTime?: number | undefined) => void;
 };
 export default _default;

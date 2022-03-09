@@ -585,7 +585,7 @@ async function isPageStatic(page, distDir, serverless, configFileName, runtimeEn
             if (!Comp || !(0, _reactIs).isValidElementType(Comp) || typeof Comp === 'string') {
                 throw new Error('INVALID_DEFAULT_EXPORT');
             }
-            const hasFlightData = !!Comp.__next_rsc__;
+            const hasFlightData = !!mod.__next_rsc__;
             const hasGetInitialProps = !!Comp.getInitialProps;
             const hasStaticProps = !!mod.getStaticProps;
             const hasStaticPaths = !!mod.getStaticPaths;
@@ -737,13 +737,14 @@ function getRawPageExtensions(pageExtensions) {
     return pageExtensions.filter((ext)=>!ext.startsWith('client.') && !ext.startsWith('server.')
     );
 }
-function isFlightPage(nextConfig, pagePath) {
-    if (!(nextConfig.experimental.serverComponents && nextConfig.experimental.concurrentFeatures)) return false;
+function isFlightPage(nextConfig, filePath) {
+    if (!nextConfig.experimental.serverComponents) {
+        return false;
+    }
     const rawPageExtensions = getRawPageExtensions(nextConfig.pageExtensions || []);
-    const isRscPage = rawPageExtensions.some((ext)=>{
-        return new RegExp(`\\.server\\.${ext}$`).test(pagePath);
+    return rawPageExtensions.some((ext)=>{
+        return filePath.endsWith(`.server.${ext}`);
     });
-    return isRscPage;
 }
 function getUnresolvedModuleFromError(error) {
     const moduleErrorRegex = new RegExp(`Module not found: Can't resolve '(\\w+)'`);
@@ -807,6 +808,10 @@ process.chdir(__dirname)
 const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
 const path = require('path')
+
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
 
 let handler
 

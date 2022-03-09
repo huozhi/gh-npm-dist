@@ -12,6 +12,7 @@ exports.parse = parse;
 var _os = require("os");
 var _triples = require("next/dist/compiled/@napi-rs/triples");
 var Log = _interopRequireWildcard(require("../output/log"));
+var _options = require("./options");
 function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
@@ -213,7 +214,8 @@ async function bundle(options) {
 }
 async function parse(src, options) {
     let bindings = loadBindingsSync();
-    return bindings.parse(src, options).then((astStr)=>JSON.parse(astStr)
+    let parserOptions = (0, _options).getParserOptions(options);
+    return bindings.parse(src, parserOptions).then((astStr)=>JSON.parse(astStr)
     );
 }
 

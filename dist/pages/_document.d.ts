@@ -1,5 +1,7 @@
 import React, { Component, ReactNode } from 'react';
-import { DocumentContext, DocumentInitialProps, DocumentProps, HtmlContext, HtmlProps } from '../shared/lib/utils';
+import type { DocumentContext, DocumentInitialProps, DocumentProps } from '../shared/lib/utils';
+import { HtmlContext } from '../shared/lib/html-context';
+import type { HtmlProps } from '../shared/lib/html-context';
 export { DocumentContext, DocumentInitialProps, DocumentProps };
 export declare type OriginProps = {
     nonce?: string;
@@ -47,5 +49,5 @@ export declare class NextScript extends Component<OriginProps> {
     getScripts(files: DocumentFiles): JSX.Element[];
     getPolyfillScripts(): JSX.Element[];
     static getInlineScriptSource(context: Readonly<HtmlProps>): string;
-    render(): JSX.Element;
+    render(): JSX.Element | null;
 }

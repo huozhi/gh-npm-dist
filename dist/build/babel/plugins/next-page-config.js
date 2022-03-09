@@ -5,19 +5,6 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = nextPageConfig;
 var _core = require("next/dist/compiled/babel/core");
 var _constants = require("../../../shared/lib/constants");
-const CONFIG_KEY = 'config';
-// replace program path with just a variable with the drop identifier
-function replaceBundle(path, t) {
-    path.parentPath.replaceWith(t.program([
-        t.variableDeclaration('const', [
-            t.variableDeclarator(t.identifier(_constants.STRING_LITERAL_DROP_BUNDLE), t.stringLiteral(`${_constants.STRING_LITERAL_DROP_BUNDLE} ${Date.now()}`)), 
-        ]), 
-    ], []));
-}
-function errorMessage(state, details) {
-    const pageName = (state.filename || '').split(state.cwd || '').pop() || 'unknown';
-    return `Invalid page config export found. ${details} in file ${pageName}. See: https://nextjs.org/docs/messages/invalid-page-config`;
-}
 function nextPageConfig({ types: t  }) {
     return {
         visitor: {
@@ -105,6 +92,19 @@ function nextPageConfig({ types: t  }) {
             }
         }
     };
+}
+const CONFIG_KEY = 'config';
+// replace program path with just a variable with the drop identifier
+function replaceBundle(path, t) {
+    path.parentPath.replaceWith(t.program([
+        t.variableDeclaration('const', [
+            t.variableDeclarator(t.identifier(_constants.STRING_LITERAL_DROP_BUNDLE), t.stringLiteral(`${_constants.STRING_LITERAL_DROP_BUNDLE} ${Date.now()}`)), 
+        ]), 
+    ], []));
+}
+function errorMessage(state, details) {
+    const pageName = (state.filename || '').split(state.cwd || '').pop() || 'unknown';
+    return `Invalid page config export found. ${details} in file ${pageName}. See: https://nextjs.org/docs/messages/invalid-page-config`;
 }
 
 //# sourceMappingURL=next-page-config.js.map

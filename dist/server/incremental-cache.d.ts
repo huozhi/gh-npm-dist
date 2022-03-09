@@ -2,22 +2,7 @@
 import type { CacheFs } from '../shared/lib/utils';
 import LRUCache from 'next/dist/compiled/lru-cache';
 import { PrerenderManifest } from '../build';
-interface CachedRedirectValue {
-    kind: 'REDIRECT';
-    props: Object;
-}
-interface CachedPageValue {
-    kind: 'PAGE';
-    html: string;
-    pageData: Object;
-}
-export declare type IncrementalCacheValue = CachedRedirectValue | CachedPageValue;
-declare type IncrementalCacheEntry = {
-    curRevalidate?: number | false;
-    revalidateAfter: number | false;
-    isStale?: boolean;
-    value: IncrementalCacheValue | null;
-};
+import { IncrementalCacheValue, IncrementalCacheEntry } from './response-cache';
 export declare class IncrementalCache {
     incrementalOptions: {
         flushToDisk?: boolean;
@@ -45,4 +30,3 @@ export declare class IncrementalCache {
     get(pathname: string): Promise<IncrementalCacheEntry | null>;
     set(pathname: string, data: IncrementalCacheValue | null, revalidateSeconds?: number | false): Promise<void>;
 }
-export {};

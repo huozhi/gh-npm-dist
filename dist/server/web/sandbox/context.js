@@ -53,10 +53,10 @@ function clearModuleContext(path, content) {
  * to have a different cache scoped per module name or depending on the
  * provided module key on creation.
  */ const caches = new Map();
-function getModuleContext(options) {
-    let moduleCache = options.useCache ? caches.get(options.module) : createModuleContext(options);
+async function getModuleContext(options) {
+    let moduleCache = options.useCache ? caches.get(options.module) : await createModuleContext(options);
     if (!moduleCache) {
-        moduleCache = createModuleContext(options);
+        moduleCache = await createModuleContext(options);
         caches.set(options.module, moduleCache);
     }
     return {
@@ -85,7 +85,7 @@ function getModuleContext(options) {
  * 1. Dependencies that hold no runtime dependencies.
  * 2. Dependencies that require runtime globals such as Blob.
  * 3. Dependencies that are scoped for the provided parameters.
- */ function createModuleContext(options) {
+ */ async function createModuleContext(options) {
     const requireCache = new Map([
         [
             require.resolve('next/dist/compiled/cookie'),
@@ -155,6 +155,7 @@ function getModuleContext(options) {
         }
         return fetch(String(input), init);
     };
+    Object.assign(context, await loadWasm(options.wasm));
     return moduleCache;
 }
 /**
@@ -186,6 +187,7 @@ function getModuleContext(options) {
         File: _formdataNode.File,
         FormData: _formdataNode.FormData,
         process: {
+            ...polyfills.process,
             env: buildEnvironmentVariablesFrom(options.env)
         },
         ReadableStream: polyfills.ReadableStream,
@@ -235,6 +237,14 @@ function buildEnvironmentVariablesFrom(keys) {
         ]
     );
     return Object.fromEntries(pairs);
+}
+async function loadWasm(wasm) {
+    const modules = {};
+    await Promise.all(wasm.map(async (binding)=>{
+        const module = await WebAssembly.compile(await _fs.promises.readFile(binding.filePath));
+        modules[binding.name] = module;
+    }));
+    return modules;
 }
 
 //# sourceMappingURL=context.js.map

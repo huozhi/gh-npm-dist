@@ -2,9 +2,8 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.initNext = initNext;
-exports.render = render;
-exports.renderError = renderError;
+exports.initialize = initialize;
+exports.hydrate = hydrate;
 exports.emitter = exports.router = exports.version = void 0;
 require("../build/polyfills/polyfill-module");
 var _react = _interopRequireWildcard(require("react"));
@@ -26,6 +25,7 @@ var _router1 = require("./router");
 var _isError = require("../lib/is-error");
 var _vitals = require("./streaming/vitals");
 var _refresh = require("./streaming/refresh");
+var _imageConfigContext = require("../shared/lib/image-config-context");
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -136,81 +136,25 @@ function _objectWithoutPropertiesLoose(source, excluded) {
     }
     return target;
 }
-const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent);
-window.__NEXT_DATA__ = data;
-const version = "12.0.11-canary.7";
+const version = "12.1.1-canary.7";
 exports.version = version;
-const looseToArray = (input)=>[].slice.call(input)
-;
-const { props: hydrateProps , err: hydrateErr , page , query , buildId , assetPrefix , runtimeConfig , dynamicIds , isFallback , locale , locales , domainLocales , isPreview , rsc ,  } = data;
-let { defaultLocale  } = data;
-const prefix = assetPrefix || '';
-// With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
-// So, this is how we do it in the client side at runtime
-__webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
-;
-// Initialize next/config with the environment configuration
-(0, _runtimeConfig).setConfig({
-    serverRuntimeConfig: {},
-    publicRuntimeConfig: runtimeConfig || {}
-});
-let asPath = (0, _utils).getURL();
-// make sure not to attempt stripping basePath for 404s
-if ((0, _router).hasBasePath(asPath)) {
-    asPath = (0, _router).delBasePath(asPath);
-}
-if (process.env.__NEXT_I18N_SUPPORT) {
-    const { normalizeLocalePath  } = require('../shared/lib/i18n/normalize-locale-path');
-    const { detectDomainLocale  } = require('../shared/lib/i18n/detect-domain-locale');
-    const { parseRelativeUrl  } = require('../shared/lib/router/utils/parse-relative-url');
-    const { formatUrl  } = require('../shared/lib/router/utils/format-url');
-    if (locales) {
-        const parsedAs = parseRelativeUrl(asPath);
-        const localePathResult = normalizeLocalePath(parsedAs.pathname, locales);
-        if (localePathResult.detectedLocale) {
-            parsedAs.pathname = localePathResult.pathname;
-            asPath = formatUrl(parsedAs);
-        } else {
-            // derive the default locale if it wasn't detected in the asPath
-            // since we don't prerender static pages with all possible default
-            // locales
-            defaultLocale = locale;
-        }
-        // attempt detecting default locale based on hostname
-        const detectedDomain = detectDomainLocale(process.env.__NEXT_I18N_DOMAINS, window.location.hostname);
-        // TODO: investigate if defaultLocale needs to be populated after
-        // hydration to prevent mismatched renders
-        if (detectedDomain) {
-            defaultLocale = detectedDomain.defaultLocale;
-        }
-    }
-}
-if (data.scriptLoader) {
-    const { initScriptLoader  } = require('./script');
-    initScriptLoader(data.scriptLoader);
-}
-const pageLoader = new _pageLoader.default(buildId, prefix);
-const register = ([r, f])=>pageLoader.routeLoader.onEntrypoint(r, f)
-;
-if (window.__NEXT_P) {
-    // Defer page registration for another tick. This will increase the overall
-    // latency in hydrating the page, but reduce the total blocking time.
-    window.__NEXT_P.map((p)=>setTimeout(()=>register(p)
-        , 0)
-    );
-}
-window.__NEXT_P = [];
-window.__NEXT_P.push = register;
-const headManager = (0, _headManager).default();
-const appElement = document.getElementById('__next');
-let lastRenderReject;
-let webpackHMR;
 let router;
 exports.router = router;
+const emitter = (0, _mitt).default();
+exports.emitter = emitter;
+const looseToArray = (input)=>[].slice.call(input)
+;
+let initialData;
+let defaultLocale = undefined;
+let asPath;
+let pageLoader;
+let appElement;
+let headManager;
+let lastRenderReject;
+let webpackHMR;
 let CachedApp, onPerfEntry;
-headManager.getIsSsr = ()=>{
-    return router.isSsr;
-};
+let CachedComponent;
+let isAppRSC;
 class Container extends _react.default.Component {
     componentDidCatch(componentErr, info) {
         this.props.fn(componentErr, info);
@@ -224,7 +168,7 @@ class Container extends _react.default.Component {
         if (router.isSsr && // We don't update for 404 requests as this can modify
         // the asPath unexpectedly e.g. adding basePath when
         // it wasn't originally present
-        page !== '/404' && page !== '/_error' && (isFallback || data.nextExport && ((0, _isDynamic).isDynamicRoute(router.pathname) || location.search || process.env.__NEXT_HAS_REWRITES) || hydrateProps && hydrateProps.__N_SSG && (location.search || process.env.__NEXT_HAS_REWRITES))) {
+        initialData.page !== '/404' && initialData.page !== '/_error' && (initialData.isFallback || initialData.nextExport && ((0, _isDynamic).isDynamicRoute(router.pathname) || location.search || process.env.__NEXT_HAS_REWRITES) || initialData.props && initialData.props.__N_SSG && (location.search || process.env.__NEXT_HAS_REWRITES))) {
             // update query on mount for exported pages
             router.replace(router.pathname + '?' + String((0, _querystring).assign((0, _querystring).urlQueryToSearchParams(router.query), new URLSearchParams(location.search))), asPath, {
                 // @ts-ignore
@@ -236,7 +180,7 @@ class Container extends _react.default.Component {
                 // not shallow.
                 // Other pages (strictly updating query) happens shallowly, as data
                 // requirements would already be present.
-                shallow: !isFallback
+                shallow: !initialData.isFallback
             });
         }
     }
@@ -263,19 +207,92 @@ class Container extends _react.default.Component {
         }
     }
 }
-const emitter = (0, _mitt).default();
-exports.emitter = emitter;
-let CachedComponent;
-function initNext() {
-    return _initNext.apply(this, arguments);
+function initialize() {
+    return _initialize.apply(this, arguments);
 }
-function _initNext() {
-    _initNext = _asyncToGenerator(function*(opts = {}) {
+function _initialize() {
+    _initialize = _asyncToGenerator(function*(opts = {}) {
         // This makes sure this specific lines are removed in production
         if (process.env.NODE_ENV === 'development') {
             webpackHMR = opts.webpackHMR;
         }
-        let initialErr = hydrateErr;
+        initialData = JSON.parse(document.getElementById('__NEXT_DATA__').textContent);
+        window.__NEXT_DATA__ = initialData;
+        defaultLocale = initialData.defaultLocale;
+        const prefix = initialData.assetPrefix || '';
+        // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
+        // So, this is how we do it in the client side at runtime
+        __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
+        ;
+        // Initialize next/config with the environment configuration
+        (0, _runtimeConfig).setConfig({
+            serverRuntimeConfig: {},
+            publicRuntimeConfig: initialData.runtimeConfig || {}
+        });
+        asPath = (0, _utils).getURL();
+        // make sure not to attempt stripping basePath for 404s
+        if ((0, _router).hasBasePath(asPath)) {
+            asPath = (0, _router).delBasePath(asPath);
+        }
+        if (process.env.__NEXT_I18N_SUPPORT) {
+            const { normalizeLocalePath  } = require('../shared/lib/i18n/normalize-locale-path');
+            const { detectDomainLocale  } = require('../shared/lib/i18n/detect-domain-locale');
+            const { parseRelativeUrl  } = require('../shared/lib/router/utils/parse-relative-url');
+            const { formatUrl  } = require('../shared/lib/router/utils/format-url');
+            if (initialData.locales) {
+                const parsedAs = parseRelativeUrl(asPath);
+                const localePathResult = normalizeLocalePath(parsedAs.pathname, initialData.locales);
+                if (localePathResult.detectedLocale) {
+                    parsedAs.pathname = localePathResult.pathname;
+                    asPath = formatUrl(parsedAs);
+                } else {
+                    // derive the default locale if it wasn't detected in the asPath
+                    // since we don't prerender static pages with all possible default
+                    // locales
+                    defaultLocale = initialData.locale;
+                }
+                // attempt detecting default locale based on hostname
+                const detectedDomain = detectDomainLocale(process.env.__NEXT_I18N_DOMAINS, window.location.hostname);
+                // TODO: investigate if defaultLocale needs to be populated after
+                // hydration to prevent mismatched renders
+                if (detectedDomain) {
+                    defaultLocale = detectedDomain.defaultLocale;
+                }
+            }
+        }
+        if (initialData.scriptLoader) {
+            const { initScriptLoader  } = require('./script');
+            initScriptLoader(initialData.scriptLoader);
+        }
+        pageLoader = new _pageLoader.default(initialData.buildId, prefix);
+        const register = ([r, f])=>pageLoader.routeLoader.onEntrypoint(r, f)
+        ;
+        if (window.__NEXT_P) {
+            // Defer page registration for another tick. This will increase the overall
+            // latency in hydrating the page, but reduce the total blocking time.
+            window.__NEXT_P.map((p)=>setTimeout(()=>register(p)
+                , 0)
+            );
+        }
+        window.__NEXT_P = [];
+        window.__NEXT_P.push = register;
+        headManager = (0, _headManager).default();
+        headManager.getIsSsr = ()=>{
+            return router.isSsr;
+        };
+        appElement = document.getElementById('__next');
+        return {
+            assetPrefix: prefix
+        };
+    });
+    return _initialize.apply(this, arguments);
+}
+function hydrate(opts) {
+    return _hydrate.apply(this, arguments);
+}
+function _hydrate() {
+    _hydrate = _asyncToGenerator(function*(opts) {
+        let initialErr = initialData.err;
         try {
             const appEntrypoint = yield pageLoader.routeLoader.whenEntrypoint('/_app');
             if ('error' in appEntrypoint) {
@@ -283,6 +300,7 @@ function _initNext() {
             }
             const { component: app , exports: mod  } = appEntrypoint;
             CachedApp = app;
+            isAppRSC = !!mod.__next_rsc__;
             const exportedReportWebVitals = mod && mod.reportWebVitals;
             onPerfEntry = ({ id , name , startTime , value , duration , entryType , entries  })=>{
                 // Combines timestamp with random number for unique ID
@@ -303,9 +321,9 @@ function _initNext() {
             };
             const pageEntrypoint = // The dev server fails to serve script assets when there's a hydration
             // error, so we need to skip waiting for the entrypoint.
-            process.env.NODE_ENV === 'development' && hydrateErr ? {
-                error: hydrateErr
-            } : yield pageLoader.routeLoader.whenEntrypoint(page);
+            process.env.NODE_ENV === 'development' && initialData.err ? {
+                error: initialData.err
+            } : yield pageLoader.routeLoader.whenEntrypoint(initialData.page);
             if ('error' in pageEntrypoint) {
                 throw pageEntrypoint.error;
             }
@@ -313,7 +331,7 @@ function _initNext() {
             if (process.env.NODE_ENV !== 'production') {
                 const { isValidElementType  } = require('next/dist/compiled/react-is');
                 if (!isValidElementType(CachedComponent)) {
-                    throw new Error(`The default export is not a React Component in page: "${page}"`);
+                    throw new Error(`The default export is not a React Component in page: "${initialData.page}"`);
                 }
             }
         } catch (error1) {
@@ -325,7 +343,7 @@ function _initNext() {
             // Server-side runtime errors need to be re-thrown on the client-side so
             // that the overlay is rendered.
             if (initialErr) {
-                if (initialErr === hydrateErr) {
+                if (initialErr === initialData.err) {
                     setTimeout(()=>{
                         let error;
                         try {
@@ -340,7 +358,7 @@ function _initNext() {
                         error.stack = initialErr.stack;
                         // Errors from the middleware are reported as client-side errors
                         // since the middleware is compiled using the client compiler
-                        if ('middleware' in hydrateErr) {
+                        if (initialData.err && 'middleware' in initialData.err) {
                             throw error;
                         }
                         const node = getNodeError(error);
@@ -354,40 +372,41 @@ function _initNext() {
             }
         }
         if (window.__NEXT_PRELOADREADY) {
-            yield window.__NEXT_PRELOADREADY(dynamicIds);
+            yield window.__NEXT_PRELOADREADY(initialData.dynamicIds);
         }
-        exports.router = router = (0, _router1).createRouter(page, query, asPath, {
-            initialProps: hydrateProps,
+        exports.router = router = (0, _router1).createRouter(initialData.page, initialData.query, asPath, {
+            initialProps: initialData.props,
             pageLoader,
             App: CachedApp,
             Component: CachedComponent,
             wrapApp,
             err: initialErr,
-            isFallback: Boolean(isFallback),
+            isFallback: Boolean(initialData.isFallback),
             subscription: (info, App, scroll)=>render(Object.assign({}, info, {
                     App,
                     scroll
                 }))
             ,
-            locale,
-            locales,
+            locale: initialData.locale,
+            locales: initialData.locales,
             defaultLocale,
-            domainLocales,
-            isPreview
+            domainLocales: initialData.domainLocales,
+            isPreview: initialData.isPreview,
+            isRsc: initialData.rsc
         });
         const renderCtx = {
             App: CachedApp,
             initial: true,
             Component: CachedComponent,
-            props: hydrateProps,
+            props: initialData.props,
             err: initialErr
         };
-        if (opts.beforeRender) {
+        if (opts === null || opts === void 0 ? void 0 : opts.beforeRender) {
             yield opts.beforeRender();
         }
         render(renderCtx);
     });
-    return _initNext.apply(this, arguments);
+    return _hydrate.apply(this, arguments);
 }
 function render(renderingProps) {
     return _render.apply(this, arguments);
@@ -419,6 +438,9 @@ function _render() {
     });
     return _render.apply(this, arguments);
 }
+// This method handles all runtime and debug errors.
+// 404 and 500 errors are special kind of errors
+// and they are still handle via the main render method.
 function renderError(renderErrorProps) {
     const { App , err  } = renderErrorProps;
     // In development runtime errors are caught by our overlay
@@ -461,8 +483,8 @@ function renderError(renderErrorProps) {
             router,
             ctx: {
                 err,
-                pathname: page,
-                query,
+                pathname: initialData.page,
+                query: initialData.query,
                 asPath,
                 AppTree
             }
@@ -486,9 +508,10 @@ function renderReactElement(domEl, fn) {
     }
     const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete);
     if (process.env.__NEXT_REACT_ROOT) {
+        const ReactDOMClient = require('react-dom/client');
         if (!reactRoot) {
             // Unlike with createRoot, you don't need a separate root.render() call here
-            reactRoot = _reactDom.default.hydrateRoot(domEl, reactEl);
+            reactRoot = ReactDOMClient.hydrateRoot(domEl, reactEl);
             // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
             shouldHydrate = false;
         } else {
@@ -554,10 +577,12 @@ function AppContainer({ children  }) {
         value: (0, _router1).makePublicRouterInstance(router)
     }, /*#__PURE__*/ _react.default.createElement(_headManagerContext.HeadManagerContext.Provider, {
         value: headManager
-    }, children))));
+    }, /*#__PURE__*/ _react.default.createElement(_imageConfigContext.ImageConfigContext.Provider, {
+        value: process.env.__NEXT_IMAGE_OPTS
+    }, children)))));
 }
 function renderApp(App, appProps) {
-    if (process.env.__NEXT_RSC && App.__next_rsc__) {
+    if (process.env.__NEXT_RSC && isAppRSC) {
         const { Component , err: _ , router: __  } = appProps, props = _objectWithoutProperties(appProps, [
             "Component",
             "err",
@@ -571,7 +596,7 @@ function renderApp(App, appProps) {
 const wrapApp = (App)=>(wrappedAppProps)=>{
         const appProps = _objectSpread({}, wrappedAppProps, {
             Component: CachedComponent,
-            err: hydrateErr,
+            err: initialData.err,
             router
         });
         return(/*#__PURE__*/ _react.default.createElement(AppContainer, null, renderApp(App, appProps)));
@@ -610,6 +635,9 @@ if (process.env.__NEXT_RSC) {
                 writer.write(encoder.encode(val));
             });
             buffer.length = 0;
+            // Clean buffer but not deleting the key to mark bootstrap as complete.
+            // Then `nextServerDataCallback` will be safely skipped in the future renders.
+            serverDataBuffer.set(key, []);
         }
         serverDataWriter.set(key, writer);
     }
@@ -641,7 +669,7 @@ if (process.env.__NEXT_RSC) {
         const id = _react.default.useId();
         let response = rscCache.get(cacheKey);
         if (response) return response;
-        const bufferCacheKey = cacheKey + ',' + id;
+        const bufferCacheKey = cacheKey + ',' + router.route + ',' + id;
         if (serverDataBuffer.has(bufferCacheKey)) {
             const t = new TransformStream();
             const writer = t.writable.getWriter();
@@ -662,9 +690,11 @@ if (process.env.__NEXT_RSC) {
         return response;
     }
     const ServerRoot = ({ cacheKey , serialized , _fresh  })=>{
+        _react.default.useEffect(()=>{
+            rscCache.delete(cacheKey);
+        });
         const response = useServerResponse(cacheKey, serialized);
         const root = response.readRoot();
-        rscCache.delete(cacheKey);
         return root;
     };
     RSCComponent = (props)=>{
@@ -685,13 +715,11 @@ if (process.env.__NEXT_RSC) {
         }
         return(/*#__PURE__*/ _react.default.createElement(_refresh.RefreshContext.Provider, {
             value: refreshCache
-        }, /*#__PURE__*/ _react.default.createElement(_react.default.Suspense, {
-            fallback: null
         }, /*#__PURE__*/ _react.default.createElement(ServerRoot, {
             cacheKey: cacheKey,
             serialized: __flight_serialized__,
             _fresh: __flight_fresh__
-        }))));
+        })));
     };
 }
 let lastAppProps;
@@ -700,7 +728,7 @@ function doRender(input) {
     let styleSheets = 'initial' in input ? undefined : input.styleSheets;
     Component = Component || lastAppProps.Component;
     props = props || lastAppProps.props;
-    const isRSC = process.env.__NEXT_RSC && 'initial' in input ? !!rsc : !!__N_RSC;
+    const isRSC = process.env.__NEXT_RSC && 'initial' in input ? !!initialData.rsc : !!__N_RSC;
     const appProps = _objectSpread({}, props, {
         Component: isRSC ? RSCComponent : Component,
         err,

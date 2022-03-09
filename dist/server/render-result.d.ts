@@ -1,8 +1,8 @@
 /// <reference types="node" />
 import type { ServerResponse } from 'http';
 export default class RenderResult {
-    _result: string | ReadableStream;
-    constructor(response: string | ReadableStream);
+    _result: string | ReadableStream<Uint8Array>;
+    constructor(response: string | ReadableStream<Uint8Array>);
     toUnchunkedString(): string;
     pipe(res: ServerResponse): Promise<void>;
     isDynamic(): boolean;

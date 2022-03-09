@@ -13,9 +13,10 @@ export default class HotReloader {
     private buildId;
     private middlewares;
     private pagesDir;
+    private distDir;
     private webpackHotMiddleware?;
     private config;
-    private webServerRuntime;
+    private runtime?;
     private hasServerComponents;
     clientStats: webpack5.Stats | null;
     serverStats: webpack5.Stats | null;
@@ -30,9 +31,10 @@ export default class HotReloader {
     private fallbackWatcher;
     private hotReloaderSpan;
     private pagesMapping;
-    constructor(dir: string, { config, pagesDir, buildId, previewProps, rewrites, }: {
+    constructor(dir: string, { config, pagesDir, distDir, buildId, previewProps, rewrites, }: {
         config: NextConfigComplete;
         pagesDir: string;
+        distDir: string;
         buildId: string;
         previewProps: __ApiPreviewProps;
         rewrites: CustomRoutes['rewrites'];

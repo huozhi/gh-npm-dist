@@ -72,8 +72,8 @@ class App extends _react.default.Component {
         return(/*#__PURE__*/ _react.default.createElement(Component, Object.assign({}, pageProps)));
     }
 }
+exports.default = App;
 App.origGetInitialProps = appGetInitialProps;
 App.getInitialProps = appGetInitialProps;
-exports.default = App;
 
 //# sourceMappingURL=_app.js.map

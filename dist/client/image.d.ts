@@ -1,8 +1,13 @@
 import React from 'react';
+import { ImageConfigComplete } from '../shared/lib/image-config';
 declare const VALID_LOADING_VALUES: readonly ["lazy", "eager", undefined];
 declare type LoadingValue = typeof VALID_LOADING_VALUES[number];
+declare type ImageConfig = ImageConfigComplete & {
+    allSizes: number[];
+};
 export declare type ImageLoader = (resolverProps: ImageLoaderProps) => string;
 export declare type ImageLoaderProps = {
+    config: Readonly<ImageConfig>;
     src: string;
     width: number;
     quality?: number;
@@ -15,6 +20,12 @@ declare type OnLoadingComplete = (result: {
     naturalHeight: number;
 }) => void;
 declare type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>;
+export interface StaticImageData {
+    src: string;
+    height: number;
+    width: number;
+    blurDataURL?: string;
+}
 interface StaticRequire {
     default: StaticImageData;
 }

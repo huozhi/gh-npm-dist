@@ -49,7 +49,7 @@ class RenderResult {
         return new RenderResult(value);
     }
 }
-RenderResult.empty = RenderResult.fromStatic('');
 exports.default = RenderResult;
+RenderResult.empty = RenderResult.fromStatic('');
 
 //# sourceMappingURL=render-result.js.map

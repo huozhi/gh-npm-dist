@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.imageOptimizer = imageOptimizer;
+exports.sendResponse = sendResponse;
+exports.getHash = getHash;
 exports.detectContentType = detectContentType;
 exports.getMaxAge = getMaxAge;
 exports.resizeImage = resizeImage;
@@ -17,8 +19,6 @@ var _contentDisposition = _interopRequireDefault(require("next/dist/compiled/con
 var _path = require("path");
 var _stream = _interopRequireDefault(require("stream"));
 var _url = _interopRequireDefault(require("url"));
-var _fileExists = require("../lib/file-exists");
-var _imageConfig = require("./image-config");
 var _main = require("./lib/squoosh/main");
 var _sendPayload = require("./send-payload");
 var _serveStatic = require("./serve-static");
@@ -45,7 +45,6 @@ const VECTOR_TYPES = [
 ];
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 ;
-const inflightRequests = new Map();
 let sharp;
 try {
     sharp = require(process.env.NEXT_SHARP_PATH || 'sharp');
@@ -53,397 +52,409 @@ try {
 // Sharp not present on the server, Squoosh fallback will be used
 }
 let showSharpMissingWarning = process.env.NODE_ENV === 'production';
-async function imageOptimizer(req, res, parsedUrl, nextConfig, distDir, render404, handleRequest, isDev = false) {
-    const imageData = nextConfig.images || _imageConfig.imageConfigDefault;
-    const { deviceSizes =[] , imageSizes =[] , domains =[] , loader , minimumCacheTTL =60 , formats =[
-        'image/webp'
-    ] ,  } = imageData;
-    if (loader !== 'default') {
-        await render404();
-        return {
-            finished: true
-        };
-    }
-    const { headers  } = req;
-    const { url , w , q  } = parsedUrl.query;
-    const mimeType = getSupportedMimeType(formats, headers.accept);
-    let href;
-    if (!url) {
-        res.statusCode = 400;
-        res.end('"url" parameter is required');
-        return {
-            finished: true
-        };
-    } else if (Array.isArray(url)) {
-        res.statusCode = 400;
-        res.end('"url" parameter cannot be an array');
-        return {
-            finished: true
-        };
-    }
-    let isAbsolute;
-    if (url.startsWith('/')) {
-        href = url;
-        isAbsolute = false;
-    } else {
-        let hrefParsed;
-        try {
-            hrefParsed = new URL(url);
-            href = hrefParsed.toString();
-            isAbsolute = true;
-        } catch (_error) {
-            res.statusCode = 400;
-            res.end('"url" parameter is invalid');
+class ImageOptimizerCache {
+    static validateParams(req, query, nextConfig, isDev) {
+        const imageData = nextConfig.images;
+        const { deviceSizes =[] , imageSizes =[] , domains =[] , minimumCacheTTL =60 , formats =[
+            'image/webp'
+        ] ,  } = imageData;
+        const { url , w , q  } = query;
+        let href;
+        if (!url) {
             return {
-                finished: true
+                errorMessage: '"url" parameter is required'
+            };
+        } else if (Array.isArray(url)) {
+            return {
+                errorMessage: '"url" parameter cannot be an array'
             };
         }
-        if (![
-            'http:',
-            'https:'
-        ].includes(hrefParsed.protocol)) {
-            res.statusCode = 400;
-            res.end('"url" parameter is invalid');
-            return {
-                finished: true
-            };
-        }
-        if (!domains.includes(hrefParsed.hostname)) {
-            res.statusCode = 400;
-            res.end('"url" parameter is not allowed');
-            return {
-                finished: true
-            };
-        }
-    }
-    if (!w) {
-        res.statusCode = 400;
-        res.end('"w" parameter (width) is required');
-        return {
-            finished: true
-        };
-    } else if (Array.isArray(w)) {
-        res.statusCode = 400;
-        res.end('"w" parameter (width) cannot be an array');
-        return {
-            finished: true
-        };
-    }
-    if (!q) {
-        res.statusCode = 400;
-        res.end('"q" parameter (quality) is required');
-        return {
-            finished: true
-        };
-    } else if (Array.isArray(q)) {
-        res.statusCode = 400;
-        res.end('"q" parameter (quality) cannot be an array');
-        return {
-            finished: true
-        };
-    }
-    // Should match output from next-image-loader
-    const isStatic = url.startsWith(`${nextConfig.basePath || ''}/_next/static/media`);
-    const width = parseInt(w, 10);
-    if (!width || isNaN(width)) {
-        res.statusCode = 400;
-        res.end('"w" parameter (width) must be a number greater than 0');
-        return {
-            finished: true
-        };
-    }
-    const sizes = [
-        ...deviceSizes,
-        ...imageSizes
-    ];
-    if (isDev) {
-        sizes.push(BLUR_IMG_SIZE);
-    }
-    if (!sizes.includes(width)) {
-        res.statusCode = 400;
-        res.end(`"w" parameter (width) of ${width} is not allowed`);
-        return {
-            finished: true
-        };
-    }
-    const quality = parseInt(q);
-    if (isNaN(quality) || quality < 1 || quality > 100) {
-        res.statusCode = 400;
-        res.end('"q" parameter (quality) must be a number between 1 and 100');
-        return {
-            finished: true
-        };
-    }
-    const hash = getHash([
-        CACHE_VERSION,
-        href,
-        width,
-        quality,
-        mimeType
-    ]);
-    const imagesDir = (0, _path).join(distDir, 'cache', 'images');
-    const hashDir = (0, _path).join(imagesDir, hash);
-    const now = Date.now();
-    let xCache = 'MISS';
-    // If there're concurrent requests hitting the same resource and it's still
-    // being optimized, wait before accessing the cache.
-    if (inflightRequests.has(hash)) {
-        await inflightRequests.get(hash);
-    }
-    const dedupe = new Deferred();
-    inflightRequests.set(hash, dedupe.promise);
-    try {
-        if (await (0, _fileExists).fileExists(hashDir, 'directory')) {
-            const files = await _fs.promises.readdir(hashDir);
-            for (let file of files){
-                const [maxAgeStr, expireAtSt, etag, extension] = file.split('.');
-                const maxAge = Number(maxAgeStr);
-                const expireAt = Number(expireAtSt);
-                const contentType = (0, _serveStatic).getContentType(extension);
-                const fsPath = (0, _path).join(hashDir, file);
-                xCache = now < expireAt ? 'HIT' : 'STALE';
-                const result = setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, isDev, xCache);
-                if (!result.finished) {
-                    await new Promise((resolve, reject)=>{
-                        (0, _fs).createReadStream(fsPath).on('end', resolve).on('error', reject).pipe(res);
-                    });
-                }
-                if (xCache === 'HIT') {
-                    return {
-                        finished: true
-                    };
-                } else {
-                    await _fs.promises.unlink(fsPath);
-                }
-            }
-        }
-        let upstreamBuffer;
-        let upstreamType;
-        let maxAge;
-        if (isAbsolute) {
-            const upstreamRes = await fetch(href);
-            if (!upstreamRes.ok) {
-                res.statusCode = upstreamRes.status;
-                res.end('"url" parameter is valid but upstream response is invalid');
-                return {
-                    finished: true
-                };
-            }
-            res.statusCode = upstreamRes.status;
-            upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer());
-            upstreamType = detectContentType(upstreamBuffer) || upstreamRes.headers.get('Content-Type');
-            maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'));
+        let isAbsolute;
+        if (url.startsWith('/')) {
+            href = url;
+            isAbsolute = false;
         } else {
+            let hrefParsed;
             try {
-                const resBuffers = [];
-                const mockRes = new _stream.default.Writable();
-                const isStreamFinished = new Promise(function(resolve, reject) {
-                    mockRes.on('finish', ()=>resolve(true)
-                    );
-                    mockRes.on('end', ()=>resolve(true)
-                    );
-                    mockRes.on('error', ()=>reject()
-                    );
-                });
-                mockRes.write = (chunk)=>{
-                    resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-                };
-                mockRes._write = (chunk, _encoding, callback)=>{
-                    mockRes.write(chunk);
-                    // According to Node.js documentation, the callback MUST be invoked to signal that
-                    // the write completed successfully. If this callback is not invoked, the 'finish' event
-                    // will not be emitted.
-                    // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
-                    callback();
-                };
-                const mockHeaders = {};
-                mockRes.writeHead = (_status, _headers)=>Object.assign(mockHeaders, _headers)
-                ;
-                mockRes.getHeader = (name)=>mockHeaders[name.toLowerCase()]
-                ;
-                mockRes.getHeaders = ()=>mockHeaders
-                ;
-                mockRes.getHeaderNames = ()=>Object.keys(mockHeaders)
-                ;
-                mockRes.setHeader = (name, value)=>mockHeaders[name.toLowerCase()] = value
-                ;
-                mockRes.removeHeader = (name)=>{
-                    delete mockHeaders[name.toLowerCase()];
-                };
-                mockRes._implicitHeader = ()=>{};
-                mockRes.connection = res.connection;
-                mockRes.finished = false;
-                mockRes.statusCode = 200;
-                const mockReq = new _stream.default.Readable();
-                mockReq._read = ()=>{
-                    mockReq.emit('end');
-                    mockReq.emit('close');
-                    return Buffer.from('');
-                };
-                mockReq.headers = req.headers;
-                mockReq.method = req.method;
-                mockReq.url = href;
-                mockReq.connection = req.connection;
-                await handleRequest(mockReq, mockRes, _url.default.parse(href, true));
-                await isStreamFinished;
-                res.statusCode = mockRes.statusCode;
-                upstreamBuffer = Buffer.concat(resBuffers);
-                upstreamType = detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type');
-                maxAge = getMaxAge(mockRes.getHeader('Cache-Control'));
-            } catch (err) {
-                res.statusCode = 500;
-                res.end('"url" parameter is valid but upstream response is invalid');
+                hrefParsed = new URL(url);
+                href = hrefParsed.toString();
+                isAbsolute = true;
+            } catch (_error) {
                 return {
-                    finished: true
+                    errorMessage: '"url" parameter is invalid'
+                };
+            }
+            if (![
+                'http:',
+                'https:'
+            ].includes(hrefParsed.protocol)) {
+                return {
+                    errorMessage: '"url" parameter is invalid'
+                };
+            }
+            if (!domains || !domains.includes(hrefParsed.hostname)) {
+                return {
+                    errorMessage: '"url" parameter is not allowed'
                 };
             }
         }
-        const expireAt = Math.max(maxAge, minimumCacheTTL) * 1000 + now;
-        if (upstreamType) {
-            const vector = VECTOR_TYPES.includes(upstreamType);
-            const animate = ANIMATABLE_TYPES.includes(upstreamType) && (0, _isAnimated).default(upstreamBuffer);
-            if (vector || animate) {
-                await writeToCacheDir(hashDir, upstreamType, maxAge, expireAt, upstreamBuffer);
-                sendResponse(req, res, url, maxAge, upstreamType, upstreamBuffer, isStatic, isDev, xCache);
-                return {
-                    finished: true
-                };
-            }
-            if (!upstreamType.startsWith('image/')) {
-                res.statusCode = 400;
-                res.end("The requested resource isn't a valid image.");
-                return {
-                    finished: true
-                };
-            }
+        if (!w) {
+            return {
+                errorMessage: '"w" parameter (width) is required'
+            };
+        } else if (Array.isArray(w)) {
+            return {
+                errorMessage: '"w" parameter (width) cannot be an array'
+            };
         }
-        let contentType;
-        if (mimeType) {
-            contentType = mimeType;
-        } else if ((upstreamType === null || upstreamType === void 0 ? void 0 : upstreamType.startsWith('image/')) && (0, _serveStatic).getExtension(upstreamType)) {
-            contentType = upstreamType;
-        } else {
-            contentType = JPEG;
+        if (!q) {
+            return {
+                errorMessage: '"q" parameter (quality) is required'
+            };
+        } else if (Array.isArray(q)) {
+            return {
+                errorMessage: '"q" parameter (quality) cannot be an array'
+            };
         }
+        const width = parseInt(w, 10);
+        if (!width || isNaN(width)) {
+            return {
+                errorMessage: '"w" parameter (width) must be a number greater than 0'
+            };
+        }
+        const sizes = [
+            ...deviceSizes || [],
+            ...imageSizes || []
+        ];
+        if (isDev) {
+            sizes.push(BLUR_IMG_SIZE);
+        }
+        if (!sizes.includes(width)) {
+            return {
+                errorMessage: `"w" parameter (width) of ${width} is not allowed`
+            };
+        }
+        const quality = parseInt(q);
+        if (isNaN(quality) || quality < 1 || quality > 100) {
+            return {
+                errorMessage: '"q" parameter (quality) must be a number between 1 and 100'
+            };
+        }
+        const mimeType = getSupportedMimeType(formats || [], req.headers['accept']);
+        const isStatic = url.startsWith(`${nextConfig.basePath || ''}/_next/static/media`);
+        return {
+            href,
+            sizes,
+            isAbsolute,
+            isStatic,
+            width,
+            quality,
+            mimeType,
+            minimumCacheTTL
+        };
+    }
+    static getCacheKey({ href , width , quality , mimeType  }) {
+        return getHash([
+            CACHE_VERSION,
+            href,
+            width,
+            quality,
+            mimeType
+        ]);
+    }
+    constructor({ distDir , nextConfig  }){
+        this.cacheDir = (0, _path).join(distDir, 'cache', 'images');
+        this.nextConfig = nextConfig;
+    }
+    async get(cacheKey) {
         try {
-            let optimizedBuffer;
-            if (sharp) {
-                // Begin sharp transformation logic
-                const transformer = sharp(upstreamBuffer);
-                transformer.rotate();
-                const { width: metaWidth  } = await transformer.metadata();
-                if (metaWidth && metaWidth > width) {
-                    transformer.resize(width);
-                }
-                if (contentType === AVIF) {
-                    if (transformer.avif) {
-                        const avifQuality = quality - 15;
-                        transformer.avif({
-                            quality: Math.max(avifQuality, 0),
-                            chromaSubsampling: '4:2:0'
-                        });
-                    } else {
-                        console.warn(_chalk.default.yellow.bold('Warning: ') + `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` + 'Read more: https://nextjs.org/docs/messages/sharp-version-avif');
-                        transformer.webp({
-                            quality
-                        });
-                    }
-                } else if (contentType === WEBP) {
+            const cacheDir = (0, _path).join(this.cacheDir, cacheKey);
+            const files = await _fs.promises.readdir(cacheDir);
+            const now = Date.now();
+            for (const file of files){
+                const [maxAgeSt, expireAtSt, etag, extension] = file.split('.');
+                const buffer = await _fs.promises.readFile((0, _path).join(cacheDir, file));
+                const expireAt = Number(expireAtSt);
+                const maxAge = Number(maxAgeSt);
+                return {
+                    value: {
+                        kind: 'IMAGE',
+                        etag,
+                        buffer,
+                        extension
+                    },
+                    revalidateAfter: Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 + Date.now(),
+                    curRevalidate: maxAge,
+                    isStale: now > expireAt
+                };
+            }
+        } catch (_) {
+        // failed to read from cache dir, treat as cache miss
+        }
+        return null;
+    }
+    async set(cacheKey, value, revalidate) {
+        if ((value === null || value === void 0 ? void 0 : value.kind) !== 'IMAGE') {
+            throw new Error('invariant attempted to set non-image to image-cache');
+        }
+        if (typeof revalidate !== 'number') {
+            throw new Error('invariant revalidate must be a number for image-cache');
+        }
+        const expireAt = Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 + Date.now();
+        try {
+            await writeToCacheDir((0, _path).join(this.cacheDir, cacheKey), value.extension, revalidate, expireAt, value.buffer, value.etag);
+        } catch (err) {
+            console.error(`Failed to write image to cache ${cacheKey}`, err);
+        }
+    }
+}
+exports.ImageOptimizerCache = ImageOptimizerCache;
+class ImageError extends Error {
+    constructor(statusCode, message){
+        super(message);
+        // ensure an error status is used > 400
+        if (statusCode >= 400) {
+            this.statusCode = statusCode;
+        } else {
+            this.statusCode = 500;
+        }
+    }
+}
+exports.ImageError = ImageError;
+async function imageOptimizer(_req, _res, paramsResult, nextConfig, handleRequest) {
+    let upstreamBuffer;
+    let upstreamType;
+    let maxAge;
+    const { isAbsolute , href , width , mimeType , quality  } = paramsResult;
+    if (isAbsolute) {
+        const upstreamRes = await fetch(href);
+        if (!upstreamRes.ok) {
+            console.error('upstream image response failed for', href, upstreamRes.status);
+            throw new ImageError(upstreamRes.status, '"url" parameter is valid but upstream response is invalid');
+        }
+        upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer());
+        upstreamType = detectContentType(upstreamBuffer) || upstreamRes.headers.get('Content-Type');
+        maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'));
+    } else {
+        try {
+            const resBuffers = [];
+            const mockRes = new _stream.default.Writable();
+            const isStreamFinished = new Promise(function(resolve, reject) {
+                mockRes.on('finish', ()=>resolve(true)
+                );
+                mockRes.on('end', ()=>resolve(true)
+                );
+                mockRes.on('error', (err)=>reject(err)
+                );
+            });
+            mockRes.write = (chunk)=>{
+                resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+            };
+            mockRes._write = (chunk, _encoding, callback)=>{
+                mockRes.write(chunk);
+                // According to Node.js documentation, the callback MUST be invoked to signal that
+                // the write completed successfully. If this callback is not invoked, the 'finish' event
+                // will not be emitted.
+                // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
+                callback();
+            };
+            const mockHeaders = {};
+            mockRes.writeHead = (_status, _headers)=>Object.assign(mockHeaders, _headers)
+            ;
+            mockRes.getHeader = (name)=>mockHeaders[name.toLowerCase()]
+            ;
+            mockRes.getHeaders = ()=>mockHeaders
+            ;
+            mockRes.getHeaderNames = ()=>Object.keys(mockHeaders)
+            ;
+            mockRes.setHeader = (name, value)=>mockHeaders[name.toLowerCase()] = value
+            ;
+            mockRes.removeHeader = (name)=>{
+                delete mockHeaders[name.toLowerCase()];
+            };
+            mockRes._implicitHeader = ()=>{};
+            mockRes.connection = _res.connection;
+            mockRes.finished = false;
+            mockRes.statusCode = 200;
+            const mockReq = new _stream.default.Readable();
+            mockReq._read = ()=>{
+                mockReq.emit('end');
+                mockReq.emit('close');
+                return Buffer.from('');
+            };
+            mockReq.headers = _req.headers;
+            mockReq.method = _req.method;
+            mockReq.url = href;
+            mockReq.connection = _req.connection;
+            await handleRequest(mockReq, mockRes, _url.default.parse(href, true));
+            await isStreamFinished;
+            if (!mockRes.statusCode) {
+                console.error('image response failed for', href, mockRes.statusCode);
+                throw new ImageError(mockRes.statusCode, '"url" parameter is valid but internal response is invalid');
+            }
+            upstreamBuffer = Buffer.concat(resBuffers);
+            upstreamType = detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type');
+            maxAge = getMaxAge(mockRes.getHeader('Cache-Control'));
+        } catch (err) {
+            console.error('upstream image response failed for', href, err);
+            throw new ImageError(500, '"url" parameter is valid but upstream response is invalid');
+        }
+    }
+    if (upstreamType === SVG && !nextConfig.images.dangerouslyAllowSVG) {
+        console.error(`The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`);
+        throw new ImageError(400, '"url" parameter is valid but image type is not allowed');
+    }
+    if (upstreamType) {
+        const vector = VECTOR_TYPES.includes(upstreamType);
+        const animate = ANIMATABLE_TYPES.includes(upstreamType) && (0, _isAnimated).default(upstreamBuffer);
+        if (vector || animate) {
+            return {
+                buffer: upstreamBuffer,
+                contentType: upstreamType,
+                maxAge
+            };
+        }
+        if (!upstreamType.startsWith('image/')) {
+            console.error("The requested resource isn't a valid image for", href, 'received', upstreamType);
+            throw new ImageError(400, "The requested resource isn't a valid image.");
+        }
+    }
+    let contentType;
+    if (mimeType) {
+        contentType = mimeType;
+    } else if ((upstreamType === null || upstreamType === void 0 ? void 0 : upstreamType.startsWith('image/')) && (0, _serveStatic).getExtension(upstreamType)) {
+        contentType = upstreamType;
+    } else {
+        contentType = JPEG;
+    }
+    try {
+        let optimizedBuffer;
+        if (sharp) {
+            // Begin sharp transformation logic
+            const transformer = sharp(upstreamBuffer);
+            transformer.rotate();
+            const { width: metaWidth  } = await transformer.metadata();
+            if (metaWidth && metaWidth > width) {
+                transformer.resize(width);
+            }
+            if (contentType === AVIF) {
+                if (transformer.avif) {
+                    const avifQuality = quality - 15;
+                    transformer.avif({
+                        quality: Math.max(avifQuality, 0),
+                        chromaSubsampling: '4:2:0'
+                    });
+                } else {
+                    console.warn(_chalk.default.yellow.bold('Warning: ') + `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` + 'Read more: https://nextjs.org/docs/messages/sharp-version-avif');
                     transformer.webp({
                         quality
                     });
-                } else if (contentType === PNG) {
-                    transformer.png({
-                        quality
-                    });
-                } else if (contentType === JPEG) {
-                    transformer.jpeg({
-                        quality
-                    });
                 }
-                optimizedBuffer = await transformer.toBuffer();
-            // End sharp transformation logic
-            } else {
-                var ref;
-                if (showSharpMissingWarning && ((ref = nextConfig.experimental) === null || ref === void 0 ? void 0 : ref.outputStandalone)) {
-                    // TODO: should we ensure squoosh also works even though we don't
-                    // recommend it be used in production and this is a production feature
-                    console.error(`Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`);
-                    req.statusCode = 500;
-                    res.end('internal server error');
-                    return {
-                        finished: true
-                    };
-                }
-                // Show sharp warning in production once
-                if (showSharpMissingWarning) {
-                    console.warn(_chalk.default.yellow.bold('Warning: ') + `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for Image Optimization.\n` + 'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production');
-                    showSharpMissingWarning = false;
-                }
-                // Begin Squoosh transformation logic
-                const orientation = await (0, _getOrientation).getOrientation(upstreamBuffer);
-                const operations = [];
-                if (orientation === _getOrientation.Orientation.RIGHT_TOP) {
-                    operations.push({
-                        type: 'rotate',
-                        numRotations: 1
-                    });
-                } else if (orientation === _getOrientation.Orientation.BOTTOM_RIGHT) {
-                    operations.push({
-                        type: 'rotate',
-                        numRotations: 2
-                    });
-                } else if (orientation === _getOrientation.Orientation.LEFT_BOTTOM) {
-                    operations.push({
-                        type: 'rotate',
-                        numRotations: 3
-                    });
-                } else {
-                // TODO: support more orientations
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                // const _: never = orientation
-                }
-                operations.push({
-                    type: 'resize',
-                    width
+            } else if (contentType === WEBP) {
+                transformer.webp({
+                    quality
                 });
-                if (contentType === AVIF) {
-                    optimizedBuffer = await (0, _main).processBuffer(upstreamBuffer, operations, 'avif', quality);
-                } else if (contentType === WEBP) {
-                    optimizedBuffer = await (0, _main).processBuffer(upstreamBuffer, operations, 'webp', quality);
-                } else if (contentType === PNG) {
-                    optimizedBuffer = await (0, _main).processBuffer(upstreamBuffer, operations, 'png', quality);
-                } else if (contentType === JPEG) {
-                    optimizedBuffer = await (0, _main).processBuffer(upstreamBuffer, operations, 'jpeg', quality);
-                }
-            // End Squoosh transformation logic
+            } else if (contentType === PNG) {
+                transformer.png({
+                    quality
+                });
+            } else if (contentType === JPEG) {
+                transformer.jpeg({
+                    quality
+                });
             }
-            if (optimizedBuffer) {
-                await writeToCacheDir(hashDir, contentType, maxAge, expireAt, optimizedBuffer);
-                sendResponse(req, res, url, maxAge, contentType, optimizedBuffer, isStatic, isDev, xCache);
+            optimizedBuffer = await transformer.toBuffer();
+        // End sharp transformation logic
+        } else {
+            var ref;
+            if (showSharpMissingWarning && ((ref = nextConfig.experimental) === null || ref === void 0 ? void 0 : ref.outputStandalone)) {
+                // TODO: should we ensure squoosh also works even though we don't
+                // recommend it be used in production and this is a production feature
+                console.error(`Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`);
+                throw new ImageError(500, 'internal server error');
+            }
+            // Show sharp warning in production once
+            if (showSharpMissingWarning) {
+                console.warn(_chalk.default.yellow.bold('Warning: ') + `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for Image Optimization.\n` + 'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production');
+                showSharpMissingWarning = false;
+            }
+            // Begin Squoosh transformation logic
+            const orientation = await (0, _getOrientation).getOrientation(upstreamBuffer);
+            const operations = [];
+            if (orientation === _getOrientation.Orientation.RIGHT_TOP) {
+                operations.push({
+                    type: 'rotate',
+                    numRotations: 1
+                });
+            } else if (orientation === _getOrientation.Orientation.BOTTOM_RIGHT) {
+                operations.push({
+                    type: 'rotate',
+                    numRotations: 2
+                });
+            } else if (orientation === _getOrientation.Orientation.LEFT_BOTTOM) {
+                operations.push({
+                    type: 'rotate',
+                    numRotations: 3
+                });
             } else {
-                throw new Error('Unable to optimize buffer');
+            // TODO: support more orientations
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            // const _: never = orientation
             }
-        } catch (error) {
-            sendResponse(req, res, url, maxAge, upstreamType, upstreamBuffer, isStatic, isDev, xCache);
+            operations.push({
+                type: 'resize',
+                width
+            });
+            if (contentType === AVIF) {
+                optimizedBuffer = await (0, _main).processBuffer(upstreamBuffer, operations, 'avif', quality);
+            } else if (contentType === WEBP) {
+                optimizedBuffer = await (0, _main).processBuffer(upstreamBuffer, operations, 'webp', quality);
+            } else if (contentType === PNG) {
+                optimizedBuffer = await (0, _main).processBuffer(upstreamBuffer, operations, 'png', quality);
+            } else if (contentType === JPEG) {
+                optimizedBuffer = await (0, _main).processBuffer(upstreamBuffer, operations, 'jpeg', quality);
+            }
+        // End Squoosh transformation logic
         }
-        return {
-            finished: true
-        };
-    } finally{
-        dedupe.resolve();
-        inflightRequests.delete(hash);
+        if (optimizedBuffer) {
+            return {
+                buffer: optimizedBuffer,
+                contentType,
+                maxAge: Math.max(maxAge, nextConfig.images.minimumCacheTTL)
+            };
+        } else {
+            throw new ImageError(500, 'Unable to optimize buffer');
+        }
+    } catch (error) {
+        if (upstreamBuffer && upstreamType) {
+            // If we fail to optimize, fallback to the original image
+            return {
+                buffer: upstreamBuffer,
+                contentType: upstreamType,
+                maxAge: nextConfig.images.minimumCacheTTL
+            };
+        } else {
+            throw new ImageError(500, 'Unable to optimize image and unable to fallback to upstream image');
+        }
     }
 }
-async function writeToCacheDir(dir, contentType, maxAge, expireAt, buffer) {
+async function writeToCacheDir(dir, extension, maxAge, expireAt, buffer, etag) {
+    const filename = (0, _path).join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`);
+    // Added in: v14.14.0 https://nodejs.org/api/fs.html#fspromisesrmpath-options
+    // attempt cleaning up existing stale cache
+    if (_fs.promises.rm) {
+        await _fs.promises.rm(dir, {
+            force: true,
+            recursive: true
+        }).catch(()=>{});
+    } else {
+        await _fs.promises.rmdir(dir, {
+            recursive: true
+        }).catch(()=>{});
+    }
     await _fs.promises.mkdir(dir, {
         recursive: true
     });
-    const extension = (0, _serveStatic).getExtension(contentType);
-    const etag = getHash([
-        buffer
-    ]);
-    const filename = (0, _path).join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`);
     await _fs.promises.writeFile(filename, buffer);
 }
 function getFileNameWithExtension(url, contentType) {
@@ -456,9 +467,9 @@ function getFileNameWithExtension(url, contentType) {
     const extension = (0, _serveStatic).getExtension(contentType);
     return `${fileName}.${extension}`;
 }
-function setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, isDev, xCache) {
+function setResponseHeaders(req, res, url, etag, contentType, isStatic, xCache, contentSecurityPolicy) {
     res.setHeader('Vary', 'Accept');
-    res.setHeader('Cache-Control', isStatic ? 'public, max-age=315360000, immutable' : `public, max-age=${isDev ? 0 : maxAge}, must-revalidate`);
+    res.setHeader('Cache-Control', isStatic ? 'public, max-age=315360000, immutable' : `public, max-age=0, must-revalidate`);
     if ((0, _sendPayload).sendEtagResponse(req, res, etag)) {
         // already called res.end() so we're finished
         return {
@@ -474,20 +485,20 @@ function setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, 
             type: 'inline'
         }));
     }
-    res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`);
+    if (contentSecurityPolicy) {
+        res.setHeader('Content-Security-Policy', contentSecurityPolicy);
+    }
     res.setHeader('X-Nextjs-Cache', xCache);
     return {
         finished: false
     };
 }
-function sendResponse(req, res, url, maxAge, contentType, buffer, isStatic, isDev, xCache) {
-    if (xCache === 'STALE') {
-        return;
-    }
+function sendResponse(req, res, url, extension, buffer, isStatic, xCache, contentSecurityPolicy) {
+    const contentType = (0, _serveStatic).getContentType(extension);
     const etag = getHash([
         buffer
     ]);
-    const result = setResponseHeaders(req, res, url, etag, maxAge, contentType, isStatic, isDev, xCache);
+    const result = setResponseHeaders(req, res, url, etag, contentType, isStatic, xCache, contentSecurityPolicy);
     if (!result.finished) {
         res.end(buffer);
     }

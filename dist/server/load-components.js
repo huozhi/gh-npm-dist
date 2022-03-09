@@ -8,9 +8,10 @@ var _constants = require("../shared/lib/constants");
 var _path = require("path");
 var _require = require("./require");
 var _interopDefault = require("../lib/interop-default");
-async function loadDefaultErrorComponents(distDir) {
-    const Document = (0, _interopDefault).interopDefault(require('next/dist/pages/_document'));
-    const App = (0, _interopDefault).interopDefault(require('next/dist/pages/_app'));
+async function loadDefaultErrorComponents(distDir, { hasConcurrentFeatures  }) {
+    const Document = (0, _interopDefault).interopDefault(require(`next/dist/pages/_document` + (hasConcurrentFeatures ? '-concurrent' : '')));
+    const AppMod = require('next/dist/pages/_app');
+    const App = (0, _interopDefault).interopDefault(AppMod);
     const ComponentMod = require('next/dist/pages/_error');
     const Component = (0, _interopDefault).interopDefault(ComponentMod);
     return {
@@ -20,7 +21,8 @@ async function loadDefaultErrorComponents(distDir) {
         pageConfig: {},
         buildManifest: require((0, _path).join(distDir, `fallback-${_constants.BUILD_MANIFEST}`)),
         reactLoadableManifest: {},
-        ComponentMod
+        ComponentMod,
+        AppMod
     };
 }
 async function loadComponents(distDir, pathname, serverless) {
@@ -69,6 +71,7 @@ async function loadComponents(distDir, pathname, serverless) {
         reactLoadableManifest,
         pageConfig: ComponentMod.config || {},
         ComponentMod,
+        AppMod,
         getServerSideProps,
         getStaticProps,
         getStaticPaths

@@ -3,37 +3,24 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.getRender = getRender;
-var _utils = require("../../../../server/web/utils");
 var _webServer = _interopRequireDefault(require("../../../../server/web-server"));
-var _baseHttp = require("../../../../server/base-http");
+var _web = require("../../../../server/base-http/web");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
     };
 }
-const createHeaders = (args)=>({
-        ...args,
-        'x-middleware-ssr': '1',
-        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate'
-    })
-;
-function sendError(req, error) {
-    const defaultMessage = 'An error occurred while rendering ' + req.url + '.';
-    return new Response(error && error.message || defaultMessage, {
-        status: 500,
-        headers: createHeaders()
-    });
-}
 // Polyfilled for `path-browserify` inside the Web Server.
 process.cwd = ()=>''
 ;
-function getRender({ dev , page , pageMod , errorMod , error500Mod , Document , App , buildManifest , reactLoadableManifest , serverComponentManifest , isServerComponent , config , buildId  }) {
+function getRender({ dev , page , appMod , pageMod , errorMod , error500Mod , Document , buildManifest , reactLoadableManifest , serverComponentManifest , isServerComponent , config , buildId  }) {
     const baseLoadComponentResult = {
         dev,
         buildManifest,
         reactLoadableManifest,
         Document,
-        App
+        App: appMod.default,
+        AppMod: appMod
     };
     const server = new _webServer.default({
         conf: config,
@@ -41,8 +28,9 @@ function getRender({ dev , page , pageMod , errorMod , error500Mod , Document , 
         webServerConfig: {
             extendRenderOpts: {
                 buildId,
+                reactRoot: true,
+                runtime: 'edge',
                 supportsDynamicHTML: true,
-                concurrentFeatures: true,
                 disableOptimizedLoading: true,
                 serverComponentManifest
             },
@@ -87,24 +75,17 @@ function getRender({ dev , page , pageMod , errorMod , error500Mod , Document , 
     });
     const requestHandler = server.getRequestHandler();
     return async function render(request) {
-        const { nextUrl: url , cookies , headers  } = request;
-        const { pathname , searchParams  } = url;
+        const { nextUrl: url  } = request;
+        const { searchParams  } = url;
         const query = Object.fromEntries(searchParams);
-        const req = {
-            url: pathname,
-            cookies,
-            headers: (0, _utils).toNodeHeaders(headers)
-        };
         // Preflight request
         if (request.method === 'HEAD') {
+            // Hint the client that the matched route is a SSR page.
             return new Response(null, {
-                headers: createHeaders()
+                headers: {
+                    'x-middleware-ssr': '1'
+                }
             });
-        }
-        // @TODO: We should move this into server/render.
-        if (Document.getInitialProps) {
-            const err = new Error('`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.');
-            return sendError(req, err);
         }
         const renderServerComponentData = isServerComponent ? query.__flight__ !== undefined : false;
         const serverComponentProps = isServerComponent && query.__props__ ? JSON.parse(query.__props__) : undefined;
@@ -113,8 +94,8 @@ function getRender({ dev , page , pageMod , errorMod , error500Mod , Document , 
             renderServerComponentData,
             serverComponentProps
         });
-        const extendedReq = new _baseHttp.WebNextRequest(request);
-        const extendedRes = new _baseHttp.WebNextResponse();
+        const extendedReq = new _web.WebNextRequest(request);
+        const extendedRes = new _web.WebNextResponse();
         requestHandler(extendedReq, extendedRes);
         return await extendedRes.toResponse();
     };

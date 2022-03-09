@@ -9,12 +9,6 @@ var _normalizeTrailingSlash = require("../../../../client/normalize-trailing-sla
 var _normalizeLocalePath = require("../../i18n/normalize-locale-path");
 var _parseRelativeUrl = require("./parse-relative-url");
 var _router = require("../router");
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-const customRouteMatcher = (0, _pathMatch).default(true);
 function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
     let matchedPage = false;
     let externalDest = false;
@@ -111,5 +105,11 @@ function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
         externalDest
     };
 }
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+const customRouteMatcher = (0, _pathMatch).default(true);
 
 //# sourceMappingURL=resolve-rewrites.js.map

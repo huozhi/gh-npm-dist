@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.formatUrl = formatUrl;
+exports.formatWithValidation = formatWithValidation;
+exports.urlObjectKeys = void 0;
 var querystring = _interopRequireWildcard(require("./querystring"));
 function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
@@ -58,6 +60,33 @@ function formatUrl(urlObj) {
     pathname = pathname.replace(/[?#]/g, encodeURIComponent);
     search = search.replace('#', '%23');
     return `${protocol}${host}${pathname}${search}${hash}`;
+}
+const urlObjectKeys = [
+    'auth',
+    'hash',
+    'host',
+    'hostname',
+    'href',
+    'path',
+    'pathname',
+    'port',
+    'protocol',
+    'query',
+    'search',
+    'slashes', 
+];
+exports.urlObjectKeys = urlObjectKeys;
+function formatWithValidation(url) {
+    if (process.env.NODE_ENV === 'development') {
+        if (url !== null && typeof url === 'object') {
+            Object.keys(url).forEach((key)=>{
+                if (urlObjectKeys.indexOf(key) === -1) {
+                    console.warn(`Unknown key passed via urlObject into url.format: ${key}`);
+                }
+            });
+        }
+    }
+    return formatUrl(url);
 }
 
 //# sourceMappingURL=format-url.js.map

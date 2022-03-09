@@ -46,6 +46,7 @@ function normalizeSourceMap(map, resourceContext) {
     }
     return newMap;
 }
+exports.normalizeSourceMap = normalizeSourceMap;
 function normalizeSourceMapAfterPostcss(map, resourceContext) {
     const newMap = map;
     // result.map.file is an optional property that provides the output filename.
@@ -68,7 +69,6 @@ function normalizeSourceMapAfterPostcss(map, resourceContext) {
     });
     return newMap;
 }
-exports.normalizeSourceMap = normalizeSourceMap;
 exports.normalizeSourceMapAfterPostcss = normalizeSourceMapAfterPostcss;
 
 //# sourceMappingURL=utils.js.map

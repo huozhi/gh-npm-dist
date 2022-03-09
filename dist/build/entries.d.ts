@@ -9,22 +9,24 @@ export declare type PagesMapping = {
     [page: string]: string;
 };
 export declare function getPageFromPath(pagePath: string, extensions: string[]): string;
-export declare function createPagesMapping(pagePaths: string[], extensions: string[], { isDev, hasServerComponents, hasConcurrentFeatures, }: {
+export declare function createPagesMapping(pagePaths: string[], extensions: string[], { isDev, hasServerComponents, globalRuntime, }: {
     isDev: boolean;
     hasServerComponents: boolean;
-    hasConcurrentFeatures: boolean;
+    globalRuntime?: 'nodejs' | 'edge';
 }): PagesMapping;
 declare type Entrypoints = {
     client: webpack5.EntryObject;
     server: webpack5.EntryObject;
-    serverWeb: webpack5.EntryObject;
+    edgeServer: webpack5.EntryObject;
 };
-export declare function createEntrypoints(pages: PagesMapping, target: 'server' | 'serverless' | 'experimental-serverless-trace', buildId: string, previewMode: __ApiPreviewProps, config: NextConfigComplete, loadedEnvFiles: LoadedEnvFiles): Entrypoints;
-export declare function finalizeEntrypoint({ name, value, isServer, isMiddleware, isServerWeb, }: {
+export declare function getPageRuntime(pageFilePath: string, globalRuntimeFallback?: 'nodejs' | 'edge'): Promise<'nodejs' | 'edge' | undefined>;
+export declare function invalidatePageRuntimeCache(pageFilePath: string, safeTime: number): void;
+export declare function createEntrypoints(pages: PagesMapping, target: 'server' | 'serverless' | 'experimental-serverless-trace', buildId: string, previewMode: __ApiPreviewProps, config: NextConfigComplete, loadedEnvFiles: LoadedEnvFiles, pagesDir: string): Promise<Entrypoints>;
+export declare function finalizeEntrypoint({ name, value, isServer, isMiddleware, isEdgeServer, }: {
     isServer: boolean;
     name: string;
     value: ObjectValue<webpack5.EntryObject>;
     isMiddleware?: boolean;
-    isServerWeb?: boolean;
+    isEdgeServer?: boolean;
 }): ObjectValue<webpack5.EntryObject>;
 export {};

@@ -11,7 +11,11 @@ module.exports = function (task) {
   task.plugin(
     'swc',
     {},
-    function* (file, serverOrClient, { stripExtension, dev } = {}) {
+    function* (
+      file,
+      serverOrClient,
+      { stripExtension, keepImportAssertions = false } = {}
+    ) {
       // Don't compile .d.ts
       if (file.base.endsWith('.d.ts')) return
 
@@ -33,7 +37,7 @@ module.exports = function (task) {
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
-            keepImportAssertions: true,
+            keepImportAssertions,
           },
           transform: {
             react: {
@@ -67,7 +71,7 @@ module.exports = function (task) {
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
-            keepImportAssertions: true,
+            keepImportAssertions,
           },
           transform: {
             react: {
@@ -90,6 +94,7 @@ module.exports = function (task) {
       const options = {
         filename: path.join(file.dir, file.base),
         sourceMaps: true,
+        inlineSourcesContent: false,
         sourceFileName: path.relative(distFilePath, fullFilePath),
 
         ...swcOptions,

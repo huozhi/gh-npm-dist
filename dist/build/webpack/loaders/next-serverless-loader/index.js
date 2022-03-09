@@ -17,7 +17,7 @@ function _interopRequireDefault(obj) {
     };
 }
 const nextServerlessLoader = function() {
-    const { distDir , absolutePagePath , page , buildId , canonicalBase , assetPrefix , absoluteAppPath , absoluteDocumentPath , absoluteErrorPath , absolute404Path , generateEtags , poweredByHeader , basePath , runtimeConfig , previewProps , loadedEnvFiles , i18n ,  } = typeof this.query === 'string' ? (0, _querystring).parse(this.query.substr(1)) : this.query;
+    const { distDir , absolutePagePath , page , buildId , canonicalBase , assetPrefix , absoluteAppPath , absoluteDocumentPath , absoluteErrorPath , absolute404Path , generateEtags , poweredByHeader , basePath , runtimeConfig , previewProps , loadedEnvFiles , i18n , reactRoot ,  } = typeof this.query === 'string' ? (0, _querystring).parse(this.query.substr(1)) : this.query;
     const buildManifest = (0, _path).join(distDir, _constants1.BUILD_MANIFEST).replace(/\\/g, '/');
     const reactLoadableManifest = (0, _path).join(distDir, _constants1.REACT_LOADABLE_MANIFEST).replace(/\\/g, '/');
     const routesManifest = (0, _path).join(distDir, _constants1.ROUTES_MANIFEST).replace(/\\/g, '/');
@@ -129,6 +129,7 @@ const nextServerlessLoader = function() {
         canonicalBase: "${canonicalBase}",
         generateEtags: ${generateEtags || 'false'},
         poweredByHeader: ${poweredByHeader || 'false'},
+        reactRoot: ${reactRoot || 'false'},
 
         runtimeConfig,
         buildManifest,
