@@ -1112,7 +1112,6 @@ function createFlushEffectStream(handleFlushEffect) {
     return createTransformStream({
         async transform (chunk, controller) {
             const extraChunk = await handleFlushEffect();
-            // those should flush together at once
             controller.enqueue(encodeText(extraChunk + decodeText(chunk)));
         }
     });
@@ -1120,9 +1119,26 @@ function createFlushEffectStream(handleFlushEffect) {
 async function renderToStream({ ReactDOMServer , element , suffix , dataStream , generateStaticHTML , flushEffectHandler  }) {
     const closeTag = '</body></html>';
     const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null;
-    const renderStream = await ReactDOMServer.renderToReadableStream(element);
+    let completeCallback;
+    const allComplete = new Promise((resolveError, rejectError)=>{
+        completeCallback = (0, _utils).execOnce((err)=>{
+            if (err) {
+                rejectError(err);
+            } else {
+                resolveError(null);
+            }
+        });
+    });
+    const renderStream = await ReactDOMServer.renderToReadableStream(element, {
+        onError (err) {
+            completeCallback(err);
+        },
+        onCompleteAll () {
+            completeCallback();
+        }
+    });
     if (generateStaticHTML) {
-        await renderStream.allReady;
+        await allComplete;
     }
     const transforms = [
         createBufferedTransformStream(),
@@ -1151,24 +1167,25 @@ function createSuffixStream(suffix) {
 }
 function createPrefixStream(prefix) {
     let prefixFlushed = false;
-    // let prefixFlushPromise: Promise<void> | null = null
+    let prefixPrefixFlushFinished = null;
     return createTransformStream({
         transform (chunk, controller) {
             controller.enqueue(chunk);
             if (!prefixFlushed && prefix) {
                 prefixFlushed = true;
-                controller.enqueue(encodeText(prefix));
-            // if (!prefixFlushPromise) {
-            //   prefixFlushPromise = new Promise((res) => {
-            //     setTimeout(() => {
-            //       res()
-            //     })
-            //   })
-            // }
+                prefixPrefixFlushFinished = new Promise((res)=>{
+                    // NOTE: streaming flush
+                    // Enqueue prefix part before the major chunks are enqueued so that
+                    // prefix won't be flushed too early to interrupt the data stream
+                    setTimeout(()=>{
+                        controller.enqueue(encodeText(prefix));
+                        res();
+                    });
+                });
             }
         },
         flush (controller) {
-            // if (prefixFlushPromise) return prefixFlushPromise
+            if (prefixPrefixFlushFinished) return prefixPrefixFlushFinished;
             if (!prefixFlushed && prefix) {
                 prefixFlushed = true;
                 controller.enqueue(encodeText(prefix));
@@ -1183,6 +1200,7 @@ function createInlineDataStream(dataStream) {
             controller.enqueue(chunk);
             if (!dataStreamFinished) {
                 const dataStreamReader = dataStream.getReader();
+                // NOTE: streaming flush
                 // We are buffering here for the inlined data stream because the
                 // "shell" stream might be chunkenized again by the underlying stream
                 // implementation, e.g. with a specific high-water mark. To ensure it's
