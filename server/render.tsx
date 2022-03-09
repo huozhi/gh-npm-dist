@@ -1801,28 +1801,24 @@ function createPrefixStream(
   prefix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let prefixFlushed = false
-  let prefixFlushPromise: Promise<void> | null = null
+  // let prefixFlushPromise: Promise<void> | null = null
   return createTransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
       if (!prefixFlushed && prefix) {
-        console.log('db: transform with prefix')
         prefixFlushed = true
-        console.log('db: enqueue prefix')
         controller.enqueue(encodeText(prefix))
-        if (!prefixFlushPromise) {
-          console.log('db: create prefix promise')
-          prefixFlushPromise = new Promise((res) => {
-            setTimeout(() => {
-              res()
-            })
-          })
-        }
+        // if (!prefixFlushPromise) {
+        //   prefixFlushPromise = new Promise((res) => {
+        //     setTimeout(() => {
+        //       res()
+        //     })
+        //   })
+        // }
       }
     },
     flush(controller) {
-      console.log('db: flush prefix', !!prefixFlushPromise, prefixFlushed)
-      if (prefixFlushPromise) return prefixFlushPromise
+      // if (prefixFlushPromise) return prefixFlushPromise
       if (!prefixFlushed && prefix) {
         prefixFlushed = true
         controller.enqueue(encodeText(prefix))
