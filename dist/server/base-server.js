@@ -38,6 +38,7 @@ var _isError = _interopRequireWildcard(require("../lib/is-error"));
 var _constants1 = require("../lib/constants");
 var _requestMeta = require("./request-meta");
 var _serverRouteUtils = require("./server-route-utils");
+var _routerUtils = require("./router-utils");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -103,6 +104,7 @@ class Server {
             optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
             fontManifest: this.nextConfig.optimizeFonts && !dev ? this.getFontManifest() : undefined,
             optimizeCss: this.nextConfig.experimental.optimizeCss,
+            nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
             disableOptimizedLoading: this.nextConfig.experimental.runtime ? true : this.nextConfig.experimental.disableOptimizedLoading,
             domainLocales: (ref1 = this.nextConfig.i18n) === null || ref1 === void 0 ? void 0 : ref1.domains,
             distDir: this.distDir,
@@ -187,7 +189,7 @@ class Server {
                 url: (ref = req.url) === null || ref === void 0 ? void 0 : ref.replace(/^\/+/, '/')
             });
             if (url.basePath) {
-                req.url = (0, _router).replaceBasePath(req.url, this.nextConfig.basePath);
+                req.url = (0, _routerUtils).replaceBasePath(req.url, this.nextConfig.basePath);
                 (0, _requestMeta).addRequestMeta(req, '_nextHadBasePath', true);
             }
             if (this.minimalMode && req.headers['x-matched-path'] && typeof req.headers['x-matched-path'] === 'string') {
@@ -698,7 +700,7 @@ class Server {
         // ensure correct status is set when visiting a status page
         // directly e.g. /500
         if (_constants.STATIC_STATUS_PAGES.includes(pathname)) {
-            res.statusCode = parseInt(pathname.substr(1), 10);
+            res.statusCode = parseInt(pathname.slice(1), 10);
         }
         // static pages can only respond to GET/HEAD
         // requests so ensure we respond with 405 for
@@ -724,11 +726,14 @@ class Server {
             delete query.amp;
         }
         if (opts.supportsDynamicHTML === true) {
-            var ref17;
+            var ref17, ref18;
             const isBotRequest = (0, _utils2).isBot(req.headers['user-agent'] || '');
+            const isSupportedDocument = typeof ((ref17 = components.Document) === null || ref17 === void 0 ? void 0 : ref17.getInitialProps) !== 'function' || // When concurrent features is enabled, the built-in `Document`
+            // component also supports dynamic HTML.
+            (this.renderOpts.reactRoot && !!((ref18 = components.Document) === null || ref18 === void 0 ? void 0 : ref18.__next_internal_document));
             // Disable dynamic HTML in cases that we know it won't be generated,
             // so that we can continue generating a cache key when possible.
-            opts.supportsDynamicHTML = !isSSG && !isLikeServerless && !isBotRequest && !query.amp && typeof ((ref17 = components.Document) === null || ref17 === void 0 ? void 0 : ref17.getInitialProps) !== 'function';
+            opts.supportsDynamicHTML = !isSSG && !isLikeServerless && !isBotRequest && !query.amp && isSupportedDocument;
         }
         const defaultLocale = isSSG ? (ref14 = this.nextConfig.i18n) === null || ref14 === void 0 ? void 0 : ref14.defaultLocale : query.__nextDefaultLocale;
         const locale = query.__nextLocale;
@@ -807,6 +812,8 @@ class Server {
                 }
                 return seg;
             }).join('/');
+            // ensure /index and / is normalized to one key
+            ssgCacheKey = ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey;
         }
         const doRender = async ()=>{
             let pageData;
@@ -821,6 +828,7 @@ class Server {
                     locales,
                     defaultLocale,
                     optimizeCss: this.renderOpts.optimizeCss,
+                    nextScriptWorkers: this.renderOpts.nextScriptWorkers,
                     distDir: this.distDir,
                     fontManifest: this.renderOpts.fontManifest,
                     domainLocales: this.renderOpts.domainLocales

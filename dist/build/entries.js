@@ -30,7 +30,7 @@ function getPageFromPath(pagePath, extensions) {
     page = page.replace(/\\/g, '/').replace(/\/index$/, '');
     return page === '' ? '/' : page;
 }
-function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents , globalRuntime  }) {
+function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents  }) {
     const previousPages = {};
     // Do not process .d.ts files inside the `pages` folder
     pagePaths = extensions.includes('ts') ? pagePaths.filter((pagePath)=>!pagePath.endsWith('.d.ts')
@@ -53,7 +53,6 @@ function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents
     // we alias these in development and allow webpack to
     // allow falling back to the correct source file so
     // that HMR can work properly when a file is added/removed
-    const documentPage = `_document${globalRuntime ? '-concurrent' : ''}`;
     if (isDev) {
         pages['/_app'] = `${_constants.PAGES_DIR_ALIAS}/_app`;
         pages['/_error'] = `${_constants.PAGES_DIR_ALIAS}/_error`;
@@ -61,7 +60,7 @@ function createPagesMapping(pagePaths, extensions, { isDev , hasServerComponents
     } else {
         pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app';
         pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error';
-        pages['/_document'] = pages['/_document'] || `next/dist/pages/${documentPage}`;
+        pages['/_document'] = pages['/_document'] || `next/dist/pages/_document`;
     }
     return pages;
 }
@@ -98,7 +97,7 @@ async function getPageRuntime(pageFilePath, globalRuntimeFallback) {
                 const { type , declaration  } = node;
                 if (type === 'ExportDeclaration') {
                     var ref, ref1;
-                    // `export const config`
+                    // Match `export const config`
                     const valueNode = declaration === null || declaration === void 0 ? void 0 : (ref = declaration.declarations) === null || ref === void 0 ? void 0 : ref[0];
                     if ((valueNode === null || valueNode === void 0 ? void 0 : (ref1 = valueNode.id) === null || ref1 === void 0 ? void 0 : ref1.value) === 'config') {
                         var ref2;
@@ -108,11 +107,22 @@ async function getPageRuntime(pageFilePath, globalRuntimeFallback) {
                         const runtime = runtimeKeyValue === null || runtimeKeyValue === void 0 ? void 0 : (ref2 = runtimeKeyValue.value) === null || ref2 === void 0 ? void 0 : ref2.value;
                         pageRuntime = runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime;
                     } else if ((declaration === null || declaration === void 0 ? void 0 : declaration.type) === 'FunctionDeclaration') {
-                        var ref3, ref4;
-                        // `export function getStaticProps` and
-                        // `export function getServerSideProps`
-                        if (((ref3 = declaration.identifier) === null || ref3 === void 0 ? void 0 : ref3.value) === 'getStaticProps' || ((ref4 = declaration.identifier) === null || ref4 === void 0 ? void 0 : ref4.value) === 'getServerSideProps') {
+                        var ref3;
+                        // Match `export function getStaticProps | getServerSideProps`
+                        const identifier = (ref3 = declaration.identifier) === null || ref3 === void 0 ? void 0 : ref3.value;
+                        if (identifier === 'getStaticProps' || identifier === 'getServerSideProps') {
                             isRuntimeRequired = true;
+                        }
+                    }
+                } else if (type === 'ExportNamedDeclaration') {
+                    // Match `export { getStaticProps | getServerSideProps } <from '../..'>`
+                    const { specifiers  } = node;
+                    for (const specifier of specifiers){
+                        const { orig  } = specifier;
+                        const hasDataFetchingExports = specifier.type === 'ExportSpecifier' && (orig === null || orig === void 0 ? void 0 : orig.type) === 'Identifier' && ((orig === null || orig === void 0 ? void 0 : orig.value) === 'getStaticProps' || (orig === null || orig === void 0 ? void 0 : orig.value) === 'getServerSideProps');
+                        if (hasDataFetchingExports) {
+                            isRuntimeRequired = true;
+                            break;
                         }
                     }
                 }
@@ -121,9 +131,6 @@ async function getPageRuntime(pageFilePath, globalRuntimeFallback) {
     }
     if (!pageRuntime) {
         if (isRuntimeRequired) {
-            pageRuntime = globalRuntimeFallback;
-        } else {
-            // @TODO: Remove this branch to fully implement the RFC.
             pageRuntime = globalRuntimeFallback;
         }
     }

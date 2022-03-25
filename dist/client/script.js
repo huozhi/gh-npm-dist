@@ -141,6 +141,9 @@ const loadScript = (props)=>{
         const attr = _headManager.DOMAttributeNames[k] || k.toLowerCase();
         el.setAttribute(attr, value);
     }
+    if (strategy === 'worker') {
+        el.setAttribute('type', 'text/partytown');
+    }
     el.setAttribute('data-nscript', strategy);
     document.body.appendChild(el);
 };
@@ -189,9 +192,9 @@ function Script(props) {
         props,
         strategy
     ]);
-    if (strategy === 'beforeInteractive') {
+    if (strategy === 'beforeInteractive' || strategy === 'worker') {
         if (updateScripts) {
-            scripts.beforeInteractive = (scripts.beforeInteractive || []).concat([
+            scripts[strategy] = (scripts[strategy] || []).concat([
                 _objectSpread({
                     src,
                     onLoad,

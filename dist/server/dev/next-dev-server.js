@@ -18,11 +18,13 @@ var _fileExists = require("../../lib/file-exists");
 var _findPagesDir = require("../../lib/find-pages-dir");
 var _loadCustomRoutes = _interopRequireDefault(require("../../lib/load-custom-routes"));
 var _verifyTypeScriptSetup = require("../../lib/verifyTypeScriptSetup");
+var _verifyPartytownSetup = require("../../lib/verify-partytown-setup");
 var _constants1 = require("../../shared/lib/constants");
 var _utils = require("../../shared/lib/router/utils");
 var _nextServer = _interopRequireWildcard(require("../next-server"));
 var _normalizePagePath = require("../normalize-page-path");
 var _router = _interopRequireWildcard(require("../router"));
+var _routerUtils = require("../router-utils");
 var _events = require("../../telemetry/events");
 var _storage = require("../../telemetry/storage");
 var _trace = require("../../trace");
@@ -291,6 +293,9 @@ class DevServer extends _nextServer.default {
         await this.hotReloader.start();
         await this.startWatcher();
         this.setDevReady();
+        if (this.nextConfig.experimental.nextScriptWorkers) {
+            await (0, _verifyPartytownSetup).verifyPartytownSetup(this.dir, (0, _path).join(this.distDir, _constants1.CLIENT_STATIC_FILES_PATH));
+        }
         const telemetry = new _storage.Telemetry({
             distDir: this.distDir
         });
@@ -415,11 +420,11 @@ class DevServer extends _nextServer.default {
         this.setupWebSocketHandler(undefined, req);
         const { basePath  } = this.nextConfig;
         let originalPathname = null;
-        if (basePath && (0, _router).hasBasePath(parsedUrl.pathname || '/', basePath)) {
+        if (basePath && (0, _routerUtils).hasBasePath(parsedUrl.pathname || '/', basePath)) {
             // strip basePath before handling dev bundles
             // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
             originalPathname = parsedUrl.pathname;
-            parsedUrl.pathname = (0, _router).replaceBasePath(parsedUrl.pathname || '/', basePath);
+            parsedUrl.pathname = (0, _routerUtils).replaceBasePath(parsedUrl.pathname || '/', basePath);
         }
         const { pathname  } = parsedUrl;
         if (pathname.startsWith('/_next')) {
@@ -682,9 +687,7 @@ class DevServer extends _nextServer.default {
         // Build the error page to ensure the fallback is built too.
         // TODO: See if this can be moved into hotReloader or removed.
         await this.hotReloader.ensurePage('/_error');
-        return await (0, _loadComponents).loadDefaultErrorComponents(this.distDir, {
-            hasConcurrentFeatures: !!this.renderOpts.runtime
-        });
+        return await (0, _loadComponents).loadDefaultErrorComponents(this.distDir);
     }
     setImmutableAssetCacheControl(res) {
         res.setHeader('Cache-Control', 'no-store, must-revalidate');

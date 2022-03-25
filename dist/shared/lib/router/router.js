@@ -68,7 +68,7 @@ function addPathPrefix(path, prefix) {
         return path;
     }
     const pathname = pathNoQueryHash(path);
-    return (0, _normalizeTrailingSlash).normalizePathTrailingSlash(`${prefix}${pathname}`) + path.substr(pathname.length);
+    return (0, _normalizeTrailingSlash).normalizePathTrailingSlash(`${prefix}${pathname}`) + path.slice(pathname.length);
 }
 function getDomainLocale(path, locale, locales, domainLocales) {
     if (process.env.__NEXT_I18N_SUPPORT) {
@@ -96,7 +96,7 @@ function delLocale(path, locale) {
         const pathname = pathNoQueryHash(path);
         const pathLower = pathname.toLowerCase();
         const localeLower = locale && locale.toLowerCase();
-        return locale && (pathLower.startsWith('/' + localeLower + '/') || pathLower === '/' + localeLower) ? (pathname.length === locale.length + 1 ? '/' : '') + path.substr(locale.length + 1) : path;
+        return locale && (pathLower.startsWith('/' + localeLower + '/') || pathLower === '/' + localeLower) ? (pathname.length === locale.length + 1 ? '/' : '') + path.slice(locale.length + 1) : path;
     }
     return path;
 }
@@ -189,7 +189,7 @@ function resolveHref(router, href, resolveAs) {
     // repeated slashes and backslashes in the URL are considered
     // invalid and will never match a Next.js page/file
     const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//);
-    const urlAsStringNoProto = urlProtoMatch ? urlAsString.substr(urlProtoMatch[0].length) : urlAsString;
+    const urlAsStringNoProto = urlProtoMatch ? urlAsString.slice(urlProtoMatch[0].length) : urlAsString;
     const urlParts = urlAsStringNoProto.split('?');
     if ((urlParts[0] || '').match(/(\/\/|\\)/)) {
         console.error(`Invalid href passed to next/router: ${urlAsString}, repeated forward-slashes (//) or backslashes \\ are not valid in the href`);
@@ -468,7 +468,7 @@ class Router {
         if (typeof window !== 'undefined') {
             // make sure "as" doesn't start with double slashes or else it can
             // throw an error as it's considered invalid
-            if (as1.substr(0, 2) !== '//') {
+            if (!as1.startsWith('//')) {
                 // in order for `e.state` to work on the `onpopstate` event
                 // we have to register the initial route upon initialization
                 const options = {

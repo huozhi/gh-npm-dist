@@ -48,7 +48,8 @@ function getFilesMapFromReasons(fileList, reasons, ignoreFn) {
     }
     for (const file1 of fileList){
         const reason = reasons.get(file1);
-        if (!reason || !reason.parents || reason.type === 'initial' && reason.parents.size === 0) {
+        const isInitial = (reason === null || reason === void 0 ? void 0 : reason.type.length) === 1 && reason.type.includes('initial');
+        if (!reason || !reason.parents || isInitial && reason.parents.size === 0) {
             continue;
         }
         propagateToParents(reason.parents, file1);
@@ -251,9 +252,14 @@ class TraceEntryPointsPlugin {
                 });
                 await finishModulesSpan.traceChild('collect-traced-files').traceAsyncFn(()=>{
                     const parentFilesMap = getFilesMapFromReasons(fileList, reasons, (file)=>{
+                        var ref;
+                        // if a file was imported and a loader handled it
+                        // we don't include it in the trace e.g.
+                        // static image imports, CSS imports
                         file = _path.default.join(this.tracingRoot, file);
                         const depMod = depModMap.get(file);
-                        return Array.isArray(depMod === null || depMod === void 0 ? void 0 : depMod.loaders) && depMod.loaders.length > 0;
+                        const isAsset = (ref = reasons.get(_path.default.relative(this.tracingRoot, file))) === null || ref === void 0 ? void 0 : ref.type.includes('asset');
+                        return !isAsset && Array.isArray(depMod === null || depMod === void 0 ? void 0 : depMod.loaders) && depMod.loaders.length > 0;
                     });
                     entryPaths.forEach((entry)=>{
                         var ref;
@@ -361,12 +367,12 @@ class TraceEntryPointsPlugin {
                                         let requestPath = result.replace(/\\/g, '/').replace(/\0/g, '');
                                         if (!_path.default.isAbsolute(request) && request.includes('/') && (resContext === null || resContext === void 0 ? void 0 : resContext.descriptionFileRoot)) {
                                             var ref;
-                                            requestPath = (resContext.descriptionFileRoot + request.substr(((ref = getPkgName(request)) === null || ref === void 0 ? void 0 : ref.length) || 0) + _path.default.sep + 'package.json').replace(/\\/g, '/').replace(/\0/g, '');
+                                            requestPath = (resContext.descriptionFileRoot + request.slice(((ref = getPkgName(request)) === null || ref === void 0 ? void 0 : ref.length) || 0) + _path.default.sep + 'package.json').replace(/\\/g, '/').replace(/\0/g, '');
                                         }
                                         const rootSeparatorIndex = requestPath.indexOf('/');
                                         let separatorIndex;
                                         while((separatorIndex = requestPath.lastIndexOf('/')) > rootSeparatorIndex){
-                                            requestPath = requestPath.substr(0, separatorIndex);
+                                            requestPath = requestPath.slice(0, separatorIndex);
                                             const curPackageJsonPath = `${requestPath}/package.json`;
                                             if (await job.isFile(curPackageJsonPath)) {
                                                 await job.emitFile(curPackageJsonPath, 'resolve', parent);

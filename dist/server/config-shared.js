@@ -80,6 +80,7 @@ const defaultConfig = {
         workerThreads: false,
         pageEnv: false,
         optimizeCss: false,
+        nextScriptWorkers: false,
         scrollRestoration: false,
         externalDir: false,
         reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
@@ -93,7 +94,10 @@ const defaultConfig = {
         serverComponents: false,
         fullySpecified: false,
         outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-        outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE
+        outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
+        images: {
+            layoutRaw: false
+        }
     }
 };
 exports.defaultConfig = defaultConfig;

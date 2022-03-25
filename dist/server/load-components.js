@@ -8,8 +8,8 @@ var _constants = require("../shared/lib/constants");
 var _path = require("path");
 var _require = require("./require");
 var _interopDefault = require("../lib/interop-default");
-async function loadDefaultErrorComponents(distDir, { hasConcurrentFeatures  }) {
-    const Document = (0, _interopDefault).interopDefault(require(`next/dist/pages/_document` + (hasConcurrentFeatures ? '-concurrent' : '')));
+async function loadDefaultErrorComponents(distDir) {
+    const Document = (0, _interopDefault).interopDefault(require('next/dist/pages/_document'));
     const AppMod = require('next/dist/pages/_app');
     const App = (0, _interopDefault).interopDefault(AppMod);
     const ComponentMod = require('next/dist/pages/_error');
@@ -25,7 +25,7 @@ async function loadDefaultErrorComponents(distDir, { hasConcurrentFeatures  }) {
         AppMod
     };
 }
-async function loadComponents(distDir, pathname, serverless) {
+async function loadComponents(distDir, pathname, serverless, serverComponents) {
     if (serverless) {
         const ComponentMod = await (0, _require).requirePage(pathname, distDir, serverless);
         if (typeof ComponentMod === 'string') {
@@ -55,9 +55,10 @@ async function loadComponents(distDir, pathname, serverless) {
         (0, _require).requirePage('/_app', distDir, serverless),
         (0, _require).requirePage(pathname, distDir, serverless), 
     ]);
-    const [buildManifest, reactLoadableManifest] = await Promise.all([
+    const [buildManifest, reactLoadableManifest, serverComponentManifest] = await Promise.all([
         require((0, _path).join(distDir, _constants.BUILD_MANIFEST)),
-        require((0, _path).join(distDir, _constants.REACT_LOADABLE_MANIFEST)), 
+        require((0, _path).join(distDir, _constants.REACT_LOADABLE_MANIFEST)),
+        serverComponents ? require((0, _path).join(distDir, 'server', _constants.MIDDLEWARE_FLIGHT_MANIFEST + '.json')) : null, 
     ]);
     const Component = (0, _interopDefault).interopDefault(ComponentMod);
     const Document = (0, _interopDefault).interopDefault(DocumentMod);
@@ -74,7 +75,8 @@ async function loadComponents(distDir, pathname, serverless) {
         AppMod,
         getServerSideProps,
         getStaticProps,
-        getStaticPaths
+        getStaticPaths,
+        serverComponentManifest
     };
 }
 

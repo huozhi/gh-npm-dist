@@ -515,7 +515,7 @@ async function buildStaticPaths(page, getStaticPaths, configFileName, locales, d
             const localePathResult = (0, _normalizeLocalePath).normalizeLocalePath(entry, locales);
             let cleanedEntry = entry;
             if (localePathResult.detectedLocale) {
-                cleanedEntry = entry.substr(localePathResult.detectedLocale.length + 1);
+                cleanedEntry = entry.slice(localePathResult.detectedLocale.length + 1);
             } else if (defaultLocale) {
                 entry = `/${defaultLocale}${entry}`;
             }

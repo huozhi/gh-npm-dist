@@ -37,24 +37,37 @@ class ReadableStream {
         };
         const pull = ()=>{
             if (opts.pull) {
-                if (!pullPromise) {
+                const shouldPull = controller1.desiredSize !== null && controller1.desiredSize > 0;
+                if (!pullPromise && shouldPull) {
                     pullPromise = Promise.resolve().then(()=>{
                         pullPromise = 0;
                         opts.pull(controller1);
                     });
+                    return pullPromise;
                 }
             }
+            return Promise.resolve();
         };
-        if (opts.start) {
-            opts.start(controller1);
-        }
         if (opts.cancel) {
             readable.cancel = (reason)=>{
                 opts.cancel(reason);
                 return readable.cancel(reason);
             };
         }
-        pull();
+        function registerPull() {
+            const getReader = readable.getReader.bind(readable);
+            readable.getReader = ()=>{
+                pull();
+                return getReader();
+            };
+        }
+        const started = opts.start && opts.start(controller1);
+        if (started && typeof started.then === 'function') {
+            started.then(()=>registerPull()
+            );
+        } else {
+            registerPull();
+        }
         return readable;
     }
 }

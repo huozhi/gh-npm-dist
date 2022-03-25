@@ -21,8 +21,8 @@ Object.defineProperty(exports, "normalizeConfig", {
         return _configShared.normalizeConfig;
     }
 });
-exports.shouldUseReactRoot = shouldUseReactRoot;
 exports.setHttpAgentOptions = setHttpAgentOptions;
+exports.shouldUseReactRoot = void 0;
 var _path = require("path");
 var _url = require("url");
 var _http = require("http");
@@ -492,13 +492,14 @@ function assignDefaults(userConfig) {
     }
     return result;
 }
-function shouldUseReactRoot() {
+const shouldUseReactRoot = (0, _utils).execOnce(()=>{
     var ref;
     const reactDomVersion = require('react-dom').version;
     const isReactExperimental = Boolean(reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion));
     const hasReact18 = Boolean(reactDomVersion) && (_semver.default.gte(reactDomVersion, '18.0.0') || ((ref = _semver.default.coerce(reactDomVersion)) === null || ref === void 0 ? void 0 : ref.version) === '18.0.0');
     return hasReact18 || isReactExperimental;
-}
+});
+exports.shouldUseReactRoot = shouldUseReactRoot;
 function setHttpAgentOptions(options) {
     if (global.__NEXT_HTTP_AGENT) {
         // We only need to assign once because we want

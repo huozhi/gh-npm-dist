@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.streamToIterator = streamToIterator;
-exports.readableStreamTee = readableStreamTee;
 exports.notImplemented = notImplemented;
 exports.fromNodeHeaders = fromNodeHeaders;
 exports.toNodeHeaders = toNodeHeaders;
@@ -19,30 +18,6 @@ async function* streamToIterator(readable) {
         }
     }
     reader.releaseLock();
-}
-function readableStreamTee(readable) {
-    const transformStream = new TransformStream();
-    const transformStream2 = new TransformStream();
-    const writer = transformStream.writable.getWriter();
-    const writer2 = transformStream2.writable.getWriter();
-    const reader = readable.getReader();
-    function read() {
-        reader.read().then(({ done , value  })=>{
-            if (done) {
-                writer.close();
-                writer2.close();
-                return;
-            }
-            writer.write(value);
-            writer2.write(value);
-            read();
-        });
-    }
-    read();
-    return [
-        transformStream.readable,
-        transformStream2.readable
-    ];
 }
 function notImplemented(name, method) {
     throw new Error(`Failed to get the '${method}' property on '${name}': the property is not implemented`);

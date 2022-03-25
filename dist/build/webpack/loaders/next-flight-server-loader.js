@@ -5,6 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = transformSource;
 var _swc = require("../../swc");
 var _utils = require("../../utils");
+var _utils1 = require("./utils");
 async function transformSource(source) {
     const { client: isClientCompilation , pageExtensions  } = this.getOptions();
     const { resourcePath , resourceQuery  } = this;
@@ -26,7 +27,7 @@ async function transformSource(source) {
             return source;
         }
     }
-    const { source: transformedSource , imports  } = await parseImportsInfo({
+    const { source: transformedSource , imports , isEsm ,  } = await parseModuleInfo({
         resourcePath,
         source,
         isClientCompilation,
@@ -43,14 +44,17 @@ async function transformSource(source) {
    * Client compilation output:
    *   (The content of the Server Component module will be removed.)
    *   export const __next_rsc__ = { __webpack_require__, _: () => { ... } }
-   */ let rscExports = `export const __next_rsc__={
-    __webpack_require__,
-    _: () => {${imports}}
-  }`;
+   */ const rscExports = {
+        __next_rsc__: `{
+      __webpack_require__,
+      _: () => {\n${imports}\n}
+    }`
+    };
     if (isClientCompilation) {
-        rscExports += '\nexport default function RSC () {}';
+        rscExports['default'] = 'function RSC() {}';
     }
-    return transformedSource + '\n' + rscExports;
+    const output = transformedSource + '\n' + (0, _utils1).buildExports(rscExports, isEsm);
+    return output;
 }
 const imageExtensions = [
     'jpg',
@@ -73,7 +77,7 @@ const createServerComponentFilter = (pageExtensions)=>{
     return (importSource)=>regex.test(importSource)
     ;
 };
-async function parseImportsInfo({ resourcePath , source , isClientCompilation , isServerComponent , isClientComponent  }) {
+async function parseModuleInfo({ resourcePath , source , isClientCompilation , isServerComponent , isClientComponent  }) {
     const ast = await (0, _swc).parse(source, {
         filename: resourcePath,
         isModule: true
@@ -82,8 +86,10 @@ async function parseImportsInfo({ resourcePath , source , isClientCompilation , 
     let transformedSource = '';
     let lastIndex = 0;
     let imports = '';
+    let isEsm = false;
     for(let i = 0; i < body.length; i++){
         const node = body[i];
+        isEsm = isEsm || (0, _utils1).isEsmNodeType(node.type);
         switch(node.type){
             case 'ImportDeclaration':
                 {
@@ -140,7 +146,8 @@ async function parseImportsInfo({ resourcePath , source , isClientCompilation , 
     }
     return {
         source: transformedSource,
-        imports
+        imports,
+        isEsm
     };
 }
 

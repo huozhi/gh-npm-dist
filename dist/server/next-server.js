@@ -98,6 +98,9 @@ class NextNodeServer extends _baseServer.default {
         if (this.renderOpts.optimizeCss) {
             process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true);
         }
+        if (this.renderOpts.nextScriptWorkers) {
+            process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true);
+        }
         if (!this.minimalMode) {
             const { ImageOptimizerCache  } = require('./image-optimizer');
             this.imageResponseCache = new _responseCache.default(new ImageOptimizerCache({
@@ -392,8 +395,8 @@ class NextNodeServer extends _baseServer.default {
         }
         await (0, _node1).apiResolver(req.originalRequest, res.originalResponse, query, pageModule, {
             ...this.renderOpts.previewProps,
-            port: this.port,
-            hostname: this.hostname,
+            revalidate: (newReq, newRes)=>this.getRequestHandler()(new _node.NodeNextRequest(newReq), new _node.NodeNextResponse(newRes))
+            ,
             // internal config so is not typed
             trustHostHeader: this.nextConfig.experimental.trustHostHeader
         }, this.minimalMode, this.renderOpts.dev, page);
@@ -463,7 +466,7 @@ class NextNodeServer extends _baseServer.default {
         return (0, _require).requireFontManifest(this.distDir, this._isLikeServerless);
     }
     getServerComponentManifest() {
-        if (!this.nextConfig.experimental.runtime) return undefined;
+        if (!this.nextConfig.experimental.serverComponents) return undefined;
         return require((0, _path).join(this.distDir, 'server', _constants.MIDDLEWARE_FLIGHT_MANIFEST + '.json'));
     }
     getCacheFilesystem() {

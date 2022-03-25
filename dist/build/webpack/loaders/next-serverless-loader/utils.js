@@ -170,7 +170,7 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
                 } else {
                     paramValue = params[param] && encodeURIComponent(params[param]);
                 }
-                pathname = pathname.substr(0, paramIdx) + (paramValue || '') + pathname.substr(paramIdx + builtParam.length);
+                pathname = pathname.slice(0, paramIdx) + (paramValue || '') + pathname.slice(paramIdx + builtParam.length);
             }
         }
         return pathname;

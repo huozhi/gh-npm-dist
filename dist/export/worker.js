@@ -22,7 +22,7 @@ var _amp = require("../shared/lib/amp");
 var _config = require("../server/config");
 var _renderResult = _interopRequireDefault(require("../server/render-result"));
 var _isError = _interopRequireDefault(require("../lib/is-error"));
-async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , pagesDataDir , renderOpts , buildExport , serverRuntimeConfig , subFolders , serverless , optimizeFonts , optimizeCss , disableOptimizedLoading , httpAgentOptions  }) {
+async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , pagesDataDir , renderOpts , buildExport , serverRuntimeConfig , subFolders , serverless , optimizeFonts , optimizeCss , disableOptimizedLoading , httpAgentOptions , serverComponents  }) {
     (0, _config).setHttpAgentOptions(httpAgentOptions);
     const exportPageSpan = (0, _trace).trace('export-page-worker', parentSpanId);
     return exportPageSpan.traceAsyncFn(async ()=>{
@@ -150,7 +150,7 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
                         ...query
                     }
                 });
-                const { Component , ComponentMod , getServerSideProps , getStaticProps , pageConfig ,  } = await (0, _loadComponents).loadComponents(distDir, page, serverless);
+                const { Component , ComponentMod , getServerSideProps , getStaticProps , pageConfig ,  } = await (0, _loadComponents).loadComponents(distDir, page, serverless, serverComponents);
                 const ampState = {
                     ampFirst: (pageConfig === null || pageConfig === void 0 ? void 0 : pageConfig.amp) === true,
                     hasQuery: Boolean(query.amp),
@@ -199,7 +199,7 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
                 }
             } else {
                 var ref1, ref2;
-                const components = await (0, _loadComponents).loadComponents(distDir, page, serverless);
+                const components = await (0, _loadComponents).loadComponents(distDir, page, serverless, serverComponents);
                 const ampState = {
                     ampFirst: ((ref1 = components.pageConfig) === null || ref1 === void 0 ? void 0 : ref1.amp) === true,
                     hasQuery: Boolean(query.amp),

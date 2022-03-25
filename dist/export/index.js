@@ -187,6 +187,7 @@ async function exportApp(dir, options, span, configuration) {
             runtime: nextConfig.experimental.runtime,
             crossOrigin: nextConfig.crossOrigin,
             optimizeCss: nextConfig.experimental.optimizeCss,
+            nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
             optimizeFonts: nextConfig.optimizeFonts,
             reactRoot: nextConfig.experimental.reactRoot || false
         };
@@ -321,7 +322,8 @@ async function exportApp(dir, options, span, configuration) {
                     optimizeCss: nextConfig.experimental.optimizeCss,
                     disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
                     parentSpanId: pageExportSpan.id,
-                    httpAgentOptions: nextConfig.httpAgentOptions
+                    httpAgentOptions: nextConfig.httpAgentOptions,
+                    serverComponents: nextConfig.experimental.serverComponents
                 });
                 for (const validation of result.ampValidations || []){
                     const { page , result: ampValidationResult  } = validation;
@@ -361,7 +363,7 @@ async function exportApp(dir, options, span, configuration) {
                 const pagePath = (0, _require).getPagePath(pageName, distDir, isLikeServerless);
                 const distPagesDir = (0, _path).join(pagePath, // strip leading / and then recurse number of nested dirs
                 // to place from base folder
-                pageName.substr(1).split('/').map(()=>'..'
+                pageName.slice(1).split('/').map(()=>'..'
                 ).join('/'));
                 const orig = (0, _path).join(distPagesDir, route);
                 const htmlDest = (0, _path).join(outDir, `${route}${subFolders && route !== '/index' ? `${_path.sep}index` : ''}.html`);

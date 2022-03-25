@@ -69,7 +69,7 @@ function _tryApplyUpdates() {
             const curPage = page === '/' ? 'index' : page;
             // webpack 5 uses an array instead
             const pageUpdated = (Array.isArray(jsonData.c) ? jsonData.c : Object.keys(jsonData.c)).some((mod)=>{
-                return mod.indexOf(`pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`) !== -1 || mod.indexOf(`pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`.replace(/\//g, '\\')) !== -1;
+                return mod.indexOf(`pages${curPage.startsWith('/') ? curPage : `/${curPage}`}`) !== -1 || mod.indexOf(`pages${curPage.startsWith('/') ? curPage : `/${curPage}`}`.replace(/\//g, '\\')) !== -1;
             });
             if (pageUpdated) {
                 document.location.reload(true);

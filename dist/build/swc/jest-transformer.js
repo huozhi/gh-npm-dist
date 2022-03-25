@@ -13,9 +13,6 @@ const isSupportEsm = 'Module' in _vm.default;
 module.exports = {
     createTransformer: (inputOptions)=>({
             process (src, filename, jestOptions) {
-                if (!/\.[jt]sx?$/.test(filename)) {
-                    return src;
-                }
                 const jestConfig = getJestConfig(jestOptions);
                 let swcTransformOpts = (0, _options).getJestSWCOptions({
                     // When target is node it's similar to the server option set in SWC.

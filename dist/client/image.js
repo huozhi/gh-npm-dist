@@ -11,7 +11,7 @@ var _imageConfigContext = require("../shared/lib/image-config-context");
 var _utils = require("../shared/lib/utils");
 var _normalizeTrailingSlash = require("./normalize-trailing-slash");
 function Image(_param) {
-    var { src , sizes , unoptimized =false , priority =false , loading , lazyRoot =null , lazyBoundary ='200px' , className , quality , width , height , objectFit , objectPosition , onLoadingComplete , loader =defaultImageLoader , placeholder ='empty' , blurDataURL  } = _param, all = _objectWithoutProperties(_param, [
+    var { src , sizes , unoptimized =false , priority =false , loading , lazyRoot =null , lazyBoundary ='200px' , className , quality , width , height , style , objectFit , objectPosition , onLoadingComplete , loader =defaultImageLoader , placeholder ='empty' , blurDataURL  } = _param, all = _objectWithoutProperties(_param, [
         "src",
         "sizes",
         "unoptimized",
@@ -23,6 +23,7 @@ function Image(_param) {
         "quality",
         "width",
         "height",
+        "style",
         "objectFit",
         "objectPosition",
         "onLoadingComplete",
@@ -30,7 +31,6 @@ function Image(_param) {
         "placeholder",
         "blurDataURL"
     ]);
-    const imgRef = (0, _react).useRef(null);
     const configContext = (0, _react).useContext(_imageConfigContext.ImageConfigContext);
     const config = (0, _react).useMemo(()=>{
         const c = configEnv || configContext || _imageConfig.imageConfigDefault;
@@ -85,92 +85,6 @@ function Image(_param) {
     if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
         isLazy = false;
     }
-    if (process.env.NODE_ENV !== 'production') {
-        if (!src) {
-            throw new Error(`Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify({
-                width,
-                height,
-                quality
-            })}`);
-        }
-        if (!VALID_LAYOUT_VALUES.includes(layout)) {
-            throw new Error(`Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(String).join(',')}.`);
-        }
-        if (typeof widthInt !== 'undefined' && isNaN(widthInt) || typeof heightInt !== 'undefined' && isNaN(heightInt)) {
-            throw new Error(`Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`);
-        }
-        if (layout === 'fill' && (width || height)) {
-            (0, _utils).warnOnce(`Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`);
-        }
-        if (!VALID_LOADING_VALUES.includes(loading)) {
-            throw new Error(`Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(String).join(',')}.`);
-        }
-        if (priority && loading === 'lazy') {
-            throw new Error(`Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`);
-        }
-        if (sizes && layout !== 'fill' && layout !== 'responsive') {
-            (0, _utils).warnOnce(`Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'".`);
-        }
-        if (placeholder === 'blur') {
-            if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
-                (0, _utils).warnOnce(`Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`);
-            }
-            if (!blurDataURL) {
-                const VALID_BLUR_EXT = [
-                    'jpeg',
-                    'png',
-                    'webp',
-                    'avif'
-                ] // should match next-image-loader
-                ;
-                throw new Error(`Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
-          Possible solutions:
-            - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
-            - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(',')}
-            - Remove the "placeholder" property, effectively no blur effect
-          Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`);
-            }
-        }
-        if ('ref' in rest) {
-            (0, _utils).warnOnce(`Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`);
-        }
-        if ('style' in rest) {
-            (0, _utils).warnOnce(`Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`);
-        }
-        if (!unoptimized && loader !== defaultImageLoader) {
-            const urlStr = loader({
-                config,
-                src,
-                width: widthInt || 400,
-                quality: qualityInt || 75
-            });
-            let url;
-            try {
-                url = new URL(urlStr);
-            } catch (err) {}
-            if (urlStr === src || url && url.pathname === src && !url.search) {
-                (0, _utils).warnOnce(`Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` + `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`);
-            }
-        }
-        if (typeof window !== 'undefined' && !perfObserver && window.PerformanceObserver) {
-            perfObserver = new PerformanceObserver((entryList)=>{
-                for (const entry of entryList.getEntries()){
-                    var ref;
-                    // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
-                    const imgSrc = (entry === null || entry === void 0 ? void 0 : (ref = entry.element) === null || ref === void 0 ? void 0 : ref.src) || '';
-                    const lcpImage = allImgs.get(imgSrc);
-                    if (lcpImage && !lcpImage.priority && lcpImage.placeholder !== 'blur' && !lcpImage.src.startsWith('data:') && !lcpImage.src.startsWith('blob:')) {
-                        // https://web.dev/lcp/#measure-lcp-in-javascript
-                        (0, _utils).warnOnce(`Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` + `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`);
-                    }
-                }
-            });
-            perfObserver.observe({
-                type: 'largest-contentful-paint',
-                buffered: true
-            });
-        }
-    }
     const [setIntersection, isIntersected] = (0, _useIntersection).useIntersection({
         rootRef: lazyRoot,
         rootMargin: lazyBoundary,
@@ -202,7 +116,7 @@ function Image(_param) {
     };
     let hasSizer = false;
     let sizerSvgUrl;
-    const imgStyle = {
+    const layoutStyle = {
         position: 'absolute',
         top: 0,
         left: 0,
@@ -222,6 +136,111 @@ function Image(_param) {
         objectFit,
         objectPosition
     };
+    if (process.env.NODE_ENV !== 'production' && layout !== 'raw' && style) {}
+    if (process.env.NODE_ENV !== 'production') {
+        if (!src) {
+            throw new Error(`Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify({
+                width,
+                height,
+                quality
+            })}`);
+        }
+        if (!VALID_LAYOUT_VALUES.includes(layout)) {
+            throw new Error(`Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(String).join(',')}.`);
+        }
+        if (layout === 'raw' && !experimentalLayoutRaw) {
+            throw new Error(`The "raw" layout is currently experimental and may be subject to breaking changes. To use layout="raw", include \`experimental: { images: { layoutRaw: true } }\` in your next.config.js file.`);
+        }
+        if (typeof widthInt !== 'undefined' && isNaN(widthInt) || typeof heightInt !== 'undefined' && isNaN(heightInt)) {
+            throw new Error(`Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`);
+        }
+        if (layout === 'fill' && (width || height)) {
+            (0, _utils).warnOnce(`Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`);
+        }
+        if (!VALID_LOADING_VALUES.includes(loading)) {
+            throw new Error(`Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(String).join(',')}.`);
+        }
+        if (priority && loading === 'lazy') {
+            throw new Error(`Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`);
+        }
+        if (layout === 'raw' && (objectFit || objectPosition)) {
+            throw new Error(`Image with src "${src}" has "layout='raw'" and 'objectFit' or 'objectPosition'. For raw images, these and other styles should be specified using the 'style' attribute.`);
+        }
+        if (sizes && layout !== 'fill' && layout !== 'responsive' && layout !== 'raw') {
+            (0, _utils).warnOnce(`Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'", "layout='responsive'", or "layout='raw'`);
+        }
+        if (placeholder === 'blur') {
+            if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
+                (0, _utils).warnOnce(`Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`);
+            }
+            if (!blurDataURL) {
+                const VALID_BLUR_EXT = [
+                    'jpeg',
+                    'png',
+                    'webp',
+                    'avif'
+                ] // should match next-image-loader
+                ;
+                throw new Error(`Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
+          Possible solutions:
+            - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
+            - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(',')}
+            - Remove the "placeholder" property, effectively no blur effect
+          Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`);
+            }
+        }
+        if ('ref' in rest) {
+            (0, _utils).warnOnce(`Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`);
+        }
+        if (!unoptimized && loader !== defaultImageLoader) {
+            const urlStr = loader({
+                config,
+                src,
+                width: widthInt || 400,
+                quality: qualityInt || 75
+            });
+            let url;
+            try {
+                url = new URL(urlStr);
+            } catch (err) {}
+            if (urlStr === src || url && url.pathname === src && !url.search) {
+                (0, _utils).warnOnce(`Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` + `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`);
+            }
+        }
+        if (style && layout !== 'raw') {
+            let overwrittenStyles = Object.keys(style).filter((key)=>key in layoutStyle
+            );
+            if (overwrittenStyles.length) {
+                (0, _utils).warnOnce(`Image with src ${src} is assigned the following styles, which are overwritten by automatically-generated styles: ${overwrittenStyles.join(', ')}`);
+            }
+        }
+        if (typeof window !== 'undefined' && !perfObserver && window.PerformanceObserver) {
+            perfObserver = new PerformanceObserver((entryList)=>{
+                for (const entry of entryList.getEntries()){
+                    var ref1;
+                    // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
+                    const imgSrc = (entry === null || entry === void 0 ? void 0 : (ref1 = entry.element) === null || ref1 === void 0 ? void 0 : ref1.src) || '';
+                    const lcpImage = allImgs.get(imgSrc);
+                    if (lcpImage && !lcpImage.priority && lcpImage.placeholder !== 'blur' && !lcpImage.src.startsWith('data:') && !lcpImage.src.startsWith('blob:')) {
+                        // https://web.dev/lcp/#measure-lcp-in-javascript
+                        (0, _utils).warnOnce(`Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` + `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`);
+                    }
+                }
+            });
+            try {
+                perfObserver.observe({
+                    type: 'largest-contentful-paint',
+                    buffered: true
+                });
+            } catch (err) {
+                // Log error but don't crash the app
+                console.error(err);
+            }
+        }
+    }
+    const imgStyle = Object.assign({}, style, layout === 'raw' ? {
+        aspectRatio: `${widthInt} / ${heightInt}`
+    } : layoutStyle);
     const blurStyle = placeholder === 'blur' ? {
         filter: 'blur(20px)',
         backgroundSize: objectFit || 'cover',
@@ -313,6 +332,7 @@ function Image(_param) {
     };
     const useLayoutEffect = typeof window === 'undefined' ? _react.default.useEffect : _react.default.useLayoutEffect;
     const onLoadingCompleteRef = (0, _react).useRef(onLoadingComplete);
+    const imgRef = (0, _react).useRef(null);
     (0, _react).useEffect(()=>{
         onLoadingCompleteRef.current = onLoadingComplete;
     }, [
@@ -331,7 +351,25 @@ function Image(_param) {
         placeholder,
         isVisible
     ]);
-    return(/*#__PURE__*/ _react.default.createElement("span", {
+    const imgElementArgs = _objectSpread({
+        isLazy,
+        imgAttributes,
+        heightInt,
+        widthInt,
+        qualityInt,
+        layout,
+        className,
+        imgStyle,
+        blurStyle,
+        imgRef,
+        loading,
+        config,
+        unoptimized,
+        placeholder,
+        loader,
+        srcString
+    }, rest);
+    return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, layout === 'raw' ? /*#__PURE__*/ _react.default.createElement(ImageElement, Object.assign({}, imgElementArgs)) : /*#__PURE__*/ _react.default.createElement("span", {
         style: wrapperStyle
     }, hasSizer ? /*#__PURE__*/ _react.default.createElement("span", {
         style: sizerStyle
@@ -350,29 +388,7 @@ function Image(_param) {
         alt: "",
         "aria-hidden": true,
         src: sizerSvgUrl
-    }) : null) : null, /*#__PURE__*/ _react.default.createElement("img", Object.assign({}, rest, imgAttributes, {
-        decoding: "async",
-        "data-nimg": layout,
-        className: className,
-        ref: imgRef,
-        style: _objectSpread({}, imgStyle, blurStyle)
-    })), (isLazy || placeholder === 'blur') && /*#__PURE__*/ _react.default.createElement("noscript", null, /*#__PURE__*/ _react.default.createElement("img", Object.assign({}, rest, generateImgAttrs({
-        config,
-        src,
-        unoptimized,
-        layout,
-        width: widthInt,
-        quality: qualityInt,
-        sizes,
-        loader
-    }), {
-        decoding: "async",
-        "data-nimg": layout,
-        style: imgStyle,
-        className: className,
-        // @ts-ignore - TODO: upgrade to `@types/react@17`
-        loading: loading || 'lazy'
-    }))), priority ? // Note how we omit the `href` attribute, as it would only be relevant
+    }) : null) : null, /*#__PURE__*/ _react.default.createElement(ImageElement, Object.assign({}, imgElementArgs))), priority ? // Note how we omit the `href` attribute, as it would only be relevant
     // for browsers that do not support `imagesrcset`, and in those cases
     // it would likely cause the incorrect image to be preloaded.
     //
@@ -465,6 +481,8 @@ function _objectWithoutPropertiesLoose(source, excluded) {
     }
     return target;
 }
+var ref;
+const experimentalLayoutRaw = (ref = process.env.__NEXT_IMAGE_OPTS) === null || ref === void 0 ? void 0 : ref.experimentalLayoutRaw;
 const configEnv = process.env.__NEXT_IMAGE_OPTS;
 const loadedImageURLs = new Set();
 const allImgs = new Map();
@@ -505,6 +523,7 @@ const VALID_LAYOUT_VALUES = [
     'fixed',
     'intrinsic',
     'responsive',
+    'raw',
     undefined, 
 ];
 function isStaticRequire(src) {
@@ -517,7 +536,7 @@ function isStaticImport(src) {
     return typeof src === 'object' && (isStaticRequire(src) || isStaticImageData(src));
 }
 function getWidths({ deviceSizes , allSizes  }, width, layout, sizes) {
-    if (sizes && (layout === 'fill' || layout === 'responsive')) {
+    if (sizes && (layout === 'fill' || layout === 'responsive' || layout === 'raw')) {
         // Find all the "vw" percent sizes used in the sizes prop
         const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g;
         const percentSizes = [];
@@ -607,8 +626,8 @@ function getInt(x) {
     return undefined;
 }
 function defaultImageLoader(loaderProps) {
-    var ref;
-    const loaderKey = ((ref = loaderProps.config) === null || ref === void 0 ? void 0 : ref.loader) || 'default';
+    var ref2;
+    const loaderKey = ((ref2 = loaderProps.config) === null || ref2 === void 0 ? void 0 : ref2.loader) || 'default';
     const load = loaders.get(loaderKey);
     if (load) {
         return load(loaderProps);
@@ -646,8 +665,8 @@ function handleLoading(imgRef, src, layout, placeholder, onLoadingCompleteRef) {
                     });
                 }
                 if (process.env.NODE_ENV !== 'production') {
-                    var ref;
-                    if ((ref = img.parentElement) === null || ref === void 0 ? void 0 : ref.parentElement) {
+                    var ref3;
+                    if ((ref3 = img.parentElement) === null || ref3 === void 0 ? void 0 : ref3.parentElement) {
                         const parent = getComputedStyle(img.parentElement.parentElement);
                         if (!parent.position) {
                         // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
@@ -672,6 +691,56 @@ function handleLoading(imgRef, src, layout, placeholder, onLoadingCompleteRef) {
         }
     }
 }
+const ImageElement = (_param)=>{
+    var { imgAttributes , heightInt , widthInt , qualityInt , layout , className , imgStyle , blurStyle , isLazy , imgRef , placeholder , loading , sizes , srcString , config , unoptimized , loader  } = _param, rest = _objectWithoutProperties(_param, [
+        "imgAttributes",
+        "heightInt",
+        "widthInt",
+        "qualityInt",
+        "layout",
+        "className",
+        "imgStyle",
+        "blurStyle",
+        "isLazy",
+        "imgRef",
+        "placeholder",
+        "loading",
+        "sizes",
+        "srcString",
+        "config",
+        "unoptimized",
+        "loader"
+    ]);
+    return(/*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("img", Object.assign({}, rest, imgAttributes, layout === 'raw' && !sizes ? {
+        height: heightInt,
+        width: widthInt
+    } : {}, {
+        decoding: "async",
+        "data-nimg": layout,
+        className: className,
+        ref: imgRef,
+        style: _objectSpread({}, imgStyle, blurStyle)
+    })), (isLazy || placeholder === 'blur') && /*#__PURE__*/ _react.default.createElement("noscript", null, /*#__PURE__*/ _react.default.createElement("img", Object.assign({}, rest, generateImgAttrs({
+        config,
+        src: srcString,
+        unoptimized,
+        layout,
+        width: widthInt,
+        quality: qualityInt,
+        sizes,
+        loader
+    }), layout === 'raw' && !sizes ? {
+        height: heightInt,
+        width: widthInt
+    } : {}, {
+        decoding: "async",
+        "data-nimg": layout,
+        style: imgStyle,
+        className: className,
+        // @ts-ignore - TODO: upgrade to `@types/react@17`
+        loading: loading || 'lazy'
+    })))));
+};
 function normalizeSrc(src) {
     return src[0] === '/' ? src.slice(1) : src;
 }

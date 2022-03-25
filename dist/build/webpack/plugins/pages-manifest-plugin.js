@@ -11,10 +11,13 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
+let edgeServerPages = {};
+let nodeServerPages = {};
 class PagesManifestPlugin {
-    constructor({ serverless , dev  }){
+    constructor({ serverless , dev , isEdgeRuntime  }){
         this.serverless = serverless;
         this.dev = dev;
+        this.isEdgeRuntime = isEdgeRuntime;
     }
     createAssets(compilation, assets) {
         const entrypoints = compilation.entrypoints;
@@ -29,11 +32,23 @@ class PagesManifestPlugin {
             // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
             pages[pagePath] = files[files.length - 1];
             if (!this.dev) {
-                pages[pagePath] = pages[pagePath].slice(3);
+                if (!this.isEdgeRuntime) {
+                    pages[pagePath] = pages[pagePath].slice(3);
+                }
             }
             pages[pagePath] = pages[pagePath].replace(/\\/g, '/');
         }
-        assets[`${!this.dev ? '../' : ''}` + _constants.PAGES_MANIFEST] = new _webpack.sources.RawSource(JSON.stringify(pages, null, 2));
+        // This plugin is used by both the Node server and Edge server compilers,
+        // we need to merge both pages to generate the full manifest.
+        if (this.isEdgeRuntime) {
+            edgeServerPages = pages;
+        } else {
+            nodeServerPages = pages;
+        }
+        assets[`${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + _constants.PAGES_MANIFEST] = new _webpack.sources.RawSource(JSON.stringify({
+            ...edgeServerPages,
+            ...nodeServerPages
+        }, null, 2));
     }
     apply(compiler) {
         compiler.hooks.make.tap('NextJsPagesManifest', (compilation)=>{

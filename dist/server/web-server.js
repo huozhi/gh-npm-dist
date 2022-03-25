@@ -25,7 +25,8 @@ class NextWebServer extends _baseServer.default {
         };
     }
     handleCompression() {
-    // @TODO
+    // For the web server layer, compression is automatically handled by the
+    // upstream proxy (edge runtime or node server) and we can simply skip here.
     }
     getRoutesManifest() {
         return {
@@ -43,14 +44,15 @@ class NextWebServer extends _baseServer.default {
         return '';
     }
     getPublicDir() {
-        // @TODO
+        // Public files are not handled by the web server.
         return '';
     }
     getBuildId() {
         return globalThis.__server_context.buildId;
     }
     loadEnvConfig() {
-    // @TODO
+    // The web server does not need to load the env config. This is done by the
+    // runtime already.
     }
     getHasStaticDir() {
         return false;
@@ -114,7 +116,6 @@ class NextWebServer extends _baseServer.default {
             headers: req.headers
         }, {}, pathname, query, {
             ...renderOpts,
-            // supportsDynamicHTML: true,
             disableOptimizedLoading: true,
             runtime: 'edge'
         });
@@ -162,9 +163,6 @@ class NextWebServer extends _baseServer.default {
             },
             components: result
         };
-    }
-    updateRenderOpts(renderOpts) {
-        Object.assign(this.renderOpts, renderOpts);
     }
 }
 exports.default = NextWebServer;

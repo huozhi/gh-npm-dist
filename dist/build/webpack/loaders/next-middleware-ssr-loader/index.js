@@ -45,7 +45,6 @@ async function middlewareSSRLoader() {
       buildManifest,
       reactLoadableManifest,
       serverComponentManifest: ${isServerComponent} ? rscManifest : null,
-      isServerComponent: ${isServerComponent},
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
     })

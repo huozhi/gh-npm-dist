@@ -136,7 +136,7 @@ function _objectWithoutPropertiesLoose(source, excluded) {
     }
     return target;
 }
-const version = "12.1.1-canary.7";
+const version = "12.1.1";
 exports.version = version;
 let router;
 exports.router = router;
@@ -610,45 +610,58 @@ if (process.env.__NEXT_RSC) {
     };
     const { createFromFetch ,  } = require('next/dist/compiled/react-server-dom-webpack');
     const encoder = new TextEncoder();
-    const serverDataBuffer = new Map();
-    const serverDataWriter = new Map();
-    const serverDataCacheKey = getCacheKey();
+    let initialServerDataBuffer = undefined;
+    let initialServerDataWriter = undefined;
+    let initialServerDataLoaded = false;
+    let initialServerDataFlushed = false;
     function nextServerDataCallback(seg) {
-        const key = serverDataCacheKey + ',' + seg[1];
         if (seg[0] === 0) {
-            serverDataBuffer.set(key, []);
+            initialServerDataBuffer = [];
         } else {
-            const buffer = serverDataBuffer.get(key);
-            if (!buffer) throw new Error('Unexpected server data: missing bootstrap script.');
-            const writer = serverDataWriter.get(key);
-            if (writer) {
-                writer.write(encoder.encode(seg[2]));
+            if (!initialServerDataBuffer) throw new Error('Unexpected server data: missing bootstrap script.');
+            if (initialServerDataWriter) {
+                initialServerDataWriter.write(encoder.encode(seg[2]));
             } else {
-                buffer.push(seg[2]);
+                initialServerDataBuffer.push(seg[2]);
             }
         }
     }
-    function nextServerDataRegisterWriter(key, writer) {
-        const buffer = serverDataBuffer.get(key);
-        if (buffer) {
-            buffer.forEach((val)=>{
+    // There might be race conditions between `nextServerDataRegisterWriter` and
+    // `DOMContentLoaded`. The former will be called when React starts to hydrate
+    // the root, the latter will be called when the DOM is fully loaded.
+    // For streaming, the former is called first due to partial hydration.
+    // For non-streaming, the latter can be called first.
+    // Hence, we use two variables `initialServerDataLoaded` and
+    // `initialServerDataFlushed` to make sure the writer will be closed and
+    // `initialServerDataBuffer` will be cleared in the right time.
+    function nextServerDataRegisterWriter(writer) {
+        if (initialServerDataBuffer) {
+            initialServerDataBuffer.forEach((val)=>{
                 writer.write(encoder.encode(val));
             });
-            buffer.length = 0;
-            // Clean buffer but not deleting the key to mark bootstrap as complete.
-            // Then `nextServerDataCallback` will be safely skipped in the future renders.
-            serverDataBuffer.set(key, []);
+            if (initialServerDataLoaded && !initialServerDataFlushed) {
+                writer.close();
+                initialServerDataFlushed = true;
+                initialServerDataBuffer = undefined;
+            }
         }
-        serverDataWriter.set(key, writer);
+        initialServerDataWriter = writer;
     }
     // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
-    document.addEventListener('DOMContentLoaded', function() {
-        serverDataWriter.forEach((writer)=>{
-            if (!writer.closed) {
-                writer.close();
-            }
-        });
-    }, false);
+    const DOMContentLoaded = function() {
+        if (initialServerDataWriter && !initialServerDataFlushed) {
+            initialServerDataWriter.close();
+            initialServerDataFlushed = true;
+            initialServerDataBuffer = undefined;
+        }
+        initialServerDataLoaded = true;
+    };
+    // It's possible that the DOM is already loaded.
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', DOMContentLoaded, false);
+    } else {
+        DOMContentLoaded();
+    }
     const nextServerDataLoadingGlobal = self.__next_s = self.__next_s || [];
     nextServerDataLoadingGlobal.forEach(nextServerDataCallback);
     nextServerDataLoadingGlobal.push = nextServerDataCallback;
@@ -666,30 +679,32 @@ if (process.env.__NEXT_RSC) {
         return fetch(url.toString());
     }
     function useServerResponse(cacheKey, serialized) {
-        const id = _react.default.useId();
         let response = rscCache.get(cacheKey);
         if (response) return response;
-        const bufferCacheKey = cacheKey + ',' + router.route + ',' + id;
-        if (serverDataBuffer.has(bufferCacheKey)) {
+        if (initialServerDataBuffer) {
             const t = new TransformStream();
             const writer = t.writable.getWriter();
             response = createFromFetch(Promise.resolve({
                 body: t.readable
             }));
-            nextServerDataRegisterWriter(bufferCacheKey, writer);
+            nextServerDataRegisterWriter(writer);
         } else {
-            response = createFromFetch(serialized ? (()=>{
+            const fetchPromise = serialized ? (()=>{
                 const t = new TransformStream();
-                t.writable.getWriter().write(new TextEncoder().encode(serialized));
+                const writer = t.writable.getWriter();
+                writer.ready.then(()=>{
+                    writer.write(new TextEncoder().encode(serialized));
+                });
                 return Promise.resolve({
                     body: t.readable
                 });
-            })() : fetchFlight(getCacheKey()));
+            })() : fetchFlight(getCacheKey());
+            response = createFromFetch(fetchPromise);
         }
         rscCache.set(cacheKey, response);
         return response;
     }
-    const ServerRoot = ({ cacheKey , serialized , _fresh  })=>{
+    const ServerRoot = ({ cacheKey , serialized  })=>{
         _react.default.useEffect(()=>{
             rscCache.delete(cacheKey);
         });
@@ -699,10 +714,10 @@ if (process.env.__NEXT_RSC) {
     };
     RSCComponent = (props)=>{
         const cacheKey = getCacheKey();
-        const { __flight_serialized__ , __flight_fresh__  } = props;
+        const { __flight_serialized__  } = props;
         const [, dispatch] = (0, _react).useState({});
         const startTransition = _react.default.startTransition;
-        const renrender = ()=>dispatch({})
+        const rerender = ()=>dispatch({})
         ;
         // If there is no cache, or there is serialized data already
         function refreshCache(nextProps) {
@@ -710,15 +725,14 @@ if (process.env.__NEXT_RSC) {
                 const currentCacheKey = getCacheKey();
                 const response = createFromFetch(fetchFlight(currentCacheKey, nextProps));
                 rscCache.set(currentCacheKey, response);
-                renrender();
+                rerender();
             });
         }
         return(/*#__PURE__*/ _react.default.createElement(_refresh.RefreshContext.Provider, {
             value: refreshCache
         }, /*#__PURE__*/ _react.default.createElement(ServerRoot, {
             cacheKey: cacheKey,
-            serialized: __flight_serialized__,
-            _fresh: __flight_fresh__
+            serialized: __flight_serialized__
         })));
     };
 }

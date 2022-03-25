@@ -119,6 +119,7 @@ function getPageHandler(ctx) {
                 defaultLocale,
                 domainLocales: i18n === null || i18n === void 0 ? void 0 : i18n.domains,
                 optimizeCss: process.env.__NEXT_OPTIMIZE_CSS,
+                nextScriptWorkers: process.env.__NEXT_SCRIPT_WORKERS,
                 crossOrigin: process.env.__NEXT_CROSS_ORIGIN
             }, options);
             if (page === '/_error' && !res.statusCode) {

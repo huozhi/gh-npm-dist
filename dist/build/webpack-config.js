@@ -33,21 +33,18 @@ var _css = require("./webpack/config/blocks/css");
 var _copyFilePlugin = require("./webpack/plugins/copy-file-plugin");
 var _flightManifestPlugin = require("./webpack/plugins/flight-manifest-plugin");
 var _telemetryPlugin = require("./webpack/plugins/telemetry-plugin");
-var _functionsManifestPlugin = _interopRequireDefault(require("./webpack/plugins/functions-manifest-plugin"));
 var _utils1 = require("./utils");
 var _browserslist = _interopRequireDefault(require("next/dist/compiled/browserslist"));
 var _loadJsconfig = _interopRequireDefault(require("./load-jsconfig"));
-var _config1 = require("../server/config");
 var _middlewareSourceMapsPlugin = require("./webpack/plugins/middleware-source-maps-plugin");
-async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isServer =false , isEdgeRuntime =false , pagesDir , target ='server' , reactProductionProfiling =false , entrypoints , rewrites , isDevFallback =false , runWebpackSpan  }) {
-    var ref29, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, ref10, ref11, ref12, ref13, ref14, ref15, ref16;
+async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isServer =false , isEdgeRuntime =false , pagesDir , target ='server' , reactProductionProfiling =false , entrypoints , rewrites , isDevFallback =false , runWebpackSpan , hasReactRoot  }) {
+    var ref36, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, ref10, ref11, ref12, ref13, ref14, ref15, ref16, ref17, ref18, ref19, ref20;
     const { useTypeScript , jsConfig , resolvedBaseUrl  } = await (0, _loadJsconfig).default(dir, config);
     const supportedBrowsers = await getSupportedBrowsers(dir, dev);
     const hasRewrites = rewrites.beforeFiles.length > 0 || rewrites.afterFiles.length > 0 || rewrites.fallback.length > 0;
     const hasReactRefresh = dev && !isServer;
-    const hasReactRoot = (0, _config1).shouldUseReactRoot();
     const runtime = config.experimental.runtime;
-    // Make sure reactRoot is enabled when react 18 is detected
+    // Make sure `reactRoot` is enabled when React 18 or experimental is detected.
     if (hasReactRoot) {
         config.experimental.reactRoot = true;
     }
@@ -59,11 +56,11 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
     if (!isServer && runtime && !hasReactRoot) {
         throw new Error('`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.');
     }
-    if (config.experimental.serverComponents && !runtime) {
-        throw new Error('`experimental.runtime` is required to be set along with `experimental.serverComponents`.');
+    if (config.experimental.serverComponents && !hasReactRoot) {
+        throw new Error('`experimental.serverComponents` requires React 18 to be installed.');
     }
     const targetWeb = isEdgeRuntime || !isServer;
-    const hasConcurrentFeatures = !!runtime && hasReactRoot;
+    const hasConcurrentFeatures = hasReactRoot;
     const hasServerComponents = hasConcurrentFeatures && !!config.experimental.serverComponents;
     const disableOptimizedLoading = hasConcurrentFeatures ? true : config.experimental.disableOptimizedLoading;
     if (!isServer) {
@@ -93,12 +90,22 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
     }, Promise.resolve(undefined));
     const distDir = _path.default.join(dir, config.distDir);
     let useSWCLoader = !babelConfigFile;
+    let SWCBinaryTarget = undefined;
+    if (useSWCLoader) {
+        var ref21, ref22, ref23;
+        // TODO: we do not collect wasm target yet
+        const binaryTarget = (ref21 = require('./swc')) === null || ref21 === void 0 ? void 0 : (ref22 = ref21.getBinaryMetadata) === null || ref22 === void 0 ? void 0 : (ref23 = ref22.call(ref21)) === null || ref23 === void 0 ? void 0 : ref23.target;
+        SWCBinaryTarget = binaryTarget ? [
+            `swc/target/${binaryTarget}`,
+            true
+        ] : undefined;
+    }
     if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
         Log.info(`Disabled SWC as replacement for Babel because of custom Babel configuration "${_path.default.relative(dir, babelConfigFile)}" https://nextjs.org/docs/messages/swc-disabled`);
         loggedSwcDisabled = true;
     }
     if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
-        Log.info('`compiler` options in `next.config.js` will be ignored while using Babel https://next.js.org/docs/messages/ignored-compiler-options');
+        Log.info('`compiler` options in `next.config.js` will be ignored while using Babel https://nextjs.org/docs/messages/ignored-compiler-options');
         loggedIgnoredCompilerOptions = true;
     }
     const getBabelOrSwcLoader = (isMiddleware)=>{
@@ -192,7 +199,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
                 prev.push(_path.default.join(pagesDir, `_document.${ext}`));
                 return prev;
             }, []),
-            `next/dist/pages/_document${hasConcurrentFeatures ? '-concurrent' : ''}.js`, 
+            `next/dist/pages/_document.js`, 
         ];
     }
     const resolveConfig = {
@@ -267,13 +274,14 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
                 setImmediate: require.resolve('next/dist/compiled/setimmediate')
             }
         } : undefined,
-        mainFields: !targetWeb ? [
-            'main',
-            'module'
-        ] : [
-            'browser',
+        mainFields: targetWeb ? (isEdgeRuntime ? [] : [
+            'browser'
+        ]).concat([
             'module',
             'main'
+        ]) : [
+            'main',
+            'module'
         ],
         plugins: []
     };
@@ -409,7 +417,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
         minSize: 20000
     };
     const crossOrigin = config.crossOrigin;
-    const looseEsmExternals = ((ref29 = config.experimental) === null || ref29 === void 0 ? void 0 : ref29.esmExternals) === 'loose';
+    const looseEsmExternals = ((ref36 = config.experimental) === null || ref36 === void 0 ? void 0 : ref36.esmExternals) === 'loose';
     async function handleExternals(context, request, dependencyType, getResolve) {
         // We need to externalize internal requests for files intended to
         // not be bundled.
@@ -809,12 +817,14 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
                 'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
                 'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(config.optimizeFonts && !dev),
                 'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(config.experimental.optimizeCss && !dev),
+                'process.env.__NEXT_SCRIPT_WORKERS': JSON.stringify(config.experimental.nextScriptWorkers && !dev),
                 'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(config.experimental.scrollRestoration),
                 'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
                     deviceSizes: config.images.deviceSizes,
                     imageSizes: config.images.imageSizes,
                     path: config.images.path,
                     loader: config.images.loader,
+                    experimentalLayoutRaw: (ref1 = config.experimental) === null || ref1 === void 0 ? void 0 : (ref2 = ref1.images) === null || ref2 === void 0 ? void 0 : ref2.layoutRaw,
                     ...dev ? {
                         // pass domains in development to allow validating on the client
                         domains: config.images.domains
@@ -823,7 +833,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
                 'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
                 'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
                 'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
-                'process.env.__NEXT_I18N_DOMAINS': JSON.stringify((ref1 = config.i18n) === null || ref1 === void 0 ? void 0 : ref1.domains),
+                'process.env.__NEXT_I18N_DOMAINS': JSON.stringify((ref3 = config.i18n) === null || ref3 === void 0 ? void 0 : ref3.domains),
                 'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
                 ...isServer ? {
                     // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -884,21 +894,16 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
                 contextRegExp: /next[\\/]dist[\\/]/
             }),
             (isServerless && isServer || isEdgeRuntime) && new _serverlessPlugin.ServerlessPlugin(),
-            isServer && !isEdgeRuntime && new _pagesManifestPlugin.default({
+            isServer && new _pagesManifestPlugin.default({
                 serverless: isLikeServerless,
-                dev
+                dev,
+                isEdgeRuntime
             }),
             // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
             // replacement is done before its process.env.* handling
             (!isServer || isEdgeRuntime) && new _middlewarePlugin.default({
                 dev,
                 isEdgeRuntime
-            }),
-            process.env.ENABLE_FILE_SYSTEM_API === '1' && isEdgeRuntime && new _functionsManifestPlugin.default({
-                dev,
-                pagesDir,
-                isEdgeRuntime,
-                pageExtensions: config.pageExtensions
             }),
             !isServer && new _buildManifestPlugin.default({
                 buildId,
@@ -918,7 +923,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
             new _wellknownErrorsPlugin.WellKnownErrorsPlugin(),
             !isServer && new _copyFilePlugin.CopyFilePlugin({
                 filePath: require.resolve('./polyfills/polyfill-nomodule'),
-                cacheKey: "12.1.1-canary.7",
+                cacheKey: "12.1.1",
                 name: `static/chunks/polyfills${dev ? '' : '-[hash]'}.js`,
                 minimize: false,
                 info: {
@@ -942,42 +947,47 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
                 ],
                 [
                     'swcRelay',
-                    !!((ref2 = config.compiler) === null || ref2 === void 0 ? void 0 : ref2.relay)
+                    !!((ref4 = config.compiler) === null || ref4 === void 0 ? void 0 : ref4.relay)
                 ],
                 [
                     'swcStyledComponents',
-                    !!((ref3 = config.compiler) === null || ref3 === void 0 ? void 0 : ref3.styledComponents)
+                    !!((ref5 = config.compiler) === null || ref5 === void 0 ? void 0 : ref5.styledComponents)
                 ],
                 [
                     'swcReactRemoveProperties',
-                    !!((ref4 = config.compiler) === null || ref4 === void 0 ? void 0 : ref4.reactRemoveProperties), 
+                    !!((ref6 = config.compiler) === null || ref6 === void 0 ? void 0 : ref6.reactRemoveProperties), 
                 ],
                 [
                     'swcExperimentalDecorators',
-                    !!(jsConfig === null || jsConfig === void 0 ? void 0 : (ref5 = jsConfig.compilerOptions) === null || ref5 === void 0 ? void 0 : ref5.experimentalDecorators), 
+                    !!(jsConfig === null || jsConfig === void 0 ? void 0 : (ref7 = jsConfig.compilerOptions) === null || ref7 === void 0 ? void 0 : ref7.experimentalDecorators), 
                 ],
                 [
                     'swcRemoveConsole',
-                    !!((ref6 = config.compiler) === null || ref6 === void 0 ? void 0 : ref6.removeConsole)
+                    !!((ref8 = config.compiler) === null || ref8 === void 0 ? void 0 : ref8.removeConsole)
                 ],
                 [
                     'swcImportSource',
-                    !!(jsConfig === null || jsConfig === void 0 ? void 0 : (ref7 = jsConfig.compilerOptions) === null || ref7 === void 0 ? void 0 : ref7.jsxImportSource)
-                ], 
-            ])), 
+                    !!(jsConfig === null || jsConfig === void 0 ? void 0 : (ref9 = jsConfig.compilerOptions) === null || ref9 === void 0 ? void 0 : ref9.jsxImportSource)
+                ],
+                [
+                    'swcEmotion',
+                    !!config.experimental.emotion
+                ],
+                SWCBinaryTarget, 
+            ].filter(Boolean))), 
         ].filter(Boolean)
     };
     // Support tsconfig and jsconfig baseUrl
     if (resolvedBaseUrl) {
-        var ref17, ref18;
-        (ref17 = webpackConfig.resolve) === null || ref17 === void 0 ? void 0 : (ref18 = ref17.modules) === null || ref18 === void 0 ? void 0 : ref18.push(resolvedBaseUrl);
+        var ref24, ref25;
+        (ref24 = webpackConfig.resolve) === null || ref24 === void 0 ? void 0 : (ref25 = ref24.modules) === null || ref25 === void 0 ? void 0 : ref25.push(resolvedBaseUrl);
     }
-    if ((jsConfig === null || jsConfig === void 0 ? void 0 : (ref8 = jsConfig.compilerOptions) === null || ref8 === void 0 ? void 0 : ref8.paths) && resolvedBaseUrl) {
-        var ref19, ref20;
-        (ref19 = webpackConfig.resolve) === null || ref19 === void 0 ? void 0 : (ref20 = ref19.plugins) === null || ref20 === void 0 ? void 0 : ref20.unshift(new _jsconfigPathsPlugin.JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl));
+    if ((jsConfig === null || jsConfig === void 0 ? void 0 : (ref10 = jsConfig.compilerOptions) === null || ref10 === void 0 ? void 0 : ref10.paths) && resolvedBaseUrl) {
+        var ref26, ref27;
+        (ref26 = webpackConfig.resolve) === null || ref26 === void 0 ? void 0 : (ref27 = ref26.plugins) === null || ref27 === void 0 ? void 0 : ref27.unshift(new _jsconfigPathsPlugin.JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl));
     }
     const webpack5Config = webpackConfig;
-    (ref9 = webpack5Config.module) === null || ref9 === void 0 ? void 0 : (ref10 = ref9.rules) === null || ref10 === void 0 ? void 0 : ref10.unshift({
+    (ref11 = webpack5Config.module) === null || ref11 === void 0 ? void 0 : (ref12 = ref11.rules) === null || ref12 === void 0 ? void 0 : ref12.unshift({
         test: /\.wasm$/,
         issuerLayer: 'middleware',
         loader: 'next-middleware-wasm-loader',
@@ -999,7 +1009,8 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
     };
     webpack5Config.module.parser = {
         javascript: {
-            url: 'relative'
+            url: 'relative',
+            commonjsMagicComments: true
         }
     };
     webpack5Config.module.generator = {
@@ -1058,6 +1069,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
         reactMode: config.experimental.reactMode,
         optimizeFonts: config.optimizeFonts,
         optimizeCss: config.experimental.optimizeCss,
+        nextScriptWorkers: config.experimental.nextScriptWorkers,
         scrollRestoration: config.experimental.scrollRestoration,
         basePath: config.basePath,
         pageEnv: config.experimental.pageEnv,
@@ -1073,17 +1085,19 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
         runtime,
         swcMinify: config.swcMinify,
         swcLoader: useSWCLoader,
-        removeConsole: (ref11 = config.compiler) === null || ref11 === void 0 ? void 0 : ref11.removeConsole,
-        reactRemoveProperties: (ref12 = config.compiler) === null || ref12 === void 0 ? void 0 : ref12.reactRemoveProperties,
-        styledComponents: (ref13 = config.compiler) === null || ref13 === void 0 ? void 0 : ref13.styledComponents,
-        relay: (ref14 = config.compiler) === null || ref14 === void 0 ? void 0 : ref14.relay
+        removeConsole: (ref13 = config.compiler) === null || ref13 === void 0 ? void 0 : ref13.removeConsole,
+        reactRemoveProperties: (ref14 = config.compiler) === null || ref14 === void 0 ? void 0 : ref14.reactRemoveProperties,
+        styledComponents: (ref15 = config.compiler) === null || ref15 === void 0 ? void 0 : ref15.styledComponents,
+        relay: (ref16 = config.compiler) === null || ref16 === void 0 ? void 0 : ref16.relay,
+        emotion: (ref17 = config.experimental) === null || ref17 === void 0 ? void 0 : ref17.emotion,
+        modularizeImports: (ref18 = config.experimental) === null || ref18 === void 0 ? void 0 : ref18.modularizeImports
     });
     const cache = {
         type: 'filesystem',
         // Includes:
         //  - Next.js version
         //  - next.config.js keys that affect compilation
-        version: `${"12.1.1-canary.7"}|${configVars}`,
+        version: `${"12.1.1"}|${configVars}`,
         cacheDirectory: _path.default.join(distDir, 'cache', 'webpack')
     };
     // Adds `next.config.js` as a buildDependency when custom webpack config is provided
@@ -1157,7 +1171,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
     webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${isDevFallback ? '-fallback' : ''}`;
     let originalDevtool = webpackConfig.devtool;
     if (typeof config.webpack === 'function') {
-        var ref21, ref22;
+        var ref28, ref29;
         webpackConfig = config.webpack(webpackConfig, {
             dir,
             dev,
@@ -1178,11 +1192,11 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
         // eslint-disable-next-line no-shadow
         const webpack5Config = webpackConfig;
         // disable lazy compilation of entries as next.js has it's own method here
-        if (((ref21 = webpack5Config.experiments) === null || ref21 === void 0 ? void 0 : ref21.lazyCompilation) === true) {
+        if (((ref28 = webpack5Config.experiments) === null || ref28 === void 0 ? void 0 : ref28.lazyCompilation) === true) {
             webpack5Config.experiments.lazyCompilation = {
                 entries: false
             };
-        } else if (typeof ((ref22 = webpack5Config.experiments) === null || ref22 === void 0 ? void 0 : ref22.lazyCompilation) === 'object' && webpack5Config.experiments.lazyCompilation.entries !== false) {
+        } else if (typeof ((ref29 = webpack5Config.experiments) === null || ref29 === void 0 ? void 0 : ref29.lazyCompilation) === 'object' && webpack5Config.experiments.lazyCompilation.entries !== false) {
             webpack5Config.experiments.lazyCompilation.entries = false;
         }
         if (typeof webpackConfig.then === 'function') {
@@ -1190,8 +1204,8 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
         }
     }
     if (!config.images.disableStaticImages) {
-        var ref23;
-        const rules = ((ref23 = webpackConfig.module) === null || ref23 === void 0 ? void 0 : ref23.rules) || [];
+        var ref30;
+        const rules = ((ref30 = webpackConfig.module) === null || ref30 === void 0 ? void 0 : ref30.rules) || [];
         const hasCustomSvg = rules.some((rule)=>rule.loader !== 'next-image-loader' && 'test' in rule && rule.test instanceof RegExp && rule.test.test('.svg')
         );
         const nextImageRule = rules.find((rule)=>rule.loader === 'next-image-loader'
@@ -1203,7 +1217,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
             nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$/i;
         }
     }
-    if (config.experimental.craCompat && ((ref15 = webpackConfig.module) === null || ref15 === void 0 ? void 0 : ref15.rules) && webpackConfig.plugins) {
+    if (config.experimental.craCompat && ((ref19 = webpackConfig.module) === null || ref19 === void 0 ? void 0 : ref19.rules) && webpackConfig.plugins) {
         // CRA allows importing non-webpack handled files with file-loader
         // these need to be the last rule to prevent catching other items
         // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L594
@@ -1280,16 +1294,16 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
         }
         return false;
     }
-    var ref24;
-    const hasUserCssConfig = (ref24 = (ref16 = webpackConfig.module) === null || ref16 === void 0 ? void 0 : ref16.rules.some((rule)=>canMatchCss(rule.test) || canMatchCss(rule.include)
-    )) !== null && ref24 !== void 0 ? ref24 : false;
+    var ref31;
+    const hasUserCssConfig = (ref31 = (ref20 = webpackConfig.module) === null || ref20 === void 0 ? void 0 : ref20.rules.some((rule)=>canMatchCss(rule.test) || canMatchCss(rule.include)
+    )) !== null && ref31 !== void 0 ? ref31 : false;
     if (hasUserCssConfig) {
-        var ref25, ref26, ref27, ref28;
+        var ref32, ref33, ref34, ref35;
         // only show warning for one build
         if (isServer) {
             console.warn(_chalk.default.yellow.bold('Warning: ') + _chalk.default.bold('Built-in CSS support is being disabled due to custom CSS configuration being detected.\n') + 'See here for more info: https://nextjs.org/docs/messages/built-in-css-disabled\n');
         }
-        if ((ref25 = webpackConfig.module) === null || ref25 === void 0 ? void 0 : ref25.rules.length) {
+        if ((ref32 = webpackConfig.module) === null || ref32 === void 0 ? void 0 : ref32.rules.length) {
             // Remove default CSS Loaders
             webpackConfig.module.rules.forEach((r)=>{
                 if (Array.isArray(r.oneOf)) {
@@ -1298,12 +1312,12 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
                 }
             });
         }
-        if ((ref26 = webpackConfig.plugins) === null || ref26 === void 0 ? void 0 : ref26.length) {
+        if ((ref33 = webpackConfig.plugins) === null || ref33 === void 0 ? void 0 : ref33.length) {
             // Disable CSS Extraction Plugin
             webpackConfig.plugins = webpackConfig.plugins.filter((p)=>p.__next_css_remove !== true
             );
         }
-        if ((ref27 = webpackConfig.optimization) === null || ref27 === void 0 ? void 0 : (ref28 = ref27.minimizer) === null || ref28 === void 0 ? void 0 : ref28.length) {
+        if ((ref34 = webpackConfig.optimization) === null || ref34 === void 0 ? void 0 : (ref35 = ref34.minimizer) === null || ref35 === void 0 ? void 0 : ref35.length) {
             // Disable CSS Minifier
             webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter((e)=>e.__next_css_remove !== true
             );

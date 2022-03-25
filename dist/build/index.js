@@ -23,6 +23,7 @@ var _loadCustomRoutes = _interopRequireWildcard(require("../lib/load-custom-rout
 var _nonNullable = require("../lib/non-nullable");
 var _recursiveDelete = require("../lib/recursive-delete");
 var _verifyAndLint = require("../lib/verifyAndLint");
+var _verifyPartytownSetup = require("../lib/verify-partytown-setup");
 var _verifyTypeScriptSetup = require("../lib/verifyTypeScriptSetup");
 var _constants1 = require("../shared/lib/constants");
 var _utils = require("../shared/lib/router/utils");
@@ -49,7 +50,7 @@ var _telemetryPlugin = require("./webpack/plugins/telemetry-plugin");
 var _recursiveCopy = require("../lib/recursive-copy");
 async function build(dir, conf = null, reactProductionProfiling = false, debugOutput = false, runLint = true) {
     const nextBuildSpan = (0, _trace).trace('next-build', undefined, {
-        version: "12.1.1-canary.7"
+        version: "12.1.1"
     });
     const buildResult = await nextBuildSpan.traceAsyncFn(async ()=>{
         // attempt to load global env values so they are available in next.config.js
@@ -60,11 +61,10 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         const distDir = _path.default.join(dir, config.distDir);
         (0, _trace).setGlobal('phase', _constants1.PHASE_PRODUCTION_BUILD);
         (0, _trace).setGlobal('distDir', distDir);
-        // Currently, when the runtime option is set (either `nodejs` or `edge`),
-        // we enable concurrent features (Fizz-related rendering architecture).
-        const runtime = config.experimental.runtime;
+        // We enable concurrent features (Fizz-related rendering architecture) when
+        // using React 18 or experimental.
         const hasReactRoot = (0, _config).shouldUseReactRoot();
-        const hasConcurrentFeatures = !!runtime;
+        const hasConcurrentFeatures = hasReactRoot;
         const hasServerComponents = hasReactRoot && !!config.experimental.serverComponents;
         const { target  } = config;
         const buildId = await nextBuildSpan.traceChild('generate-buildid').traceAsyncFn(()=>(0, _generateBuildId).generateBuildId(config.generateBuildId, _indexCjs.nanoid)
@@ -154,8 +154,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         };
         const mappedPages = nextBuildSpan.traceChild('create-pages-mapping').traceFn(()=>(0, _entries).createPagesMapping(pagePaths, config.pageExtensions, {
                 isDev: false,
-                hasServerComponents,
-                globalRuntime: runtime
+                hasServerComponents
             })
         );
         const entrypoints = await nextBuildSpan.traceChild('create-entrypoints').traceAsyncFn(()=>(0, _entries).createEntrypoints(mappedPages, target, buildId, previewProps, config, loadedEnvFiles, pagesDir)
@@ -330,7 +329,8 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                         pagesDir,
                         entrypoints: entrypoints.client,
                         rewrites,
-                        runWebpackSpan
+                        runWebpackSpan,
+                        hasReactRoot
                     }),
                     (0, _webpackConfig).default(dir, {
                         buildId,
@@ -341,7 +341,8 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                         pagesDir,
                         entrypoints: entrypoints.server,
                         rewrites,
-                        runWebpackSpan
+                        runWebpackSpan,
+                        hasReactRoot
                     }),
                     hasReactRoot ? (0, _webpackConfig).default(dir, {
                         buildId,
@@ -353,7 +354,8 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                         pagesDir,
                         entrypoints: entrypoints.edgeServer,
                         rewrites,
-                        runWebpackSpan
+                        runWebpackSpan,
+                        hasReactRoot
                     }) : null, 
                 ])
             );
@@ -543,7 +545,11 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                     let isHybridAmp = false;
                     let ssgPageRoutes = null;
                     let isMiddlewareRoute = !!page.match(_constants.MIDDLEWARE_ROUTE);
-                    if (!isMiddlewareRoute && !(0, _utils2).isReservedPage(page) && !hasConcurrentFeatures) {
+                    const pagePath = pagePaths.find((_path1)=>_path1.startsWith(actualPage + '.')
+                    );
+                    const pageRuntime = hasConcurrentFeatures && pagePath ? await (0, _entries).getPageRuntime((0, _path).join(pagesDir, pagePath), config.experimental.runtime) : null;
+                    if (!isMiddlewareRoute && !(0, _utils2).isReservedPage(page) && // We currently don't support staic optimization in the Edge runtime.
+                    pageRuntime !== 'edge') {
                         try {
                             let isPageStaticSpan = checkPageSpan.traceChild('is-page-static');
                             let workerResult = await isPageStaticSpan.traceAsyncFn(()=>{
@@ -864,7 +870,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
             ...staticPages,
             ...ssgPages
         ];
-        if (!hasConcurrentFeatures && (combinedPages.length > 0 || useStatic404 || useDefaultStatic500)) {
+        if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
             const staticGenerationSpan = nextBuildSpan.traceChild('static-generation');
             await staticGenerationSpan.traceAsyncFn(async ()=>{
                 (0, _utils2).detectConflictingPaths([
@@ -1008,7 +1014,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                         const pagePath = (0, _require).getPagePath(originPage, distDir, isLikeServerless);
                         const relativeDest = _path.default.relative(serverOutputDir, _path.default.join(_path.default.join(pagePath, // strip leading / and then recurse number of nested dirs
                         // to place from base folder
-                        originPage.substr(1).split('/').map(()=>'..'
+                        originPage.slice(1).split('/').map(()=>'..'
                         ).join('/')), file)).replace(/\\/g, '/');
                         const dest = _path.default.join(distDir, isLikeServerless ? _constants1.SERVERLESS_DIRECTORY : _constants1.SERVER_DIRECTORY, relativeDest);
                         if (!isSsg && !// don't add static status page to manifest if it's
@@ -1035,7 +1041,7 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                             for (const locale of i18n.locales){
                                 const curPath = `/${locale}${page === '/' ? '' : page}`;
                                 const localeExt = page === '/' ? _path.default.extname(file) : '';
-                                const relativeDestNoPages = relativeDest.substr('pages/'.length);
+                                const relativeDestNoPages = relativeDest.slice('pages/'.length);
                                 if (isSsg && ssgNotFoundPaths.includes(curPath)) {
                                     continue;
                                 }
@@ -1290,6 +1296,11 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
         if (config.analyticsId) {
             console.log(_chalk.default.bold.green('Next.js Analytics') + ' is enabled for this production build. ' + "You'll receive a Real Experience Score computed by all of your visitors.");
             console.log('');
+        }
+        if (Boolean(config.experimental.nextScriptWorkers)) {
+            await nextBuildSpan.traceChild('verify-partytown-setup').traceAsyncFn(async ()=>{
+                await (0, _verifyPartytownSetup).verifyPartytownSetup(dir, (0, _path).join(distDir, _constants1.CLIENT_STATIC_FILES_PATH));
+            });
         }
         await nextBuildSpan.traceChild('telemetry-flush').traceAsyncFn(()=>telemetry.flush()
         );

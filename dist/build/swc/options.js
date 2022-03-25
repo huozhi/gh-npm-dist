@@ -23,7 +23,7 @@ function getParserOptions({ filename , jsConfig , ...rest }) {
     };
 }
 function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , globalWindow , nextConfig , resolvedBaseUrl , jsConfig ,  }) {
-    var ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7;
+    var ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9;
     const parserConfig = getParserOptions({
         filename,
         jsConfig
@@ -51,7 +51,7 @@ function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , g
                 legacyDecorator: enableDecorators,
                 decoratorMetadata: emitDecoratorMetadata,
                 react: {
-                    importSource: (jsConfig === null || jsConfig === void 0 ? void 0 : (ref3 = jsConfig.compilerOptions) === null || ref3 === void 0 ? void 0 : ref3.jsxImportSource) || 'react',
+                    importSource: (nextConfig === null || nextConfig === void 0 ? void 0 : (ref3 = nextConfig.experimental) === null || ref3 === void 0 ? void 0 : ref3.emotion) ? '@emotion/react' : (jsConfig === null || jsConfig === void 0 ? void 0 : (ref4 = jsConfig.compilerOptions) === null || ref4 === void 0 ? void 0 : ref4.jsxImportSource) || 'react',
                     runtime: 'automatic',
                     pragma: 'React.createElement',
                     pragmaFrag: 'React.Fragment',
@@ -77,12 +77,40 @@ function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , g
             }
         },
         sourceMaps: jest ? 'inline' : undefined,
-        styledComponents: (nextConfig === null || nextConfig === void 0 ? void 0 : (ref4 = nextConfig.compiler) === null || ref4 === void 0 ? void 0 : ref4.styledComponents) ? {
+        styledComponents: (nextConfig === null || nextConfig === void 0 ? void 0 : (ref5 = nextConfig.compiler) === null || ref5 === void 0 ? void 0 : ref5.styledComponents) ? {
             displayName: Boolean(development)
         } : null,
-        removeConsole: nextConfig === null || nextConfig === void 0 ? void 0 : (ref5 = nextConfig.compiler) === null || ref5 === void 0 ? void 0 : ref5.removeConsole,
-        reactRemoveProperties: nextConfig === null || nextConfig === void 0 ? void 0 : (ref6 = nextConfig.compiler) === null || ref6 === void 0 ? void 0 : ref6.reactRemoveProperties,
-        relay: nextConfig === null || nextConfig === void 0 ? void 0 : (ref7 = nextConfig.compiler) === null || ref7 === void 0 ? void 0 : ref7.relay
+        removeConsole: nextConfig === null || nextConfig === void 0 ? void 0 : (ref6 = nextConfig.compiler) === null || ref6 === void 0 ? void 0 : ref6.removeConsole,
+        reactRemoveProperties: nextConfig === null || nextConfig === void 0 ? void 0 : (ref7 = nextConfig.compiler) === null || ref7 === void 0 ? void 0 : ref7.reactRemoveProperties,
+        modularizeImports: nextConfig === null || nextConfig === void 0 ? void 0 : (ref8 = nextConfig.experimental) === null || ref8 === void 0 ? void 0 : ref8.modularizeImports,
+        relay: nextConfig === null || nextConfig === void 0 ? void 0 : (ref9 = nextConfig.compiler) === null || ref9 === void 0 ? void 0 : ref9.relay,
+        emotion: getEmotionOptions(nextConfig, development)
+    };
+}
+function getEmotionOptions(nextConfig, development) {
+    var ref, ref10, ref11, ref12, ref13, ref14, ref15;
+    if (!(nextConfig === null || nextConfig === void 0 ? void 0 : (ref = nextConfig.experimental) === null || ref === void 0 ? void 0 : ref.emotion)) {
+        return null;
+    }
+    let autoLabel = false;
+    switch(nextConfig === null || nextConfig === void 0 ? void 0 : (ref10 = nextConfig.experimental) === null || ref10 === void 0 ? void 0 : (ref11 = ref10.emotion) === null || ref11 === void 0 ? void 0 : ref11.autoLabel){
+        case 'never':
+            autoLabel = false;
+            break;
+        case 'always':
+            autoLabel = true;
+            break;
+        case 'dev-only':
+        default:
+            autoLabel = !!development;
+            break;
+    }
+    var ref16;
+    return {
+        enabled: true,
+        autoLabel,
+        labelFormat: nextConfig === null || nextConfig === void 0 ? void 0 : (ref12 = nextConfig.experimental) === null || ref12 === void 0 ? void 0 : (ref13 = ref12.emotion) === null || ref13 === void 0 ? void 0 : ref13.labelFormat,
+        sourcemap: development ? (ref16 = nextConfig === null || nextConfig === void 0 ? void 0 : (ref14 = nextConfig.experimental) === null || ref14 === void 0 ? void 0 : (ref15 = ref14.emotion) === null || ref15 === void 0 ? void 0 : ref15.sourceMap) !== null && ref16 !== void 0 ? ref16 : true : false
     };
 }
 function getJestSWCOptions({ isServer , filename , esm , nextConfig , jsConfig ,  }) {

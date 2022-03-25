@@ -148,11 +148,12 @@ class HotReloader {
         this.serverPrevDocumentHash = null;
         this.config = config;
         this.runtime = config.experimental.runtime;
-        this.hasServerComponents = !!config.experimental.serverComponents;
+        this.hasReactRoot = (0, _config).shouldUseReactRoot();
+        this.hasServerComponents = this.hasReactRoot && !!config.experimental.serverComponents;
         this.previewProps = previewProps;
         this.rewrites = rewrites;
         this.hotReloaderSpan = (0, _trace).trace('hot-reloader', undefined, {
-            version: "12.1.1-canary.7"
+            version: "12.1.1"
         });
         // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
         // of the current `next dev` invocation.
@@ -241,13 +242,11 @@ class HotReloader {
             this.pagesMapping = webpackConfigSpan.traceChild('create-pages-mapping').traceFn(()=>(0, _entries).createPagesMapping(pagePaths.filter((i)=>i !== null
                 ), this.config.pageExtensions, {
                     isDev: true,
-                    globalRuntime: this.runtime,
                     hasServerComponents: this.hasServerComponents
                 })
             );
             const entrypoints = await webpackConfigSpan.traceChild('create-entrypoints').traceAsyncFn(()=>(0, _entries).createEntrypoints(this.pagesMapping, 'server', this.buildId, this.previewProps, this.config, [], this.pagesDir)
             );
-            const hasReactRoot = (0, _config).shouldUseReactRoot();
             return webpackConfigSpan.traceChild('generate-webpack-config').traceAsyncFn(()=>Promise.all([
                     (0, _webpackConfig).default(this.dir, {
                         dev: true,
@@ -257,7 +256,8 @@ class HotReloader {
                         pagesDir: this.pagesDir,
                         rewrites: this.rewrites,
                         entrypoints: entrypoints.client,
-                        runWebpackSpan: this.hotReloaderSpan
+                        runWebpackSpan: this.hotReloaderSpan,
+                        hasReactRoot: this.hasReactRoot
                     }),
                     (0, _webpackConfig).default(this.dir, {
                         dev: true,
@@ -267,10 +267,11 @@ class HotReloader {
                         pagesDir: this.pagesDir,
                         rewrites: this.rewrites,
                         entrypoints: entrypoints.server,
-                        runWebpackSpan: this.hotReloaderSpan
+                        runWebpackSpan: this.hotReloaderSpan,
+                        hasReactRoot: this.hasReactRoot
                     }),
                     // The edge runtime is only supported with React root.
-                    hasReactRoot ? (0, _webpackConfig).default(this.dir, {
+                    this.hasReactRoot ? (0, _webpackConfig).default(this.dir, {
                         dev: true,
                         isServer: true,
                         isEdgeRuntime: true,
@@ -279,7 +280,8 @@ class HotReloader {
                         pagesDir: this.pagesDir,
                         rewrites: this.rewrites,
                         entrypoints: entrypoints.edgeServer,
-                        runWebpackSpan: this.hotReloaderSpan
+                        runWebpackSpan: this.hotReloaderSpan,
+                        hasReactRoot: this.hasReactRoot
                     }) : null, 
                 ].filter(Boolean))
             );
@@ -303,7 +305,8 @@ class HotReloader {
             entrypoints: (await (0, _entries).createEntrypoints({
                 '/_app': 'next/dist/pages/_app',
                 '/_error': 'next/dist/pages/_error'
-            }, 'server', this.buildId, this.previewProps, this.config, [], this.pagesDir)).client
+            }, 'server', this.buildId, this.previewProps, this.config, [], this.pagesDir)).client,
+            hasReactRoot: this.hasReactRoot
         });
         const fallbackCompiler = (0, _webpack).webpack(fallbackConfig);
         this.fallbackWatcher = await new Promise((resolve)=>{
@@ -537,7 +540,7 @@ class HotReloader {
             if (serverOnlyChanges.length > 0) {
                 this.send({
                     event: 'serverOnlyChanges',
-                    pages: serverOnlyChanges.map((pg)=>(0, _normalizePagePath).denormalizePagePath(pg.substr('pages'.length))
+                    pages: serverOnlyChanges.map((pg)=>(0, _normalizePagePath).denormalizePagePath(pg.slice('pages'.length))
                     )
                 });
             }

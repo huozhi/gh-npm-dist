@@ -40,8 +40,8 @@ function tryParsePattern(pattern) {
     // This should be verified outside of here and a proper error thrown.
     const indexOfStar = pattern.indexOf('*');
     return indexOfStar === -1 ? undefined : {
-        prefix: pattern.substr(0, indexOfStar),
-        suffix: pattern.substr(indexOfStar + 1)
+        prefix: pattern.slice(0, indexOfStar),
+        suffix: pattern.slice(indexOfStar + 1)
     };
 }
 function isPatternMatch({ prefix , suffix  }, candidate) {

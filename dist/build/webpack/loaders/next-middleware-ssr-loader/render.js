@@ -13,7 +13,7 @@ function _interopRequireDefault(obj) {
 // Polyfilled for `path-browserify` inside the Web Server.
 process.cwd = ()=>''
 ;
-function getRender({ dev , page , appMod , pageMod , errorMod , error500Mod , Document , buildManifest , reactLoadableManifest , serverComponentManifest , isServerComponent , config , buildId  }) {
+function getRender({ dev , page , appMod , pageMod , errorMod , error500Mod , Document , buildManifest , reactLoadableManifest , serverComponentManifest , config , buildId  }) {
     const baseLoadComponentResult = {
         dev,
         buildManifest,
@@ -75,9 +75,6 @@ function getRender({ dev , page , appMod , pageMod , errorMod , error500Mod , Do
     });
     const requestHandler = server.getRequestHandler();
     return async function render(request) {
-        const { nextUrl: url  } = request;
-        const { searchParams  } = url;
-        const query = Object.fromEntries(searchParams);
         // Preflight request
         if (request.method === 'HEAD') {
             // Hint the client that the matched route is a SSR page.
@@ -87,13 +84,6 @@ function getRender({ dev , page , appMod , pageMod , errorMod , error500Mod , Do
                 }
             });
         }
-        const renderServerComponentData = isServerComponent ? query.__flight__ !== undefined : false;
-        const serverComponentProps = isServerComponent && query.__props__ ? JSON.parse(query.__props__) : undefined;
-        // Extend the render options.
-        server.updateRenderOpts({
-            renderServerComponentData,
-            serverComponentProps
-        });
         const extendedReq = new _web.WebNextRequest(request);
         const extendedRes = new _web.WebNextResponse();
         requestHandler(extendedReq, extendedRes);

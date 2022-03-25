@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 var _getLocaleMetadata = require("../../shared/lib/i18n/get-locale-metadata");
-var _router = require("../router");
 var _cookie = _interopRequireDefault(require("next/dist/compiled/cookie"));
+var _routerUtils = require("../router-utils");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -31,7 +31,7 @@ class NextURL {
     analyzeUrl() {
         const { headers ={} , basePath , i18n  } = this[Internal].options;
         if (basePath && this[Internal].url.pathname.startsWith(basePath)) {
-            this[Internal].url.pathname = (0, _router).replaceBasePath(this[Internal].url.pathname, basePath);
+            this[Internal].url.pathname = (0, _routerUtils).replaceBasePath(this[Internal].url.pathname, basePath);
             this[Internal].basePath = basePath;
         } else {
             this[Internal].basePath = '';

@@ -86,7 +86,9 @@ function getPackageVersion(packageName) {
 }
 function getBinaryVersion(binaryName) {
     try {
-        return _childProcess.default.execSync(`${binaryName} --version`).toString().trim();
+        return _childProcess.default.execFileSync(binaryName, [
+            '--version'
+        ]).toString().trim();
     } catch  {
         return 'N/A';
     }

@@ -83,7 +83,7 @@ function compileNonPath(value, params) {
     // correctly
     return (0, _pathToRegexp).compile(`/${value}`, {
         validate: false
-    })(params).substr(1);
+    })(params).slice(1);
 }
 function prepareDestination(args) {
     const query = Object.assign({}, args.query);

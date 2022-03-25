@@ -9,6 +9,7 @@ exports.minify = minify;
 exports.minifySync = minifySync;
 exports.bundle = bundle;
 exports.parse = parse;
+exports.getBinaryMetadata = getBinaryMetadata;
 var _os = require("os");
 var _triples = require("next/dist/compiled/@napi-rs/triples");
 var Log = _interopRequireWildcard(require("../output/log"));
@@ -95,6 +96,9 @@ async function loadWasm() {
                 },
                 parse (src, options) {
                     return Promise.resolve(bindings.parse(src.toString(), options));
+                },
+                getTargetTriple () {
+                    return undefined;
                 }
             };
             return wasmBindings;
@@ -179,7 +183,8 @@ function loadNative() {
             },
             parse (src, options) {
                 return bindings.parse(src, toBuffer(options !== null && options !== void 0 ? options : {}));
-            }
+            },
+            getTargetTriple: bindings.getTargetTriple
         };
         return nativeBindings;
     }
@@ -213,10 +218,22 @@ async function bundle(options) {
     return bindings.bundle(toBuffer(options));
 }
 async function parse(src, options) {
-    let bindings = loadBindingsSync();
+    let bindings = await loadBindings();
     let parserOptions = (0, _options).getParserOptions(options);
     return bindings.parse(src, parserOptions).then((astStr)=>JSON.parse(astStr)
     );
+}
+function getBinaryMetadata() {
+    var ref;
+    let bindings;
+    try {
+        bindings = loadNative();
+    } catch (e) {
+    // Suppress exceptions, this fn allows to fail to load native bindings
+    }
+    return {
+        target: bindings === null || bindings === void 0 ? void 0 : (ref = bindings.getTargetTriple) === null || ref === void 0 ? void 0 : ref.call(bindings)
+    };
 }
 
 //# sourceMappingURL=index.js.map

@@ -17,12 +17,12 @@ var _imageSize = _interopRequireDefault(require("next/dist/compiled/image-size")
 var _isAnimated = _interopRequireDefault(require("next/dist/compiled/is-animated"));
 var _contentDisposition = _interopRequireDefault(require("next/dist/compiled/content-disposition"));
 var _path = require("path");
-var _stream = _interopRequireDefault(require("stream"));
 var _url = _interopRequireDefault(require("url"));
 var _main = require("./lib/squoosh/main");
 var _sendPayload = require("./send-payload");
 var _serveStatic = require("./serve-static");
 var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
+var _mockRequest = require("./lib/mock-request");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -237,55 +237,7 @@ async function imageOptimizer(_req, _res, paramsResult, nextConfig, handleReques
         maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'));
     } else {
         try {
-            const resBuffers = [];
-            const mockRes = new _stream.default.Writable();
-            const isStreamFinished = new Promise(function(resolve, reject) {
-                mockRes.on('finish', ()=>resolve(true)
-                );
-                mockRes.on('end', ()=>resolve(true)
-                );
-                mockRes.on('error', (err)=>reject(err)
-                );
-            });
-            mockRes.write = (chunk)=>{
-                resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-            };
-            mockRes._write = (chunk, _encoding, callback)=>{
-                mockRes.write(chunk);
-                // According to Node.js documentation, the callback MUST be invoked to signal that
-                // the write completed successfully. If this callback is not invoked, the 'finish' event
-                // will not be emitted.
-                // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
-                callback();
-            };
-            const mockHeaders = {};
-            mockRes.writeHead = (_status, _headers)=>Object.assign(mockHeaders, _headers)
-            ;
-            mockRes.getHeader = (name)=>mockHeaders[name.toLowerCase()]
-            ;
-            mockRes.getHeaders = ()=>mockHeaders
-            ;
-            mockRes.getHeaderNames = ()=>Object.keys(mockHeaders)
-            ;
-            mockRes.setHeader = (name, value)=>mockHeaders[name.toLowerCase()] = value
-            ;
-            mockRes.removeHeader = (name)=>{
-                delete mockHeaders[name.toLowerCase()];
-            };
-            mockRes._implicitHeader = ()=>{};
-            mockRes.connection = _res.connection;
-            mockRes.finished = false;
-            mockRes.statusCode = 200;
-            const mockReq = new _stream.default.Readable();
-            mockReq._read = ()=>{
-                mockReq.emit('end');
-                mockReq.emit('close');
-                return Buffer.from('');
-            };
-            mockReq.headers = _req.headers;
-            mockReq.method = _req.method;
-            mockReq.url = href;
-            mockReq.connection = _req.connection;
+            const { resBuffers , req: mockReq , res: mockRes , streamPromise: isStreamFinished ,  } = (0, _mockRequest).mockRequest(href, _req.headers, _req.method || 'GET', _req.connection);
             await handleRequest(mockReq, mockRes, _url.default.parse(href, true));
             await isStreamFinished;
             if (!mockRes.statusCode) {
@@ -322,7 +274,7 @@ async function imageOptimizer(_req, _res, paramsResult, nextConfig, handleReques
     let contentType;
     if (mimeType) {
         contentType = mimeType;
-    } else if ((upstreamType === null || upstreamType === void 0 ? void 0 : upstreamType.startsWith('image/')) && (0, _serveStatic).getExtension(upstreamType)) {
+    } else if ((upstreamType === null || upstreamType === void 0 ? void 0 : upstreamType.startsWith('image/')) && (0, _serveStatic).getExtension(upstreamType) && upstreamType !== WEBP && upstreamType !== AVIF) {
         contentType = upstreamType;
     } else {
         contentType = JPEG;

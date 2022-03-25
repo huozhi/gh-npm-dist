@@ -26,7 +26,21 @@ const BUILD_FEATURES = [
     'swcReactRemoveProperties',
     'swcExperimentalDecorators',
     'swcRemoveConsole',
-    'swcImportSource', 
+    'swcImportSource',
+    'swcEmotion',
+    'swc/target/x86_64-apple-darwin',
+    'swc/target/x86_64-unknown-linux-gnu',
+    'swc/target/x86_64-pc-windows-msvc',
+    'swc/target/i686-pc-windows-msvc',
+    'swc/target/aarch64-unknown-linux-gnu',
+    'swc/target/armv7-unknown-linux-gnueabihf',
+    'swc/target/aarch64-apple-darwin',
+    'swc/target/aarch64-linux-android',
+    'swc/target/arm-linux-androideabi',
+    'swc/target/x86_64-unknown-freebsd',
+    'swc/target/x86_64-unknown-linux-musl',
+    'swc/target/aarch64-unknown-linux-musl',
+    'swc/target/aarch64-pc-windows-msvc', 
 ];
 class TelemetryPlugin {
     // Build feature usage is on/off and is known before the build starts
