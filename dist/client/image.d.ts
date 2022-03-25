@@ -12,7 +12,7 @@ export declare type ImageLoaderProps = {
     width: number;
     quality?: number;
 };
-declare const VALID_LAYOUT_VALUES: readonly ["fill", "fixed", "intrinsic", "responsive", undefined];
+declare const VALID_LAYOUT_VALUES: readonly ["fill", "fixed", "intrinsic", "responsive", "raw", undefined];
 declare type LayoutValue = typeof VALID_LAYOUT_VALUES[number];
 declare type PlaceholderValue = 'blur' | 'empty';
 declare type OnLoadingComplete = (result: {
@@ -30,7 +30,7 @@ interface StaticRequire {
     default: StaticImageData;
 }
 declare type StaticImport = StaticRequire | StaticImageData;
-export declare type ImageProps = Omit<JSX.IntrinsicElements['img'], 'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'> & {
+export declare type ImageProps = Omit<JSX.IntrinsicElements['img'], 'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'> & {
     src: string | StaticImport;
     width?: number | string;
     height?: number | string;
@@ -48,5 +48,5 @@ export declare type ImageProps = Omit<JSX.IntrinsicElements['img'], 'src' | 'src
     objectPosition?: ImgElementStyle['objectPosition'];
     onLoadingComplete?: OnLoadingComplete;
 };
-export default function Image({ src, sizes, unoptimized, priority, loading, lazyRoot, lazyBoundary, className, quality, width, height, objectFit, objectPosition, onLoadingComplete, loader, placeholder, blurDataURL, ...all }: ImageProps): JSX.Element;
+export default function Image({ src, sizes, unoptimized, priority, loading, lazyRoot, lazyBoundary, className, quality, width, height, style, objectFit, objectPosition, onLoadingComplete, loader, placeholder, blurDataURL, ...all }: ImageProps): JSX.Element;
 export {};

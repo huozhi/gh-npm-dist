@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScriptHTMLAttributes } from 'react';
 export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
-    strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive';
+    strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker';
     id?: string;
     onLoad?: (e: any) => void;
     onError?: (e: any) => void;

@@ -9,10 +9,9 @@ export declare type PagesMapping = {
     [page: string]: string;
 };
 export declare function getPageFromPath(pagePath: string, extensions: string[]): string;
-export declare function createPagesMapping(pagePaths: string[], extensions: string[], { isDev, hasServerComponents, globalRuntime, }: {
+export declare function createPagesMapping(pagePaths: string[], extensions: string[], { isDev, hasServerComponents, }: {
     isDev: boolean;
     hasServerComponents: boolean;
-    globalRuntime?: 'nodejs' | 'edge';
 }): PagesMapping;
 declare type Entrypoints = {
     client: webpack5.EntryObject;

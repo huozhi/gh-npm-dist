@@ -98,6 +98,7 @@ export default abstract class Server {
         fontManifest?: FontManifest;
         disableOptimizedLoading?: boolean;
         optimizeCss: any;
+        nextScriptWorkers: any;
         locale?: string;
         locales?: string[];
         defaultLocale?: string;

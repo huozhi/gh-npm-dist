@@ -1,4 +1,5 @@
 import { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin';
+import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin';
 declare type EventTypeCheckCompleted = {
     durationInSeconds: number;
     typescriptVersion: string | null;
@@ -62,7 +63,7 @@ export declare function eventBuildOptimize(pagePaths: string[], event: Omit<Even
 };
 export declare const EVENT_BUILD_FEATURE_USAGE = "NEXT_BUILD_FEATURE_USAGE";
 export declare type EventBuildFeatureUsage = {
-    featureName: 'next/image' | 'next/script' | 'next/dynamic' | 'experimental/optimizeCss' | 'optimizeFonts' | 'swcLoader' | 'swcMinify' | 'swcRelay' | 'swcStyledComponents' | 'swcReactRemoveProperties' | 'swcExperimentalDecorators' | 'swcRemoveConsole' | 'swcImportSource' | 'build-lint';
+    featureName: 'next/image' | 'next/script' | 'next/dynamic' | 'experimental/optimizeCss' | 'optimizeFonts' | 'swcLoader' | 'swcMinify' | 'swcRelay' | 'swcStyledComponents' | 'swcReactRemoveProperties' | 'swcExperimentalDecorators' | 'swcRemoveConsole' | 'swcImportSource' | 'swcEmotion' | `swc/target/${SWC_TARGET_TRIPLE}` | 'build-lint';
     invocationCount: number;
 };
 export declare function eventBuildFeatureUsage(telemetryPlugin: TelemetryPlugin): Array<{

@@ -25,6 +25,7 @@ export declare type HtmlProps = {
     scriptLoader: {
         afterInteractive?: string[];
         beforeInteractive?: any[];
+        worker?: any[];
     };
     locale?: string;
     disableOptimizedLoading?: boolean;
@@ -33,6 +34,8 @@ export declare type HtmlProps = {
     crossOrigin?: string;
     optimizeCss?: boolean;
     optimizeFonts?: boolean;
+    nextScriptWorkers?: boolean;
     runtime?: 'edge' | 'nodejs';
+    hasConcurrentFeatures?: boolean;
 };
 export declare const HtmlContext: import("react").Context<HtmlProps>;

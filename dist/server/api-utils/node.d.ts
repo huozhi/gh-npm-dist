@@ -9,8 +9,9 @@ export declare function tryGetPreviewData(req: IncomingMessage | BaseNextRequest
  * @param req request object
  */
 export declare function parseBody(req: IncomingMessage, limit: string | number): Promise<any>;
-export declare function apiResolver(req: IncomingMessage, res: ServerResponse, query: any, resolverModule: any, apiContext: __ApiPreviewProps & {
+declare type ApiContext = __ApiPreviewProps & {
     trustHostHeader?: boolean;
-    hostname?: string;
-    port?: number;
-}, propagateError: boolean, dev?: boolean, page?: string): Promise<void>;
+    revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>;
+};
+export declare function apiResolver(req: IncomingMessage, res: ServerResponse, query: any, resolverModule: any, apiContext: ApiContext, propagateError: boolean, dev?: boolean, page?: string): Promise<void>;
+export {};

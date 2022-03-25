@@ -18,6 +18,7 @@ export default class HotReloader {
     private config;
     private runtime?;
     private hasServerComponents;
+    private hasReactRoot;
     clientStats: webpack5.Stats | null;
     serverStats: webpack5.Stats | null;
     private clientError;

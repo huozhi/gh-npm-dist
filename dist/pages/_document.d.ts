@@ -6,6 +6,7 @@ export { DocumentContext, DocumentInitialProps, DocumentProps };
 export declare type OriginProps = {
     nonce?: string;
     crossOrigin?: string;
+    children?: React.ReactNode;
 };
 declare type DocumentFiles = {
     sharedFiles: readonly string[];
@@ -32,7 +33,7 @@ export declare class Head extends Component<OriginProps & React.DetailedHTMLProp
     getPreloadDynamicChunks(): (JSX.Element | null)[];
     getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null;
     getDynamicChunks(files: DocumentFiles): (JSX.Element | null)[];
-    getPreNextScripts(): JSX.Element[];
+    getPreNextScripts(): JSX.Element;
     getScripts(files: DocumentFiles): JSX.Element[];
     getPolyfillScripts(): JSX.Element[];
     handleDocumentScriptLoaderItems(children: React.ReactNode): ReactNode[];
@@ -45,7 +46,7 @@ export declare class NextScript extends Component<OriginProps> {
     context: React.ContextType<typeof HtmlContext>;
     static safariNomoduleFix: string;
     getDynamicChunks(files: DocumentFiles): (JSX.Element | null)[];
-    getPreNextScripts(): JSX.Element[];
+    getPreNextScripts(): JSX.Element;
     getScripts(files: DocumentFiles): JSX.Element[];
     getPolyfillScripts(): JSX.Element[];
     static getInlineScriptSource(context: Readonly<HtmlProps>): string;

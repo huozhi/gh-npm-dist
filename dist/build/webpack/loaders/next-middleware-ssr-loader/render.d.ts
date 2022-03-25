@@ -3,7 +3,7 @@ import type { DocumentType } from '../../../../shared/lib/utils';
 import type { BuildManifest } from '../../../../server/get-page-files';
 import type { ReactLoadableManifest } from '../../../../server/load-components';
 import { NextRequest } from '../../../../server/web/spec-extension/request';
-export declare function getRender({ dev, page, appMod, pageMod, errorMod, error500Mod, Document, buildManifest, reactLoadableManifest, serverComponentManifest, isServerComponent, config, buildId, }: {
+export declare function getRender({ dev, page, appMod, pageMod, errorMod, error500Mod, Document, buildManifest, reactLoadableManifest, serverComponentManifest, config, buildId, }: {
     dev: boolean;
     page: string;
     appMod: any;
@@ -14,7 +14,6 @@ export declare function getRender({ dev, page, appMod, pageMod, errorMod, error5
     buildManifest: BuildManifest;
     reactLoadableManifest: ReactLoadableManifest;
     serverComponentManifest: any | null;
-    isServerComponent: boolean;
     config: NextConfig;
     buildId: string;
 }): (request: NextRequest) => Promise<Response>;

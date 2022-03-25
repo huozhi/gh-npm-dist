@@ -83,6 +83,5 @@ export default class NextWebServer extends BaseServer {
         };
         components: LoadComponentsReturnType;
     } | null>;
-    updateRenderOpts(renderOpts: Partial<BaseServer['renderOpts']>): void;
 }
 export {};

@@ -71,6 +71,7 @@ export interface ExperimentalConfig {
     workerThreads?: boolean;
     pageEnv?: boolean;
     optimizeCss?: boolean;
+    nextScriptWorkers?: boolean;
     scrollRestoration?: boolean;
     externalDir?: boolean;
     conformance?: boolean;
@@ -91,7 +92,20 @@ export interface ExperimentalConfig {
     urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp'];
     outputFileTracingRoot?: string;
     outputStandalone?: boolean;
+    images?: {
+        layoutRaw: boolean;
+    };
     middlewareSourceMaps?: boolean;
+    emotion?: boolean | {
+        sourceMap?: boolean;
+        autoLabel?: 'dev-only' | 'always' | 'never';
+        labelFormat?: string;
+    };
+    modularizeImports?: Record<string, {
+        transform: string;
+        preventFullImport?: boolean;
+        skipDefaultConversion?: boolean;
+    }>;
 }
 /**
  * Next configuration object

@@ -93,7 +93,7 @@ export declare function resolveExternal(appDir: string, esmExternalsConfig: Next
     isEsm: boolean;
     localRes?: undefined;
 }>;
-export default function getBaseWebpackConfig(dir: string, { buildId, config, dev, isServer, isEdgeRuntime, pagesDir, target, reactProductionProfiling, entrypoints, rewrites, isDevFallback, runWebpackSpan, }: {
+export default function getBaseWebpackConfig(dir: string, { buildId, config, dev, isServer, isEdgeRuntime, pagesDir, target, reactProductionProfiling, entrypoints, rewrites, isDevFallback, runWebpackSpan, hasReactRoot, }: {
     buildId: string;
     config: NextConfigComplete;
     dev?: boolean;
@@ -106,4 +106,5 @@ export default function getBaseWebpackConfig(dir: string, { buildId, config, dev
     rewrites: CustomRoutes['rewrites'];
     isDevFallback?: boolean;
     runWebpackSpan: Span;
+    hasReactRoot: boolean;
 }): Promise<webpack.Configuration>;

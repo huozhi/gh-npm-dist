@@ -32,6 +32,7 @@ interface ExportPageInput {
     disableOptimizedLoading: any;
     parentSpanId: any;
     httpAgentOptions: NextConfigComplete['httpAgentOptions'];
+    serverComponents?: boolean;
 }
 interface ExportPageResults {
     ampValidations: AmpValidation[];
@@ -59,5 +60,5 @@ interface RenderOpts {
     defaultLocale?: string;
     trailingSlash?: boolean;
 }
-export default function exportPage({ parentSpanId, path, pathMap, distDir, outDir, pagesDataDir, renderOpts, buildExport, serverRuntimeConfig, subFolders, serverless, optimizeFonts, optimizeCss, disableOptimizedLoading, httpAgentOptions, }: ExportPageInput): Promise<ExportPageResults>;
+export default function exportPage({ parentSpanId, path, pathMap, distDir, outDir, pagesDataDir, renderOpts, buildExport, serverRuntimeConfig, subFolders, serverless, optimizeFonts, optimizeCss, disableOptimizedLoading, httpAgentOptions, serverComponents, }: ExportPageInput): Promise<ExportPageResults>;
 export {};

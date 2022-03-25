@@ -13,6 +13,7 @@ export declare type LoadComponentsReturnType = {
     pageConfig: PageConfig;
     buildManifest: BuildManifest;
     reactLoadableManifest: ReactLoadableManifest;
+    serverComponentManifest?: any | null;
     Document: DocumentType;
     App: AppType;
     getStaticProps?: GetStaticProps;
@@ -21,9 +22,7 @@ export declare type LoadComponentsReturnType = {
     ComponentMod: any;
     AppMod: any;
 };
-export declare function loadDefaultErrorComponents(distDir: string, { hasConcurrentFeatures }: {
-    hasConcurrentFeatures: boolean;
-}): Promise<{
+export declare function loadDefaultErrorComponents(distDir: string): Promise<{
     App: any;
     Document: any;
     Component: any;
@@ -33,4 +32,4 @@ export declare function loadDefaultErrorComponents(distDir: string, { hasConcurr
     ComponentMod: any;
     AppMod: any;
 }>;
-export declare function loadComponents(distDir: string, pathname: string, serverless: boolean): Promise<LoadComponentsReturnType>;
+export declare function loadComponents(distDir: string, pathname: string, serverless: boolean, serverComponents?: boolean): Promise<LoadComponentsReturnType>;
