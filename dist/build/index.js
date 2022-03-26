@@ -545,10 +545,10 @@ async function build(dir, conf = null, reactProductionProfiling = false, debugOu
                     let isHybridAmp = false;
                     let ssgPageRoutes = null;
                     let isMiddlewareRoute = !!page.match(_constants.MIDDLEWARE_ROUTE);
-                    const pagePath = pagePaths.find((_path1)=>_path1.startsWith(actualPage + '.')
+                    const pagePath = pagePaths.find((p)=>p.startsWith(actualPage + '.') || p.startsWith(actualPage + '/index.')
                     );
                     const pageRuntime = hasConcurrentFeatures && pagePath ? await (0, _entries).getPageRuntime((0, _path).join(pagesDir, pagePath), config.experimental.runtime) : null;
-                    if (!isMiddlewareRoute && !(0, _utils2).isReservedPage(page) && // We currently don't support staic optimization in the Edge runtime.
+                    if (!isMiddlewareRoute && !(0, _utils2).isReservedPage(page) && // We currently don't support static optimization in the Edge runtime.
                     pageRuntime !== 'edge') {
                         try {
                             let isPageStaticSpan = checkPageSpan.traceChild('is-page-static');

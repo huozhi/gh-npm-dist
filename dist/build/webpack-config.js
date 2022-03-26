@@ -518,6 +518,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , dev =false , isSer
             'next',
             ...isEdgeRuntime ? [
                 {
+                    '@builder.io/partytown': '{}',
                     'next/dist/compiled/etag': '{}',
                     'next/dist/compiled/chalk': '{}',
                     'react-dom': '{}'

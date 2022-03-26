@@ -73,9 +73,8 @@ function hasComponentProps(child) {
 }
 function getPreNextWorkerScripts(context, props) {
     const { assetPrefix , scriptLoader , crossOrigin , nextScriptWorkers  } = context;
-    const isNodeEnv = !!process.version;
-    // disable `nextScriptWorkers` in node runtime
-    if (!nextScriptWorkers || !isNodeEnv) return null;
+    // disable `nextScriptWorkers` in edge runtime
+    if (!nextScriptWorkers || process.browser) return null;
     try {
         let { partytownSnippet ,  } = require(/* webpackIgnore: true */ '@builder.io/partytown/integration');
         const children = Array.isArray(props.children) ? props.children : [

@@ -14,6 +14,7 @@ function buildExports(moduleExports, isESM) {
 }
 const esmNodeTypes = [
     'ImportDeclaration',
+    'ExportDeclaration',
     'ExportNamedDeclaration',
     'ExportDefaultExpression',
     'ExportDefaultDeclaration', 

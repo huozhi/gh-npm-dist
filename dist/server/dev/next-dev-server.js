@@ -491,6 +491,7 @@ class DevServer extends _nextServer.default {
             // internal error and only show the provided stack
             }
         }
+        console.error(err);
         if (!usedOriginalStack) {
             if (type === 'warning') {
                 Log.warn(err + '');
