@@ -23,6 +23,7 @@ var _sendPayload = require("./send-payload");
 var _serveStatic = require("./serve-static");
 var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _mockRequest = require("./lib/mock-request");
+var _matchRemotePattern = require("../shared/lib/match-remote-pattern");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -54,10 +55,12 @@ try {
 let showSharpMissingWarning = process.env.NODE_ENV === 'production';
 class ImageOptimizerCache {
     static validateParams(req, query, nextConfig, isDev) {
+        var ref;
         const imageData = nextConfig.images;
         const { deviceSizes =[] , imageSizes =[] , domains =[] , minimumCacheTTL =60 , formats =[
             'image/webp'
         ] ,  } = imageData;
+        const remotePatterns = ((ref = nextConfig.experimental.images) === null || ref === void 0 ? void 0 : ref.remotePatterns) || [];
         const { url , w , q  } = query;
         let href;
         if (!url) {
@@ -92,7 +95,7 @@ class ImageOptimizerCache {
                     errorMessage: '"url" parameter is invalid'
                 };
             }
-            if (!domains || !domains.includes(hrefParsed.hostname)) {
+            if (!(0, _matchRemotePattern).hasMatch(domains, remotePatterns, hrefParsed)) {
                 return {
                     errorMessage: '"url" parameter is not allowed'
                 };
@@ -419,9 +422,9 @@ function getFileNameWithExtension(url, contentType) {
     const extension = (0, _serveStatic).getExtension(contentType);
     return `${fileName}.${extension}`;
 }
-function setResponseHeaders(req, res, url, etag, contentType, isStatic, xCache, contentSecurityPolicy) {
+function setResponseHeaders(req, res, url, etag, contentType, isStatic, xCache, contentSecurityPolicy, maxAge, isDev) {
     res.setHeader('Vary', 'Accept');
-    res.setHeader('Cache-Control', isStatic ? 'public, max-age=315360000, immutable' : `public, max-age=0, must-revalidate`);
+    res.setHeader('Cache-Control', isStatic ? 'public, max-age=315360000, immutable' : `public, max-age=${isDev ? 0 : maxAge}, must-revalidate`);
     if ((0, _sendPayload).sendEtagResponse(req, res, etag)) {
         // already called res.end() so we're finished
         return {
@@ -445,13 +448,14 @@ function setResponseHeaders(req, res, url, etag, contentType, isStatic, xCache, 
         finished: false
     };
 }
-function sendResponse(req, res, url, extension, buffer, isStatic, xCache, contentSecurityPolicy) {
+function sendResponse(req, res, url, extension, buffer, isStatic, xCache, contentSecurityPolicy, maxAge, isDev) {
     const contentType = (0, _serveStatic).getContentType(extension);
     const etag = getHash([
         buffer
     ]);
-    const result = setResponseHeaders(req, res, url, etag, contentType, isStatic, xCache, contentSecurityPolicy);
+    const result = setResponseHeaders(req, res, url, etag, contentType, isStatic, xCache, contentSecurityPolicy, maxAge, isDev);
     if (!result.finished) {
+        res.setHeader('Content-Length', Buffer.byteLength(buffer));
         res.end(buffer);
     }
 }

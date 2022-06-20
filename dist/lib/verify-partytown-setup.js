@@ -57,8 +57,9 @@ async function verifyPartytownSetup(dir, targetDir) {
         const partytownDeps = await (0, _hasNecessaryDependencies).hasNecessaryDependencies(dir, [
             {
                 file: '@builder.io/partytown',
-                pkg: '@builder.io/partytown'
-            }
+                pkg: '@builder.io/partytown',
+                exportsRestrict: false
+            }, 
         ]);
         if (((ref = partytownDeps.missing) === null || ref === void 0 ? void 0 : ref.length) > 0) {
             await missingDependencyError(dir);

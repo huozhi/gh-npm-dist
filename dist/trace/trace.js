@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.flushAllTraces = exports.trace = exports.SpanStatus = void 0;
 var _report = require("./report");
-const NUM_OF_MICROSEC_IN_SEC = BigInt('1000');
+const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000');
 let count = 0;
 const getId = ()=>{
     count++;
@@ -40,12 +40,12 @@ class Span {
     // a float64 in both JSON and JavaScript.
     stop(stopTime) {
         const end = stopTime || process.hrtime.bigint();
-        const duration = (end - this._start) / NUM_OF_MICROSEC_IN_SEC;
+        const duration = (end - this._start) / NUM_OF_MICROSEC_IN_NANOSEC;
         this.status = SpanStatus.Stopped;
         if (duration > Number.MAX_SAFE_INTEGER) {
             throw new Error(`Duration is too long to express as float64: ${duration}`);
         }
-        const timestamp = this._start / NUM_OF_MICROSEC_IN_SEC;
+        const timestamp = this._start / NUM_OF_MICROSEC_IN_NANOSEC;
         _report.reporter.report(this.name, Number(duration), Number(timestamp), this.id, this.parentId, this.attrs, this.now);
     }
     traceChild(name, attrs) {

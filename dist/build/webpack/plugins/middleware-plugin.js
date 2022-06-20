@@ -2,249 +2,433 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.getEntrypointInfo = getEntrypointInfo;
-exports.collectAssets = collectAssets;
-exports.default = exports.ssrEntries = void 0;
-var _webpack = require("next/dist/compiled/webpack/webpack");
+exports.default = void 0;
+var _routeRegex = require("../../../shared/lib/router/utils/route-regex");
+var _getModuleBuildInfo = require("../loaders/get-module-build-info");
 var _utils = require("../../../shared/lib/router/utils");
+var _webpack = require("next/dist/compiled/webpack/webpack");
 var _constants = require("../../../shared/lib/constants");
-var _nonNullable = require("../../../lib/non-nullable");
-const PLUGIN_NAME = 'MiddlewarePlugin';
-const MIDDLEWARE_FULL_ROUTE_REGEX = /^pages[/\\]?(.*)\/_middleware$/;
-const ssrEntries = new Map();
-exports.ssrEntries = ssrEntries;
+const NAME = 'MiddlewarePlugin';
 const middlewareManifest = {
     sortedMiddleware: [],
-    clientInfo: [],
     middleware: {},
+    functions: {},
     version: 1
 };
-function getPageFromEntrypointName(pagePath) {
-    const ssrEntryInfo = ssrEntries.get(pagePath);
-    const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(pagePath);
-    const page = result ? `/${result[1]}` : ssrEntryInfo ? pagePath.slice('pages'.length).replace(/\/index$/, '') || '/' : null;
-    return page;
-}
-function getEntrypointInfo(compilation, { envPerRoute , wasmPerRoute  }, isEdgeRuntime) {
-    const entrypoints = compilation.entrypoints;
-    const infos = [];
-    for (const entrypoint of entrypoints.values()){
-        if (!entrypoint.name) continue;
-        const ssrEntryInfo = ssrEntries.get(entrypoint.name);
-        if (ssrEntryInfo && !isEdgeRuntime) continue;
-        if (!ssrEntryInfo && isEdgeRuntime) continue;
-        const page = getPageFromEntrypointName(entrypoint.name);
-        if (!page) {
-            continue;
-        }
-        const entryFiles = entrypoint.getFiles().filter((file)=>!file.endsWith('.hot-update.js')
-        );
-        const files = ssrEntryInfo ? [
-            ssrEntryInfo.requireFlightManifest ? `server/${_constants.MIDDLEWARE_FLIGHT_MANIFEST}.js` : null,
-            `server/${_constants.MIDDLEWARE_BUILD_MANIFEST}.js`,
-            `server/${_constants.MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
-            ...entryFiles.map((file)=>'server/' + file
-            ), 
-        ].filter(_nonNullable.nonNullable) : entryFiles.map((file)=>file
-        );
-        infos.push({
-            env: envPerRoute.get(entrypoint.name) || [],
-            wasm: wasmPerRoute.get(entrypoint.name) || [],
-            files,
-            name: entrypoint.name,
-            page,
-            regexp: (0, _utils).getMiddlewareRegex(page, !ssrEntryInfo).namedRegex
-        });
-    }
-    return infos;
-}
 class MiddlewarePlugin {
-    constructor({ dev , isEdgeRuntime  }){
+    constructor({ dev  }){
         this.dev = dev;
-        this.isEdgeRuntime = isEdgeRuntime;
-    }
-    createAssets(compilation, assets, { envPerRoute , wasmPerRoute  }, isEdgeRuntime) {
-        const infos = getEntrypointInfo(compilation, {
-            envPerRoute,
-            wasmPerRoute
-        }, isEdgeRuntime);
-        infos.forEach((info)=>{
-            middlewareManifest.middleware[info.page] = info;
-        });
-        middlewareManifest.sortedMiddleware = (0, _utils).getSortedRoutes(Object.keys(middlewareManifest.middleware));
-        middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map((key)=>{
-            const middleware = middlewareManifest.middleware[key];
-            const ssrEntryInfo = ssrEntries.get(middleware.name);
-            return [
-                key,
-                !!ssrEntryInfo
-            ];
-        });
-        assets[this.isEdgeRuntime ? _constants.MIDDLEWARE_MANIFEST : `server/${_constants.MIDDLEWARE_MANIFEST}`] = new _webpack.sources.RawSource(JSON.stringify(middlewareManifest, null, 2));
     }
     apply(compiler) {
-        collectAssets(compiler, this.createAssets.bind(this), {
-            dev: this.dev,
-            pluginName: PLUGIN_NAME,
-            isEdgeRuntime: this.isEdgeRuntime
+        compiler.hooks.compilation.tap(NAME, (compilation, params)=>{
+            const { hooks  } = params.normalModuleFactory;
+            /**
+       * This is the static code analysis phase.
+       */ const codeAnalyzer = getCodeAnalizer({
+                dev: this.dev,
+                compiler,
+                compilation
+            });
+            hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer);
+            hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer);
+            hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer);
+            /**
+       * Extract all metadata for the entry points in a Map object.
+       */ const metadataByEntry = new Map();
+            compilation.hooks.afterOptimizeModules.tap(NAME, getExtractMetadata({
+                compilation,
+                compiler,
+                dev: this.dev,
+                metadataByEntry
+            }));
+            /**
+       * Emit the middleware manifest.
+       */ compilation.hooks.processAssets.tap({
+                name: 'NextJsMiddlewareManifest',
+                stage: _webpack.webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS
+            }, getCreateAssets({
+                compilation,
+                metadataByEntry
+            }));
         });
     }
 }
 exports.default = MiddlewarePlugin;
-function collectAssets(compiler, createAssets, options) {
-    const wp = compiler.webpack;
-    compiler.hooks.compilation.tap(options.pluginName, (compilation, { normalModuleFactory  })=>{
-        compilation.hooks.afterChunks.tap(options.pluginName, ()=>{
-            const middlewareRuntimeChunk = compilation.namedChunks.get(_constants.MIDDLEWARE_RUNTIME_WEBPACK);
-            if (middlewareRuntimeChunk) {
-                middlewareRuntimeChunk.filenameTemplate = 'server/[name].js';
+function getCodeAnalizer(params) {
+    return (parser)=>{
+        const { dev , compiler: { webpack: wp  } , compilation ,  } = params;
+        const { hooks  } = parser;
+        /**
+     * This expression handler allows to wrap a dynamic code expression with a
+     * function call where we can warn about dynamic code not being allowed
+     * but actually execute the expression.
+     */ const handleWrapExpression = (expr)=>{
+            if (!isInMiddlewareLayer(parser)) {
+                return;
             }
-        });
-        const envPerRoute = new Map();
-        const wasmPerRoute = new Map();
-        compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, ()=>{
-            const { moduleGraph  } = compilation;
-            envPerRoute.clear();
-            for (const [name, info] of compilation.entries){
-                if (info.options.runtime === _constants.MIDDLEWARE_SSR_RUNTIME_WEBPACK || info.options.runtime === _constants.MIDDLEWARE_RUNTIME_WEBPACK) {
-                    const middlewareEntries = new Set();
-                    const env = new Set();
-                    const wasm = new Set();
-                    const addEntriesFromDependency = (dep)=>{
-                        const module = moduleGraph.getModule(dep);
-                        if (module) {
-                            middlewareEntries.add(module);
-                        }
-                    };
-                    const runtime = wp.util.runtime.getEntryRuntime(compilation, name);
-                    info.dependencies.forEach(addEntriesFromDependency);
-                    info.includeDependencies.forEach(addEntriesFromDependency);
-                    const queue = new Set(middlewareEntries);
-                    for (const module1 of queue){
-                        const { buildInfo  } = module1;
-                        if (buildInfo.nextWasmMiddlewareBinding) {
-                            wasm.add(buildInfo.nextWasmMiddlewareBinding);
-                        }
-                        if (!options.dev && buildInfo && isUsedByExports({
-                            module: module1,
-                            moduleGraph,
-                            runtime,
-                            usedByExports: buildInfo.usingIndirectEval
-                        })) {
-                            if (/node_modules[\\/]regenerator-runtime[\\/]runtime\.js/.test(module1.identifier())) continue;
-                            const error = new wp.WebpackError(`Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware ${name}${typeof buildInfo.usingIndirectEval !== 'boolean' ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(', ')}` : ''}`);
-                            error.module = module1;
-                            compilation.errors.push(error);
-                        }
-                        if ((buildInfo === null || buildInfo === void 0 ? void 0 : buildInfo.nextUsedEnvVars) !== undefined) {
-                            for (const envName of buildInfo.nextUsedEnvVars){
-                                env.add(envName);
-                            }
-                        }
-                        const connections = moduleGraph.getOutgoingConnections(module1);
-                        for (const connection of connections){
-                            if (connection.module) {
-                                queue.add(connection.module);
-                            }
-                        }
-                    }
-                    envPerRoute.set(name, Array.from(env));
-                    wasmPerRoute.set(name, Array.from(wasm));
-                }
+            if (dev) {
+                const { ConstDependency  } = wp.dependencies;
+                const dep1 = new ConstDependency('__next_eval__(function() { return ', expr.range[0]);
+                dep1.loc = expr.loc;
+                parser.state.module.addPresentationalDependency(dep1);
+                const dep2 = new ConstDependency('})', expr.range[1]);
+                dep2.loc = expr.loc;
+                parser.state.module.addPresentationalDependency(dep2);
             }
-        });
-        const handler = (parser)=>{
-            const isMiddlewareModule = ()=>parser.state.module && parser.state.module.layer === 'middleware'
-            ;
-            const wrapExpression = (expr)=>{
-                if (!isMiddlewareModule()) return;
-                if (options.dev) {
-                    const dep1 = new wp.dependencies.ConstDependency('__next_eval__(function() { return ', expr.range[0]);
-                    dep1.loc = expr.loc;
-                    parser.state.module.addPresentationalDependency(dep1);
-                    const dep2 = new wp.dependencies.ConstDependency('})', expr.range[1]);
-                    dep2.loc = expr.loc;
-                    parser.state.module.addPresentationalDependency(dep2);
-                }
-                expressionHandler();
-                return true;
-            };
-            const flagModule = (usedByExports)=>{
-                if (usedByExports === undefined) usedByExports = true;
-                const old = parser.state.module.buildInfo.usingIndirectEval;
-                if (old === true || usedByExports === false) return;
-                if (!old || usedByExports === true) {
-                    parser.state.module.buildInfo.usingIndirectEval = usedByExports;
+            handleExpression();
+            return true;
+        };
+        /**
+     * This expression handler allows to wrap a WebAssembly.compile invocation with a
+     * function call where we can warn about WASM code generation not being allowed
+     * but actually execute the expression.
+     */ const handleWrapWasmCompileExpression = (expr)=>{
+            if (!isInMiddlewareLayer(parser)) {
+                return;
+            }
+            if (dev) {
+                const { ConstDependency  } = wp.dependencies;
+                const dep1 = new ConstDependency('__next_webassembly_compile__(function() { return ', expr.range[0]);
+                dep1.loc = expr.loc;
+                parser.state.module.addPresentationalDependency(dep1);
+                const dep2 = new ConstDependency('})', expr.range[1]);
+                dep2.loc = expr.loc;
+                parser.state.module.addPresentationalDependency(dep2);
+            }
+            handleExpression();
+        };
+        /**
+     * This expression handler allows to wrap a WebAssembly.instatiate invocation with a
+     * function call where we can warn about WASM code generation not being allowed
+     * but actually execute the expression.
+     *
+     * Note that we don't update `usingIndirectEval`, i.e. we don't abort a production build
+     * since we can't determine statically if the first parameter is a module (legit use) or
+     * a buffer (dynamic code generation).
+     */ const handleWrapWasmInstantiateExpression = (expr)=>{
+            if (!isInMiddlewareLayer(parser)) {
+                return;
+            }
+            if (dev) {
+                const { ConstDependency  } = wp.dependencies;
+                const dep1 = new ConstDependency('__next_webassembly_instantiate__(function() { return ', expr.range[0]);
+                dep1.loc = expr.loc;
+                parser.state.module.addPresentationalDependency(dep1);
+                const dep2 = new ConstDependency('})', expr.range[1]);
+                dep2.loc = expr.loc;
+                parser.state.module.addPresentationalDependency(dep2);
+            }
+        };
+        /**
+     * For an expression this will check the graph to ensure it is being used
+     * by exports. Then it will store in the module buildInfo a boolean to
+     * express that it contains dynamic code and, if it is available, the
+     * module path that is using it.
+     */ const handleExpression = ()=>{
+            if (!isInMiddlewareLayer(parser)) {
+                return;
+            }
+            wp.optimize.InnerGraph.onUsage(parser.state, (used = true)=>{
+                const buildInfo = (0, _getModuleBuildInfo).getModuleBuildInfo(parser.state.module);
+                if (buildInfo.usingIndirectEval === true || used === false) {
                     return;
                 }
-                const set = new Set(old);
-                for (const item of usedByExports){
-                    set.add(item);
+                if (!buildInfo.usingIndirectEval || used === true) {
+                    buildInfo.usingIndirectEval = used;
+                    return;
                 }
-                parser.state.module.buildInfo.usingIndirectEval = set;
-            };
-            const expressionHandler = ()=>{
-                if (!isMiddlewareModule()) return;
-                wp.optimize.InnerGraph.onUsage(parser.state, flagModule);
-            };
-            const ignore = ()=>{
-                if (!isMiddlewareModule()) return;
-                return true;
-            };
-            // wrapping
-            parser.hooks.call.for('eval').tap(PLUGIN_NAME, wrapExpression);
-            parser.hooks.call.for('global.eval').tap(PLUGIN_NAME, wrapExpression);
-            parser.hooks.call.for('Function').tap(PLUGIN_NAME, wrapExpression);
-            parser.hooks.call.for('global.Function').tap(PLUGIN_NAME, wrapExpression);
-            parser.hooks.new.for('Function').tap(PLUGIN_NAME, wrapExpression);
-            parser.hooks.new.for('global.Function').tap(PLUGIN_NAME, wrapExpression);
-            // fallbacks
-            parser.hooks.expression.for('eval').tap(PLUGIN_NAME, expressionHandler);
-            parser.hooks.expression.for('Function').tap(PLUGIN_NAME, expressionHandler);
-            parser.hooks.expression.for('Function.prototype').tap(PLUGIN_NAME, ignore);
-            parser.hooks.expression.for('global.eval').tap(PLUGIN_NAME, expressionHandler);
-            parser.hooks.expression.for('global.Function').tap(PLUGIN_NAME, expressionHandler);
-            parser.hooks.expression.for('global.Function.prototype').tap(PLUGIN_NAME, ignore);
-            const memberChainHandler = (_expr, members)=>{
-                if (members.length >= 2 && members[0] === 'env') {
-                    const envName = members[1];
-                    const { buildInfo  } = parser.state.module;
-                    if (buildInfo.nextUsedEnvVars === undefined) {
-                        buildInfo.nextUsedEnvVars = new Set();
-                    }
-                    buildInfo.nextUsedEnvVars.add(envName);
-                    if (isMiddlewareModule()) return true;
-                }
-            };
-            parser.hooks.callMemberChain.for('process').tap(PLUGIN_NAME, memberChainHandler);
-            parser.hooks.expressionMemberChain.for('process').tap(PLUGIN_NAME, memberChainHandler);
+                buildInfo.usingIndirectEval = new Set([
+                    ...Array.from(buildInfo.usingIndirectEval),
+                    ...Array.from(used), 
+                ]);
+            });
         };
-        normalModuleFactory.hooks.parser.for('javascript/auto').tap(PLUGIN_NAME, handler);
-        normalModuleFactory.hooks.parser.for('javascript/dynamic').tap(PLUGIN_NAME, handler);
-        normalModuleFactory.hooks.parser.for('javascript/esm').tap(PLUGIN_NAME, handler);
-        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-        compilation.hooks.processAssets.tap({
-            name: 'NextJsMiddlewareManifest',
-            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-            stage: _webpack.webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS
-        }, (assets)=>{
-            createAssets(compilation, assets, {
-                envPerRoute,
-                wasmPerRoute
-            }, options.isEdgeRuntime);
+        /**
+     * Declares an environment variable that is being used in this module
+     * through this static analysis.
+     */ const addUsedEnvVar = (envVarName)=>{
+            const buildInfo = (0, _getModuleBuildInfo).getModuleBuildInfo(parser.state.module);
+            if (buildInfo.nextUsedEnvVars === undefined) {
+                buildInfo.nextUsedEnvVars = new Set();
+            }
+            buildInfo.nextUsedEnvVars.add(envVarName);
+        };
+        /**
+     * A handler for calls to `process.env` where we identify the name of the
+     * ENV variable being assigned and store it in the module info.
+     */ const handleCallMemberChain = (_, members)=>{
+            if (members.length >= 2 && members[0] === 'env') {
+                addUsedEnvVar(members[1]);
+                if (!isInMiddlewareLayer(parser)) {
+                    return true;
+                }
+            }
+        };
+        /**
+     * A handler for calls to `new Response()` so we can fail if user is setting the response's body.
+     */ const handleNewResponseExpression = (node)=>{
+            var ref;
+            const firstParameter = node === null || node === void 0 ? void 0 : (ref = node.arguments) === null || ref === void 0 ? void 0 : ref[0];
+            if (isInMiddlewareFile(parser) && firstParameter && !isNullLiteral(firstParameter) && !isUndefinedIdentifier(firstParameter)) {
+                const error = new wp.WebpackError(`Your middleware is returning a response body (line: ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`);
+                error.name = NAME;
+                error.module = parser.state.current;
+                error.loc = node.loc;
+                if (dev) {
+                    compilation.warnings.push(error);
+                } else {
+                    compilation.errors.push(error);
+                }
+            }
+        };
+        /**
+     * A noop handler to skip analyzing some cases.
+     * Order matters: for it to work, it must be registered first
+     */ const skip = ()=>isInMiddlewareLayer(parser) ? true : undefined
+        ;
+        for (const prefix of [
+            '',
+            'global.'
+        ]){
+            hooks.expression.for(`${prefix}Function.prototype`).tap(NAME, skip);
+            hooks.expression.for(`${prefix}Function.bind`).tap(NAME, skip);
+            hooks.call.for(`${prefix}eval`).tap(NAME, handleWrapExpression);
+            hooks.call.for(`${prefix}Function`).tap(NAME, handleWrapExpression);
+            hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression);
+            hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression);
+            hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression);
+            hooks.call.for(`${prefix}WebAssembly.compile`).tap(NAME, handleWrapWasmCompileExpression);
+            hooks.call.for(`${prefix}WebAssembly.instantiate`).tap(NAME, handleWrapWasmInstantiateExpression);
+        }
+        hooks.new.for('Response').tap(NAME, handleNewResponseExpression);
+        hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression);
+        hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain);
+        hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain);
+        /**
+     * Support static analyzing environment variables through
+     * destructuring `process.env` or `process["env"]`:
+     *
+     * const { MY_ENV, "MY-ENV": myEnv } = process.env
+     *         ^^^^^^   ^^^^^^
+     */ hooks.declarator.tap(NAME, (declarator)=>{
+            var ref, ref1;
+            if (((ref = declarator.init) === null || ref === void 0 ? void 0 : ref.type) === 'MemberExpression' && isProcessEnvMemberExpression(declarator.init) && ((ref1 = declarator.id) === null || ref1 === void 0 ? void 0 : ref1.type) === 'ObjectPattern') {
+                for (const property of declarator.id.properties){
+                    if (property.type === 'RestElement') continue;
+                    if (property.key.type === 'Literal' && typeof property.key.value === 'string') {
+                        addUsedEnvVar(property.key.value);
+                    } else if (property.key.type === 'Identifier') {
+                        addUsedEnvVar(property.key.name);
+                    }
+                }
+                if (!isInMiddlewareLayer(parser)) {
+                    return true;
+                }
+            }
         });
-    });
+        registerUnsupportedApiHooks(parser, compilation);
+    };
 }
-function isUsedByExports(args) {
-    const { moduleGraph , runtime , module , usedByExports  } = args;
-    if (usedByExports === undefined) return false;
-    if (typeof usedByExports === 'boolean') return usedByExports;
-    const exportsInfo = moduleGraph.getExportsInfo(module);
-    const wp = _webpack.webpack;
-    for (const exportName of usedByExports){
-        if (exportsInfo.getUsed(exportName, runtime) !== wp.UsageState.Unused) return true;
+function getExtractMetadata(params) {
+    const { dev , compilation , metadataByEntry , compiler  } = params;
+    const { webpack: wp  } = compiler;
+    return ()=>{
+        metadataByEntry.clear();
+        for (const [entryName, entryData] of compilation.entries){
+            if (entryData.options.runtime !== _constants.EDGE_RUNTIME_WEBPACK) {
+                continue;
+            }
+            const { moduleGraph  } = compilation;
+            const entryModules = new Set();
+            const addEntriesFromDependency = (dependency)=>{
+                const module = moduleGraph.getModule(dependency);
+                if (module) {
+                    entryModules.add(module);
+                }
+            };
+            entryData.dependencies.forEach(addEntriesFromDependency);
+            entryData.includeDependencies.forEach(addEntriesFromDependency);
+            const entryMetadata = {
+                env: new Set(),
+                wasmBindings: new Set()
+            };
+            for (const entryModule of entryModules){
+                const buildInfo = (0, _getModuleBuildInfo).getModuleBuildInfo(entryModule);
+                /**
+         * When building for production checks if the module is using `eval`
+         * and in such case produces a compilation error. The module has to
+         * be in use.
+         */ if (!dev && buildInfo.usingIndirectEval && isUsingIndirectEvalAndUsedByExports({
+                    entryModule: entryModule,
+                    moduleGraph: moduleGraph,
+                    runtime: wp.util.runtime.getEntryRuntime(compilation, entryName),
+                    usingIndirectEval: buildInfo.usingIndirectEval,
+                    wp
+                })) {
+                    const id = entryModule.identifier();
+                    if (/node_modules[\\/]regenerator-runtime[\\/]runtime\.js/.test(id)) {
+                        continue;
+                    }
+                    const error = new wp.WebpackError(`Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware ${entryName}${typeof buildInfo.usingIndirectEval !== 'boolean' ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(', ')}` : ''}`);
+                    error.module = entryModule;
+                    compilation.errors.push(error);
+                }
+                /**
+         * The entry module has to be either a page or a middleware and hold
+         * the corresponding metadata.
+         */ if (buildInfo === null || buildInfo === void 0 ? void 0 : buildInfo.nextEdgeSSR) {
+                    entryMetadata.edgeSSR = buildInfo.nextEdgeSSR;
+                } else if (buildInfo === null || buildInfo === void 0 ? void 0 : buildInfo.nextEdgeMiddleware) {
+                    entryMetadata.edgeMiddleware = buildInfo.nextEdgeMiddleware;
+                } else if (buildInfo === null || buildInfo === void 0 ? void 0 : buildInfo.nextEdgeApiFunction) {
+                    entryMetadata.edgeApiFunction = buildInfo.nextEdgeApiFunction;
+                }
+                /**
+         * If there are env vars found in the module, append them to the set
+         * of env vars for the entry.
+         */ if ((buildInfo === null || buildInfo === void 0 ? void 0 : buildInfo.nextUsedEnvVars) !== undefined) {
+                    for (const envName of buildInfo.nextUsedEnvVars){
+                        entryMetadata.env.add(envName);
+                    }
+                }
+                /**
+         * If the module is a WASM module we read the binding information and
+         * append it to the entry wasm bindings.
+         */ if (buildInfo === null || buildInfo === void 0 ? void 0 : buildInfo.nextWasmMiddlewareBinding) {
+                    entryMetadata.wasmBindings.add(buildInfo.nextWasmMiddlewareBinding);
+                }
+                /**
+         * Append to the list of modules to process outgoingConnections from
+         * the module that is being processed.
+         */ for (const conn of moduleGraph.getOutgoingConnections(entryModule)){
+                    if (conn.module) {
+                        entryModules.add(conn.module);
+                    }
+                }
+            }
+            metadataByEntry.set(entryName, entryMetadata);
+        }
+    };
+}
+/**
+ * Checks the value of usingIndirectEval and when it is a set of modules it
+ * check if any of the modules is actually being used. If the value is
+ * simply truthy it will return true.
+ */ function isUsingIndirectEvalAndUsedByExports(args) {
+    const { moduleGraph , runtime , entryModule , usingIndirectEval , wp  } = args;
+    if (typeof usingIndirectEval === 'boolean') {
+        return usingIndirectEval;
+    }
+    const exportsInfo = moduleGraph.getExportsInfo(entryModule);
+    for (const exportName of usingIndirectEval){
+        if (exportsInfo.getUsed(exportName, runtime) !== wp.UsageState.Unused) {
+            return true;
+        }
     }
     return false;
+}
+function getCreateAssets(params) {
+    const { compilation , metadataByEntry  } = params;
+    return (assets)=>{
+        for (const entrypoint of compilation.entrypoints.values()){
+            var ref, ref2, ref3, ref4;
+            if (!entrypoint.name) {
+                continue;
+            }
+            // There should always be metadata for the entrypoint.
+            const metadata = metadataByEntry.get(entrypoint.name);
+            const page = (metadata === null || metadata === void 0 ? void 0 : (ref = metadata.edgeMiddleware) === null || ref === void 0 ? void 0 : ref.page) || (metadata === null || metadata === void 0 ? void 0 : (ref2 = metadata.edgeSSR) === null || ref2 === void 0 ? void 0 : ref2.page) || (metadata === null || metadata === void 0 ? void 0 : (ref3 = metadata.edgeApiFunction) === null || ref3 === void 0 ? void 0 : ref3.page);
+            if (!page) {
+                continue;
+            }
+            const { namedRegex  } = (0, _routeRegex).getNamedMiddlewareRegex(page, {
+                catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction
+            });
+            const regexp = (metadata === null || metadata === void 0 ? void 0 : (ref4 = metadata.edgeMiddleware) === null || ref4 === void 0 ? void 0 : ref4.matcherRegexp) || namedRegex;
+            const edgeFunctionDefinition = {
+                env: Array.from(metadata.env),
+                files: getEntryFiles(entrypoint.getFiles(), metadata),
+                name: entrypoint.name,
+                page: page,
+                regexp,
+                wasm: Array.from(metadata.wasmBindings)
+            };
+            if (metadata.edgeApiFunction || metadata.edgeSSR) {
+                middlewareManifest.functions[page] = edgeFunctionDefinition;
+            } else {
+                middlewareManifest.middleware[page] = edgeFunctionDefinition;
+            }
+        }
+        middlewareManifest.sortedMiddleware = (0, _utils).getSortedRoutes(Object.keys(middlewareManifest.middleware));
+        assets[_constants.MIDDLEWARE_MANIFEST] = new _webpack.sources.RawSource(JSON.stringify(middlewareManifest, null, 2));
+    };
+}
+function getEntryFiles(entryFiles, meta) {
+    const files = [];
+    if (meta.edgeSSR) {
+        if (meta.edgeSSR.isServerComponent) {
+            files.push(`server/${_constants.MIDDLEWARE_FLIGHT_MANIFEST}.js`);
+            files.push(...entryFiles.filter((file)=>file.startsWith('pages/') && !file.endsWith('.hot-update.js')
+            ).map((file)=>'server/' + file.replace('.js', _constants.NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
+            ));
+        }
+        files.push(`server/${_constants.MIDDLEWARE_BUILD_MANIFEST}.js`, `server/${_constants.MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`);
+    }
+    files.push(...entryFiles.filter((file)=>!file.endsWith('.hot-update.js')
+    ).map((file)=>'server/' + file
+    ));
+    return files;
+}
+function registerUnsupportedApiHooks(parser, compilation) {
+    const { WebpackError  } = compilation.compiler.webpack;
+    for (const expression of _constants.EDGE_UNSUPPORTED_NODE_APIS){
+        const warnForUnsupportedApi = (node)=>{
+            if (!isInMiddlewareLayer(parser)) {
+                return;
+            }
+            compilation.warnings.push(makeUnsupportedApiError(WebpackError, parser, expression, node.loc));
+            return true;
+        };
+        parser.hooks.call.for(expression).tap(NAME, warnForUnsupportedApi);
+        parser.hooks.expression.for(expression).tap(NAME, warnForUnsupportedApi);
+        parser.hooks.callMemberChain.for(expression).tap(NAME, warnForUnsupportedApi);
+        parser.hooks.expressionMemberChain.for(expression).tap(NAME, warnForUnsupportedApi);
+    }
+    const warnForUnsupportedProcessApi = (node, [callee])=>{
+        if (!isInMiddlewareLayer(parser) || callee === 'env') {
+            return;
+        }
+        compilation.warnings.push(makeUnsupportedApiError(WebpackError, parser, `process.${callee}`, node.loc));
+        return true;
+    };
+    parser.hooks.callMemberChain.for('process').tap(NAME, warnForUnsupportedProcessApi);
+    parser.hooks.expressionMemberChain.for('process').tap(NAME, warnForUnsupportedProcessApi);
+}
+function makeUnsupportedApiError(WebpackError, parser, name, loc) {
+    const error = new WebpackError(`You're using a Node.js API (${name} at line: ${loc.start.line}) which is not supported in the Edge Runtime that Middleware uses.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime`);
+    error.name = NAME;
+    error.module = parser.state.current;
+    error.loc = loc;
+    return error;
+}
+function isInMiddlewareLayer(parser) {
+    var ref;
+    return ((ref = parser.state.module) === null || ref === void 0 ? void 0 : ref.layer) === 'middleware';
+}
+function isInMiddlewareFile(parser) {
+    var ref, ref5;
+    return ((ref = parser.state.current) === null || ref === void 0 ? void 0 : ref.layer) === 'middleware' && /middleware\.\w+$/.test((ref5 = parser.state.current) === null || ref5 === void 0 ? void 0 : ref5.rawRequest);
+}
+function isNullLiteral(expr) {
+    return expr.value === null;
+}
+function isUndefinedIdentifier(expr) {
+    return expr.name === 'undefined';
+}
+function isProcessEnvMemberExpression(memberExpression) {
+    var ref, ref6, ref7;
+    return ((ref = memberExpression.object) === null || ref === void 0 ? void 0 : ref.type) === 'Identifier' && memberExpression.object.name === 'process' && (((ref6 = memberExpression.property) === null || ref6 === void 0 ? void 0 : ref6.type) === 'Literal' && memberExpression.property.value === 'env' || ((ref7 = memberExpression.property) === null || ref7 === void 0 ? void 0 : ref7.type) === 'Identifier' && memberExpression.property.name === 'env');
 }
 
 //# sourceMappingURL=middleware-plugin.js.map

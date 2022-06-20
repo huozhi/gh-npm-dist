@@ -22,12 +22,10 @@ Object.defineProperty(exports, "normalizeConfig", {
     }
 });
 exports.setHttpAgentOptions = setHttpAgentOptions;
-exports.shouldUseReactRoot = void 0;
 var _path = require("path");
 var _url = require("url");
 var _http = require("http");
 var _https = require("https");
-var _semver = _interopRequireDefault(require("next/dist/compiled/semver"));
 var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
 var _chalk = _interopRequireDefault(require("../lib/chalk"));
 var Log = _interopRequireWildcard(require("../build/output/log"));
@@ -83,12 +81,6 @@ async function loadConfig(phase, dir, customConfig) {
         if (userConfig.target && userConfig.target !== 'server') {
             Log.warn('The `target` config is deprecated and will be removed in a future version.\n' + 'See more info here https://nextjs.org/docs/messages/deprecated-target-config');
         }
-        const hasReactRoot = shouldUseReactRoot();
-        if (hasReactRoot) {
-            // users might not have the `experimental` key in their config
-            userConfig.experimental = userConfig.experimental || {};
-            userConfig.experimental.reactRoot = true;
-        }
         if ((ref = userConfig.amp) === null || ref === void 0 ? void 0 : ref.canonicalBase) {
             const { canonicalBase  } = userConfig.amp || {};
             userConfig.amp = userConfig.amp || {};
@@ -117,7 +109,9 @@ async function loadConfig(phase, dir, customConfig) {
             throw new Error(`Configuring Next.js via '${(0, _path).basename(nonJsPath)}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`);
         }
     }
-    const completeConfig = _configShared.defaultConfig;
+    // always call assignDefaults to ensure settings like
+    // reactRoot can be updated correctly even with no next.config.js
+    const completeConfig = assignDefaults(_configShared.defaultConfig);
     completeConfig.configFileName = configFileName;
     setHttpAgentOptions(completeConfig.httpAgentOptions);
     return completeConfig;
@@ -153,13 +147,14 @@ const targets = [
     'serverless',
     'experimental-serverless-trace'
 ];
-const experimentalWarning = (0, _utils).execOnce(()=>{
-    Log.warn(_chalk.default.bold('You have enabled experimental feature(s).'));
-    Log.warn(`Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` + `Use them at your own risk.`);
+const experimentalWarning = (0, _utils).execOnce((configFileName, features)=>{
+    const s = features.length > 1 ? 's' : '';
+    Log.warn(_chalk.default.bold(`You have enabled experimental feature${s} (${features.join(', ')}) in ${configFileName}.`));
+    Log.warn(`Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` + `Use at your own risk.`);
     console.warn();
 });
 function assignDefaults(userConfig) {
-    var ref7, ref1, ref2, ref3;
+    var ref13, ref1, ref2, ref3, ref4, ref5;
     const configFileName = userConfig.configFileName;
     if (typeof userConfig.exportTrailingSlash !== 'undefined') {
         console.warn(_chalk.default.yellow.bold('Warning: ') + `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`);
@@ -168,10 +163,10 @@ function assignDefaults(userConfig) {
         }
         delete userConfig.exportTrailingSlash;
     }
-    if (typeof ((ref7 = userConfig.experimental) === null || ref7 === void 0 ? void 0 : ref7.reactMode) !== 'undefined') {
-        var ref4;
+    if (typeof ((ref13 = userConfig.experimental) === null || ref13 === void 0 ? void 0 : ref13.reactMode) !== 'undefined') {
+        var ref6;
         console.warn(_chalk.default.yellow.bold('Warning: ') + `The experimental "reactMode" option has been replaced with "reactRoot". Please update your ${configFileName}.`);
-        if (typeof ((ref4 = userConfig.experimental) === null || ref4 === void 0 ? void 0 : ref4.reactRoot) === 'undefined') {
+        if (typeof ((ref6 = userConfig.experimental) === null || ref6 === void 0 ? void 0 : ref6.reactRoot) === 'undefined') {
             userConfig.experimental.reactRoot = [
                 'concurrent',
                 'blocking'
@@ -185,7 +180,7 @@ function assignDefaults(userConfig) {
             return currentConfig;
         }
         if (key === 'experimental' && value !== _configShared.defaultConfig[key] && typeof value === 'object' && Object.keys(value).length > 0) {
-            experimentalWarning();
+            experimentalWarning(configFileName, Object.keys(value));
         }
         if (key === 'distDir') {
             if (typeof value !== 'string') {
@@ -250,32 +245,39 @@ function assignDefaults(userConfig) {
             throw new Error(`Specified basePath has to start with a /, found "${result.basePath}"`);
         }
         if (result.basePath !== '/') {
-            var ref5;
+            var ref7;
             if (result.basePath.endsWith('/')) {
                 throw new Error(`Specified basePath should not end with /, found "${result.basePath}"`);
             }
             if (result.assetPrefix === '') {
                 result.assetPrefix = result.basePath;
             }
-            if (((ref5 = result.amp) === null || ref5 === void 0 ? void 0 : ref5.canonicalBase) === '') {
+            if (((ref7 = result.amp) === null || ref7 === void 0 ? void 0 : ref7.canonicalBase) === '') {
                 result.amp.canonicalBase = result.basePath;
             }
         }
     }
+    const hasReactRoot = process.env.__NEXT_REACT_ROOT;
+    if (hasReactRoot) {
+        // users might not have the `experimental` key in their config
+        result.experimental = result.experimental || {};
+        result.experimental.reactRoot = true;
+    }
     if (result === null || result === void 0 ? void 0 : result.images) {
+        var ref8, ref9, ref10, ref11;
         const images = result.images;
         if (typeof images !== 'object') {
             throw new Error(`Specified images should be an object received ${typeof images}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
         }
         if (images.domains) {
-            var ref6;
+            var ref12;
             if (!Array.isArray(images.domains)) {
                 throw new Error(`Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
             }
             // static images are automatically prefixed with assetPrefix
             // so we need to ensure _next/image allows downloading from
             // this resource
-            if ((ref6 = config.assetPrefix) === null || ref6 === void 0 ? void 0 : ref6.startsWith('http')) {
+            if ((ref12 = config.assetPrefix) === null || ref12 === void 0 ? void 0 : ref12.startsWith('http')) {
                 images.domains.push(new URL(config.assetPrefix).hostname);
             }
             if (images.domains.length > 50) {
@@ -285,6 +287,32 @@ function assignDefaults(userConfig) {
             );
             if (invalid.length > 0) {
                 throw new Error(`Specified images.domains should be an Array of strings received invalid values (${invalid.join(', ')}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
+            }
+        }
+        const remotePatterns = (ref8 = result.experimental) === null || ref8 === void 0 ? void 0 : (ref9 = ref8.images) === null || ref9 === void 0 ? void 0 : ref9.remotePatterns;
+        if (remotePatterns) {
+            if (!Array.isArray(remotePatterns)) {
+                throw new Error(`Specified images.remotePatterns should be an Array received ${typeof remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
+            }
+            if (remotePatterns.length > 50) {
+                throw new Error(`Specified images.remotePatterns exceeds length of 50, received length (${remotePatterns.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
+            }
+            const validProps = new Set([
+                'protocol',
+                'hostname',
+                'pathname',
+                'port'
+            ]);
+            const requiredProps = [
+                'hostname'
+            ];
+            const invalidPatterns = remotePatterns.filter((d)=>!d || typeof d !== 'object' || Object.entries(d).some(([k, v])=>!validProps.has(k) || typeof v !== 'string'
+                ) || requiredProps.some((k)=>!(k in d)
+                )
+            );
+            if (invalidPatterns.length > 0) {
+                throw new Error(`Invalid images.remotePatterns values:\n${invalidPatterns.map((item)=>JSON.stringify(item)
+                ).join('\n')}\n\nremotePatterns value must follow format { protocol: 'https', hostname: 'example.com', port: '', pathname: '/imgs/**' }.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
             }
         }
         if (images.deviceSizes) {
@@ -365,6 +393,10 @@ function assignDefaults(userConfig) {
           ', '
         )}), received  (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
         }
+        const unoptimized = (ref10 = result.experimental) === null || ref10 === void 0 ? void 0 : (ref11 = ref10.images) === null || ref11 === void 0 ? void 0 : ref11.unoptimized;
+        if (typeof unoptimized !== 'undefined' && typeof unoptimized !== 'boolean') {
+            throw new Error(`Specified images.unoptimized should be a boolean, received (${unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`);
+        }
     }
     if (result.webpack5 === false) {
         throw new Error(`Webpack 4 is no longer supported in Next.js. Please upgrade to webpack 5 by removing "webpack5: false" from ${configFileName}. https://nextjs.org/docs/messages/webpack5`);
@@ -383,6 +415,11 @@ function assignDefaults(userConfig) {
         result.compiler = result.compiler || {};
         result.compiler.styledComponents = result.experimental.styledComponents;
     }
+    if (result.experimental && 'emotion' in result.experimental) {
+        Log.warn(`\`emotion\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`);
+        result.compiler = result.compiler || {};
+        result.compiler.emotion = result.experimental.emotion;
+    }
     if (result.experimental && 'reactRemoveProperties' in result.experimental) {
         Log.warn(`\`reactRemoveProperties\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`);
         result.compiler = result.compiler || {};
@@ -396,11 +433,14 @@ function assignDefaults(userConfig) {
     if (result.swcMinify) {
         Log.warn('SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled');
     }
-    if (((ref1 = result.experimental) === null || ref1 === void 0 ? void 0 : ref1.outputFileTracingRoot) && !(0, _path).isAbsolute(result.experimental.outputFileTracingRoot)) {
+    if ((ref1 = result.experimental) === null || ref1 === void 0 ? void 0 : ref1.swcMinifyDebugOptions) {
+        Log.warn('SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.');
+    }
+    if (((ref2 = result.experimental) === null || ref2 === void 0 ? void 0 : ref2.outputFileTracingRoot) && !(0, _path).isAbsolute(result.experimental.outputFileTracingRoot)) {
         result.experimental.outputFileTracingRoot = (0, _path).resolve(result.experimental.outputFileTracingRoot);
         Log.warn(`experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`);
     }
-    if (((ref2 = result.experimental) === null || ref2 === void 0 ? void 0 : ref2.outputStandalone) && !result.outputFileTracing) {
+    if (((ref3 = result.experimental) === null || ref3 === void 0 ? void 0 : ref3.outputStandalone) && !result.outputFileTracing) {
         Log.warn(`experimental.outputStandalone requires outputFileTracing not be disabled please enable it to leverage the standalone build`);
         result.experimental.outputStandalone = false;
     }
@@ -470,6 +510,20 @@ function assignDefaults(userConfig) {
         if (!i18n.locales.includes(i18n.defaultLocale)) {
             throw new Error(`Specified i18n.defaultLocale should be included in i18n.locales.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`);
         }
+        const normalizedLocales = new Set();
+        const duplicateLocales = new Set();
+        i18n.locales.forEach((locale)=>{
+            const localeLower = locale.toLowerCase();
+            if (normalizedLocales.has(localeLower)) {
+                duplicateLocales.add(locale);
+            }
+            normalizedLocales.add(localeLower);
+        });
+        if (duplicateLocales.size > 0) {
+            throw new Error(`Specified i18n.locales contains the following duplicate locales:\n` + `${[
+                ...duplicateLocales
+            ].join(', ')}\n` + `Each locale should be listed only once.\n` + `See more info here: https://nextjs.org/docs/messages/invalid-i18n-config`);
+        }
         // make sure default Locale is at the front
         i18n.locales = [
             i18n.defaultLocale,
@@ -481,7 +535,7 @@ function assignDefaults(userConfig) {
             throw new Error(`Specified i18n.localeDetection should be undefined or a boolean received ${localeDetectionType}.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`);
         }
     }
-    if ((ref3 = result.experimental) === null || ref3 === void 0 ? void 0 : ref3.serverComponents) {
+    if ((ref4 = result.experimental) === null || ref4 === void 0 ? void 0 : ref4.serverComponents) {
         const pageExtensions = [];
         (result.pageExtensions || []).forEach((ext)=>{
             pageExtensions.push(ext);
@@ -490,16 +544,20 @@ function assignDefaults(userConfig) {
         });
         result.pageExtensions = pageExtensions;
     }
+    if ((ref5 = result.devIndicators) === null || ref5 === void 0 ? void 0 : ref5.buildActivityPosition) {
+        const { buildActivityPosition  } = result.devIndicators;
+        const allowedValues = [
+            'top-left',
+            'top-right',
+            'bottom-left',
+            'bottom-right', 
+        ];
+        if (!allowedValues.includes(buildActivityPosition)) {
+            throw new Error(`Invalid "devIndicator.buildActivityPosition" provided, expected one of ${allowedValues.join(', ')}, received ${buildActivityPosition}`);
+        }
+    }
     return result;
 }
-const shouldUseReactRoot = (0, _utils).execOnce(()=>{
-    var ref;
-    const reactDomVersion = require('react-dom').version;
-    const isReactExperimental = Boolean(reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion));
-    const hasReact18 = Boolean(reactDomVersion) && (_semver.default.gte(reactDomVersion, '18.0.0') || ((ref = _semver.default.coerce(reactDomVersion)) === null || ref === void 0 ? void 0 : ref.version) === '18.0.0');
-    return hasReact18 || isReactExperimental;
-});
-exports.shouldUseReactRoot = shouldUseReactRoot;
 function setHttpAgentOptions(options) {
     if (global.__NEXT_HTTP_AGENT) {
         // We only need to assign once because we want

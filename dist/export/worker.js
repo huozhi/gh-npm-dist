@@ -12,17 +12,17 @@ var _loadComponents = require("../server/load-components");
 var _isDynamic = require("../shared/lib/router/utils/is-dynamic");
 var _routeMatcher = require("../shared/lib/router/utils/route-matcher");
 var _routeRegex = require("../shared/lib/router/utils/route-regex");
-var _normalizePagePath = require("../server/normalize-page-path");
+var _normalizePagePath = require("../shared/lib/page-path/normalize-page-path");
 var _constants = require("../lib/constants");
 require("../server/node-polyfill-fetch");
 var _require = require("../server/require");
 var _normalizeLocalePath = require("../shared/lib/i18n/normalize-locale-path");
 var _trace = require("../trace");
-var _amp = require("../shared/lib/amp");
+var _ampMode = require("../shared/lib/amp-mode");
 var _config = require("../server/config");
 var _renderResult = _interopRequireDefault(require("../server/render-result"));
 var _isError = _interopRequireDefault(require("../lib/is-error"));
-async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , pagesDataDir , renderOpts , buildExport , serverRuntimeConfig , subFolders , serverless , optimizeFonts , optimizeCss , disableOptimizedLoading , httpAgentOptions , serverComponents  }) {
+async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , appDir , pagesDataDir , renderOpts , buildExport , serverRuntimeConfig , subFolders , serverless , optimizeFonts , optimizeCss , disableOptimizedLoading , httpAgentOptions , serverComponents  }) {
     (0, _config).setHttpAgentOptions(httpAgentOptions);
     const exportPageSpan = (0, _trace).trace('export-page-worker', parentSpanId);
     return exportPageSpan.traceAsyncFn(async ()=>{
@@ -114,8 +114,10 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
             // extension of `.slug]`
             const pageExt = isDynamic ? '' : (0, _path).extname(page);
             const pathExt = isDynamic ? '' : (0, _path).extname(path);
-            // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
-            if (pageExt !== pathExt && pathExt !== '') {
+            // force output 404.html for backwards compat
+            if (path === '/404.html') {
+                htmlFilename = path;
+            } else if (pageExt !== pathExt && pathExt !== '') {
                 const isBuiltinPaths = [
                     '/500',
                     '/404'
@@ -150,13 +152,13 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
                         ...query
                     }
                 });
-                const { Component , ComponentMod , getServerSideProps , getStaticProps , pageConfig ,  } = await (0, _loadComponents).loadComponents(distDir, page, serverless, serverComponents);
+                const { Component , ComponentMod , getServerSideProps , getStaticProps , pageConfig ,  } = await (0, _loadComponents).loadComponents(distDir, page, serverless, serverComponents, appDir);
                 const ampState = {
                     ampFirst: (pageConfig === null || pageConfig === void 0 ? void 0 : pageConfig.amp) === true,
                     hasQuery: Boolean(query.amp),
                     hybrid: (pageConfig === null || pageConfig === void 0 ? void 0 : pageConfig.amp) === 'hybrid'
                 };
-                inAmpMode = (0, _amp).isInAmpMode(ampState);
+                inAmpMode = (0, _ampMode).isInAmpMode(ampState);
                 hybridAmp = ampState.hybrid;
                 if (getServerSideProps) {
                     throw new Error(`Error for page ${page}: ${_constants.SERVER_PROPS_EXPORT_ERROR}`);
@@ -205,7 +207,7 @@ async function exportPage({ parentSpanId , path , pathMap , distDir , outDir , p
                     hasQuery: Boolean(query.amp),
                     hybrid: ((ref2 = components.pageConfig) === null || ref2 === void 0 ? void 0 : ref2.amp) === 'hybrid'
                 };
-                inAmpMode = (0, _amp).isInAmpMode(ampState);
+                inAmpMode = (0, _ampMode).isInAmpMode(ampState);
                 hybridAmp = ampState.hybrid;
                 if (components.getServerSideProps) {
                     throw new Error(`Error for page ${page}: ${_constants.SERVER_PROPS_EXPORT_ERROR}`);

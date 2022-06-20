@@ -4,15 +4,14 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.getMiddlewareSourceMapPlugins = void 0;
 var _webpack = require("next/dist/compiled/webpack/webpack");
+var _constants = require("../../../lib/constants");
 const getMiddlewareSourceMapPlugins = ()=>{
     return [
         new _webpack.webpack.SourceMapDevToolPlugin({
             filename: '[file].map',
             include: [
-                // Middlewares are the only ones who have `server/pages/[name]` as their filename
-                /^server\/pages\//,
-                // All middleware chunks
-                /^server\/middleware-chunks\//, 
+                new RegExp(`^${_constants.MIDDLEWARE_LOCATION_REGEXP}\\.`),
+                /^edge-chunks\//, 
             ]
         }),
         new MiddlewareSourceMapsPlugin(), 

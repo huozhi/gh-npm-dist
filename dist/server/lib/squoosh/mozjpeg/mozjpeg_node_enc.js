@@ -978,7 +978,7 @@ exports.default = void 0;
         }
         function replacePublicSymbol(name, value, numArguments) {
             if (!Module1.hasOwnProperty(name)) {
-                throwInternalError('Replacing nonexistant public symbol');
+                throwInternalError('Replacing nonexistent public symbol');
             }
             if (undefined !== Module1[name].overloadTable && undefined !== numArguments) {
                 Module1[name].overloadTable[numArguments] = value;

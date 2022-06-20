@@ -12,6 +12,8 @@ var Log = _interopRequireWildcard(require("../build/output/log"));
 var _output = require("../build/output");
 var _isError = _interopRequireDefault(require("../lib/is-error"));
 var _getProjectDir = require("../lib/get-project-dir");
+var _constants = require("../shared/lib/constants");
+var _path = _interopRequireDefault(require("path"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -146,6 +148,13 @@ const nextDev = (argv)=>{
         process.nextTick(()=>process.exit(1)
         );
     });
+    for (const CONFIG_FILE of _constants.CONFIG_FILES){
+        (0, _fs).watchFile(_path.default.join(dir, CONFIG_FILE), (cur, prev)=>{
+            if (cur.size > 0 || prev.size > 0) {
+                console.log(`\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`);
+            }
+        });
+    }
 };
 exports.nextDev = nextDev;
 

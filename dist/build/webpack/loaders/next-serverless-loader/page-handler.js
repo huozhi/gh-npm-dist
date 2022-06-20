@@ -9,7 +9,7 @@ var _sendPayload = require("../../../../server/send-payload");
 var _utils1 = require("./utils");
 var _render = require("../../../../server/render");
 var _node = require("../../../../server/api-utils/node");
-var _denormalizePagePath = require("../../../../server/denormalize-page-path");
+var _denormalizePagePath = require("../../../../shared/lib/page-path/denormalize-page-path");
 var _apiUtils = require("../../../../server/api-utils");
 var _loadCustomRoutes = require("../../../../lib/load-custom-routes");
 var _getRouteFromAssetPath = _interopRequireDefault(require("../../../../shared/lib/router/utils/get-route-from-asset-path"));
@@ -54,6 +54,9 @@ function getPageHandler(ctx) {
         const options = {
             App,
             Document,
+            ComponentMod: {
+                default: Component
+            },
             buildManifest,
             getStaticProps,
             getServerSideProps,
@@ -84,7 +87,7 @@ function getPageHandler(ctx) {
                 routeNoAssetPath = routeNoAssetPath.replace(new RegExp(`^${basePath}`), '') || '/';
             }
             const origQuery = Object.assign({}, parsedUrl.query);
-            parsedUrl = handleRewrites(req, parsedUrl);
+            handleRewrites(req, parsedUrl);
             handleBasePath(req, parsedUrl);
             // remove ?amp=1 from request URL if rendering for export
             if (fromExport && parsedUrl.query.amp) {
@@ -152,7 +155,7 @@ function getPageHandler(ctx) {
             if (!fromExport && (getStaticProps || getServerSideProps)) {
                 // don't include dynamic route params in query while normalizing
                 // asPath
-                if (pageIsDynamic && trustQuery && defaultRouteRegex) {
+                if (pageIsDynamic && defaultRouteRegex) {
                     delete parsedUrl.search;
                     for (const param of Object.keys(defaultRouteRegex.groups)){
                         delete origQuery[param];

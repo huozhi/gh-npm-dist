@@ -1,23 +1,58 @@
 "use strict";
 var _stripAnsi = _interopRequireDefault(require("next/dist/compiled/strip-ansi"));
+function _defineProperty(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {
+            value: value,
+            enumerable: true,
+            configurable: true,
+            writable: true
+        });
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
     };
 }
+function _objectSpread(target) {
+    for(var i = 1; i < arguments.length; i++){
+        var source = arguments[i] != null ? arguments[i] : {};
+        var ownKeys = Object.keys(source);
+        if (typeof Object.getOwnPropertySymbols === "function") {
+            ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function(sym) {
+                return Object.getOwnPropertyDescriptor(source, sym).enumerable;
+            }));
+        }
+        ownKeys.forEach(function(key) {
+            _defineProperty(target, key, source[key]);
+        });
+    }
+    return target;
+}
 // This file is based on https://github.com/facebook/create-react-app/blob/7b1a32be6ec9f99a6c9a3c66813f3ac09c4736b9/packages/react-dev-utils/formatWebpackMessages.js
 // It's been edited to remove chalk and CRA-specific logic
 const friendlySyntaxErrorLabel = 'Syntax error:';
+const WEBPACK_BREAKING_CHANGE_POLYFILLS = '\n\nBREAKING CHANGE: webpack < 5 used to include polyfills for node.js core modules by default.';
 function isLikelyASyntaxError(message) {
     return (0, _stripAnsi).default(message).indexOf(friendlySyntaxErrorLabel) !== -1;
 }
+let hadMissingSassError = false;
 // Cleans up webpack error messages.
 function formatMessage(message, verbose) {
     // TODO: Replace this once webpack 5 is stable
     if (typeof message === 'object' && message.message) {
         const filteredModuleTrace = message.moduleTrace && message.moduleTrace.filter((trace)=>!/next-(middleware|client-pages|flight-(client|server))-loader\.js/.test(trace.originName)
         );
-        message = (message.moduleName ? (0, _stripAnsi).default(message.moduleName) + '\n' : '') + (message.file ? (0, _stripAnsi).default(message.file) + '\n' : '') + message.message + (message.details && verbose ? '\n' + message.details : '') + (filteredModuleTrace && filteredModuleTrace.length && verbose ? '\n\nImport trace for requested module:' + filteredModuleTrace.map((trace)=>`\n${trace.originName}`
+        let body = message.message;
+        const breakingChangeIndex = body.indexOf(WEBPACK_BREAKING_CHANGE_POLYFILLS);
+        if (breakingChangeIndex >= 0) {
+            body = body.slice(0, breakingChangeIndex);
+        }
+        message = (message.moduleName ? (0, _stripAnsi).default(message.moduleName) + '\n' : '') + (message.file ? (0, _stripAnsi).default(message.file) + '\n' : '') + body + (message.details && verbose ? '\n' + message.details : '') + (filteredModuleTrace && filteredModuleTrace.length && verbose ? '\n\nImport trace for requested module:' + filteredModuleTrace.map((trace)=>`\n${trace.originName}`
         ).join('') : '') + (message.stack && verbose ? '\n' + message.stack : '');
     }
     let lines = message.split('\n');
@@ -56,12 +91,19 @@ function formatMessage(message, verbose) {
         ];
     }
     // Add helpful message for users trying to use Sass for the first time
-    if (lines[1] && lines[1].match(/Cannot find module.+node-sass/)) {
+    if (lines[1] && lines[1].match(/Cannot find module.+sass/)) {
         // ./file.module.scss (<<loader info>>) => ./file.module.scss
-        lines[0] = lines[0].replace(/(.+) \(.+?(?=\?\?).+?\)/, '$1');
+        const firstLine = lines[0].split('!');
+        lines[0] = firstLine[firstLine.length - 1];
         lines[1] = "To use Next.js' built-in Sass support, you first need to install `sass`.\n";
         lines[1] += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n';
         lines[1] += '\nLearn more: https://nextjs.org/docs/messages/install-sass';
+        // dispose of unhelpful stack trace
+        lines = lines.slice(0, 2);
+        hadMissingSassError = true;
+    } else if (hadMissingSassError && message.match(/(sass-loader|resolve-url-loader: CSS error)/)) {
+        // dispose of unhelpful stack trace following missing sass module
+        lines = [];
     }
     if (!verbose) {
         message = lines.join('\n');
@@ -89,10 +131,10 @@ function formatWebpackMessages(json, verbose) {
     const formattedWarnings = json.warnings.map(function(message) {
         return formatMessage(message, verbose);
     });
-    const result = {
+    const result = _objectSpread({}, json, {
         errors: formattedErrors,
         warnings: formattedWarnings
-    };
+    });
     if (!verbose && result.errors.some(isLikelyASyntaxError)) {
         // If there are any syntax errors, show just them.
         result.errors = result.errors.filter(isLikelyASyntaxError);
@@ -101,5 +143,11 @@ function formatWebpackMessages(json, verbose) {
     return result;
 }
 module.exports = formatWebpackMessages;
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
+}
 
 //# sourceMappingURL=format-webpack-messages.js.map

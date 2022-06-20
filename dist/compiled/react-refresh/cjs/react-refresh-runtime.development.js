@@ -1,4 +1,5 @@
-/** @license React vundefined
+/**
+ * @license React
  * react-refresh-runtime.development.js
  *
  * Copyright (c) Facebook, Inc. and its affiliates.
@@ -9,63 +10,13 @@
 
 'use strict';
 
-
-
 if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
 // ATTENTION
-// When adding new symbols to this file,
-// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types. If there is no native Symbol
-// nor polyfill, then a plain number is used for performance.
-var REACT_ELEMENT_TYPE = 0xeac7;
-var REACT_PORTAL_TYPE = 0xeaca;
-var REACT_FRAGMENT_TYPE = 0xeacb;
-var REACT_STRICT_MODE_TYPE = 0xeacc;
-var REACT_PROFILER_TYPE = 0xead2;
-var REACT_PROVIDER_TYPE = 0xeacd;
-var REACT_CONTEXT_TYPE = 0xeace;
-var REACT_FORWARD_REF_TYPE = 0xead0;
-var REACT_SUSPENSE_TYPE = 0xead1;
-var REACT_SUSPENSE_LIST_TYPE = 0xead8;
-var REACT_MEMO_TYPE = 0xead3;
-var REACT_LAZY_TYPE = 0xead4;
-var REACT_BLOCK_TYPE = 0xead9;
-var REACT_SERVER_BLOCK_TYPE = 0xeada;
-var REACT_FUNDAMENTAL_TYPE = 0xead5;
-var REACT_RESPONDER_TYPE = 0xead6;
-var REACT_SCOPE_TYPE = 0xead7;
-var REACT_OPAQUE_ID_TYPE = 0xeae0;
-var REACT_DEBUG_TRACING_MODE_TYPE = 0xeae1;
-var REACT_OFFSCREEN_TYPE = 0xeae2;
-var REACT_LEGACY_HIDDEN_TYPE = 0xeae3;
-
-if (typeof Symbol === 'function' && Symbol.for) {
-  var symbolFor = Symbol.for;
-  REACT_ELEMENT_TYPE = symbolFor('react.element');
-  REACT_PORTAL_TYPE = symbolFor('react.portal');
-  REACT_FRAGMENT_TYPE = symbolFor('react.fragment');
-  REACT_STRICT_MODE_TYPE = symbolFor('react.strict_mode');
-  REACT_PROFILER_TYPE = symbolFor('react.profiler');
-  REACT_PROVIDER_TYPE = symbolFor('react.provider');
-  REACT_CONTEXT_TYPE = symbolFor('react.context');
-  REACT_FORWARD_REF_TYPE = symbolFor('react.forward_ref');
-  REACT_SUSPENSE_TYPE = symbolFor('react.suspense');
-  REACT_SUSPENSE_LIST_TYPE = symbolFor('react.suspense_list');
-  REACT_MEMO_TYPE = symbolFor('react.memo');
-  REACT_LAZY_TYPE = symbolFor('react.lazy');
-  REACT_BLOCK_TYPE = symbolFor('react.block');
-  REACT_SERVER_BLOCK_TYPE = symbolFor('react.server.block');
-  REACT_FUNDAMENTAL_TYPE = symbolFor('react.fundamental');
-  REACT_RESPONDER_TYPE = symbolFor('react.responder');
-  REACT_SCOPE_TYPE = symbolFor('react.scope');
-  REACT_OPAQUE_ID_TYPE = symbolFor('react.opaque.id');
-  REACT_DEBUG_TRACING_MODE_TYPE = symbolFor('react.debug_trace_mode');
-  REACT_OFFSCREEN_TYPE = symbolFor('react.offscreen');
-  REACT_LEGACY_HIDDEN_TYPE = symbolFor('react.legacy_hidden');
-}
+var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
+var REACT_MEMO_TYPE = Symbol.for('react.memo');
 
 var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map; // We never remove these associations.
 // It's OK to reference families, but use WeakMap/Set for types.
@@ -204,6 +155,16 @@ function cloneSet(set) {
     clone.add(value);
   });
   return clone;
+} // This is a safety mechanism to protect against rogue getters and Proxies.
+
+
+function getProperty(object, property) {
+  try {
+    return object[property];
+  } catch (err) {
+    // Intentionally ignore.
+    return undefined;
+  }
 }
 
 function performReactRefresh() {
@@ -354,7 +315,7 @@ function register(type, id) {
     allFamiliesByType.set(type, family); // Visit inner types because we might not have registered them.
 
     if (typeof type === 'object' && type !== null) {
-      switch (type.$$typeof) {
+      switch (getProperty(type, '$$typeof')) {
         case REACT_FORWARD_REF_TYPE:
           register(type.render, id + '$render');
           break;
@@ -371,14 +332,29 @@ function setSignature(type, key) {
   var getCustomHooks = arguments.length > 3 ? arguments[3] : undefined;
 
   {
-    allSignaturesByType.set(type, {
-      forceReset: forceReset,
-      ownKey: key,
-      fullKey: null,
-      getCustomHooks: getCustomHooks || function () {
-        return [];
+    if (!allSignaturesByType.has(type)) {
+      allSignaturesByType.set(type, {
+        forceReset: forceReset,
+        ownKey: key,
+        fullKey: null,
+        getCustomHooks: getCustomHooks || function () {
+          return [];
+        }
+      });
+    } // Visit inner types because we might not have signed them.
+
+
+    if (typeof type === 'object' && type !== null) {
+      switch (getProperty(type, '$$typeof')) {
+        case REACT_FORWARD_REF_TYPE:
+          setSignature(type.render, key, forceReset, getCustomHooks);
+          break;
+
+        case REACT_MEMO_TYPE:
+          setSignature(type.type, key, forceReset, getCustomHooks);
+          break;
       }
-    });
+    }
   }
 } // This is lazily called during first render for a type.
 // It captures Hook list at that time so inline requires don't break comparisons.
@@ -443,6 +419,14 @@ function injectIntoGlobalHook(globalObject) {
         onCommitFiberRoot: function (id, root, maybePriorityLevel, didError) {},
         onCommitFiberUnmount: function () {}
       };
+    }
+
+    if (hook.isDisabled) {
+      // This isn't a real property on the hook, but it can be set to opt out
+      // of DevTools integration and associated warnings and logs.
+      // Using console['warn'] to evade Babel and ESLint
+      console['warn']('Something has shimmed the React DevTools global hook (__REACT_DEVTOOLS_GLOBAL_HOOK__). ' + 'Fast Refresh is not compatible with this shim and will be disabled.');
+      return;
     } // Here, we just want to get a reference to scheduleRefresh.
 
 
@@ -490,44 +474,43 @@ function injectIntoGlobalHook(globalObject) {
     hook.onCommitFiberRoot = function (id, root, maybePriorityLevel, didError) {
       var helpers = helpersByRendererID.get(id);
 
-      if (helpers === undefined) {
-        return;
-      }
+      if (helpers !== undefined) {
+        helpersByRoot.set(root, helpers);
+        var current = root.current;
+        var alternate = current.alternate; // We need to determine whether this root has just (un)mounted.
+        // This logic is copy-pasted from similar logic in the DevTools backend.
+        // If this breaks with some refactoring, you'll want to update DevTools too.
 
-      helpersByRoot.set(root, helpers);
-      var current = root.current;
-      var alternate = current.alternate; // We need to determine whether this root has just (un)mounted.
-      // This logic is copy-pasted from similar logic in the DevTools backend.
-      // If this breaks with some refactoring, you'll want to update DevTools too.
+        if (alternate !== null) {
+          var wasMounted = alternate.memoizedState != null && alternate.memoizedState.element != null && mountedRoots.has(root);
+          var isMounted = current.memoizedState != null && current.memoizedState.element != null;
 
-      if (alternate !== null) {
-        var wasMounted = alternate.memoizedState != null && alternate.memoizedState.element != null;
-        var isMounted = current.memoizedState != null && current.memoizedState.element != null;
+          if (!wasMounted && isMounted) {
+            // Mount a new root.
+            mountedRoots.add(root);
+            failedRoots.delete(root);
+          } else if (wasMounted && isMounted) ; else if (wasMounted && !isMounted) {
+            // Unmount an existing root.
+            mountedRoots.delete(root);
 
-        if (!wasMounted && isMounted) {
+            if (didError) {
+              // We'll remount it on future edits.
+              failedRoots.add(root);
+            } else {
+              helpersByRoot.delete(root);
+            }
+          } else if (!wasMounted && !isMounted) {
+            if (didError) {
+              // We'll remount it on future edits.
+              failedRoots.add(root);
+            }
+          }
+        } else {
           // Mount a new root.
           mountedRoots.add(root);
-          failedRoots.delete(root);
-        } else if (wasMounted && isMounted) ; else if (wasMounted && !isMounted) {
-          // Unmount an existing root.
-          mountedRoots.delete(root);
-
-          if (didError) {
-            // We'll remount it on future edits.
-            failedRoots.add(root);
-          } else {
-            helpersByRoot.delete(root);
-          }
-        } else if (!wasMounted && !isMounted) {
-          if (didError) {
-            // We'll remount it on future edits.
-            failedRoots.add(root);
-          }
         }
-      } else {
-        // Mount a new root.
-        mountedRoots.add(root);
-      }
+      } // Always call the decorated DevTools hook.
+
 
       return oldOnCommitFiberRoot.apply(this, arguments);
     };
@@ -551,14 +534,14 @@ function _getMountedRootCount() {
 // function Hello() {
 //   const [foo, setFoo] = useState(0);
 //   const value = useCustomHook();
-//   _s(); /* Second call triggers collecting the custom Hook list.
+//   _s(); /* Call without arguments triggers collecting the custom Hook list.
 //          * This doesn't happen during the module evaluation because we
 //          * don't want to change the module order with inline requires.
 //          * Next calls are noops. */
 //   return <h1>Hi</h1>;
 // }
 //
-// /* First call specifies the signature: */
+// /* Call with arguments attaches the signature to the type: */
 // _s(
 //   Hello,
 //   'useState{[foo, setFoo]}(0)',
@@ -567,37 +550,37 @@ function _getMountedRootCount() {
 
 function createSignatureFunctionForTransform() {
   {
-    // We'll fill in the signature in two steps.
-    // First, we'll know the signature itself. This happens outside the component.
-    // Then, we'll know the references to custom Hooks. This happens inside the component.
-    // After that, the returned function will be a fast path no-op.
-    var status = 'needsSignature';
     var savedType;
     var hasCustomHooks;
+    var didCollectHooks = false;
     return function (type, key, forceReset, getCustomHooks) {
-      switch (status) {
-        case 'needsSignature':
-          if (type !== undefined) {
-            // If we received an argument, this is the initial registration call.
-            savedType = type;
-            hasCustomHooks = typeof getCustomHooks === 'function';
-            setSignature(type, key, forceReset, getCustomHooks); // The next call we expect is from inside a function, to fill in the custom Hooks.
+      if (typeof key === 'string') {
+        // We're in the initial phase that associates signatures
+        // with the functions. Note this may be called multiple times
+        // in HOC chains like _s(hoc1(_s(hoc2(_s(actualFunction))))).
+        if (!savedType) {
+          // We're in the innermost call, so this is the actual type.
+          savedType = type;
+          hasCustomHooks = typeof getCustomHooks === 'function';
+        } // Set the signature for all types (even wrappers!) in case
+        // they have no signatures of their own. This is to prevent
+        // problems like https://github.com/facebook/react/issues/20417.
 
-            status = 'needsCustomHooks';
-          }
 
-          break;
+        if (type != null && (typeof type === 'function' || typeof type === 'object')) {
+          setSignature(type, key, forceReset, getCustomHooks);
+        }
 
-        case 'needsCustomHooks':
-          if (hasCustomHooks) {
-            collectCustomHooksForSignature(savedType);
-          }
-
-          status = 'resolved';
-          break;
+        return type;
+      } else {
+        // We're in the _s() call without arguments, which means
+        // this is the time to collect custom Hook signatures.
+        // Only do this once. This path is hot and runs *inside* every render!
+        if (!didCollectHooks && hasCustomHooks) {
+          didCollectHooks = true;
+          collectCustomHooksForSignature(savedType);
+        }
       }
-
-      return type;
     };
   }
 }
@@ -637,7 +620,7 @@ function isLikelyComponentType(type) {
       case 'object':
         {
           if (type != null) {
-            switch (type.$$typeof) {
+            switch (getProperty(type, '$$typeof')) {
               case REACT_FORWARD_REF_TYPE:
               case REACT_MEMO_TYPE:
                 // Definitely React components.

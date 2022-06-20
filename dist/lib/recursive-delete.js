@@ -5,14 +5,15 @@ Object.defineProperty(exports, "__esModule", {
 exports.recursiveDelete = recursiveDelete;
 var _fs = require("fs");
 var _path = require("path");
-var _util = require("util");
 var _isError = _interopRequireDefault(require("./is-error"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
     };
 }
-const sleep = (0, _util).promisify(setTimeout);
+const sleep = (timeout)=>new Promise((resolve)=>setTimeout(resolve, timeout)
+    )
+;
 const unlinkPath = async (p, isDir = false, t = 1)=>{
     try {
         if (isDir) {

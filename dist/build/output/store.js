@@ -6,7 +6,7 @@ exports.store = void 0;
 var _unistore = _interopRequireDefault(require("next/dist/compiled/unistore"));
 var _stripAnsi = _interopRequireDefault(require("next/dist/compiled/strip-ansi"));
 var _trace = require("../../trace");
-var _utils = require("../utils");
+var _swc = require("../swc");
 var Log = _interopRequireWildcard(require("./log"));
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -95,13 +95,9 @@ store.subscribe((state)=>{
                 return;
             }
         }
-        const moduleName = (0, _utils).getUnresolvedModuleFromError(cleanError);
-        if (state.hasEdgeServer && moduleName) {
-            console.error(`Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n`);
-            return;
-        }
         // Ensure traces are flushed after each compile in development mode
         (0, _trace).flushAllTraces();
+        (0, _swc).teardownTraceSubscriber();
         return;
     }
     let timeMessage = '';
@@ -122,6 +118,7 @@ store.subscribe((state)=>{
         Log.warn(state.warnings.join('\n\n'));
         // Ensure traces are flushed after each compile in development mode
         (0, _trace).flushAllTraces();
+        (0, _swc).teardownTraceSubscriber();
         return;
     }
     if (state.typeChecking) {
@@ -131,6 +128,7 @@ store.subscribe((state)=>{
     Log.event(`compiled${partialMessage} successfully${timeMessage}${modulesMessage}`);
     // Ensure traces are flushed after each compile in development mode
     (0, _trace).flushAllTraces();
+    (0, _swc).teardownTraceSubscriber();
 });
 
 //# sourceMappingURL=store.js.map

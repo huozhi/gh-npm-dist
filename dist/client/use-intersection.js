@@ -30,6 +30,9 @@ function useIntersection({ rootRef , rootMargin , disabled  }) {
         rootMargin,
         visible
     ]);
+    const resetVisible = (0, _react).useCallback(()=>{
+        setVisible(false);
+    }, []);
     (0, _react).useEffect(()=>{
         if (!hasIntersectionObserver) {
             if (!visible) {
@@ -49,7 +52,8 @@ function useIntersection({ rootRef , rootMargin , disabled  }) {
     ]);
     return [
         setRef,
-        visible
+        visible,
+        resetVisible
     ];
 }
 function observe(element, callback, options) {
@@ -106,6 +110,12 @@ function createObserver(options) {
         elements
     });
     return instance;
+}
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
 }
 
 //# sourceMappingURL=use-intersection.js.map

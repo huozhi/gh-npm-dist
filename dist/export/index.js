@@ -21,7 +21,8 @@ var _utils = require("../server/utils");
 var _events = require("../telemetry/events");
 var _ciInfo = require("../telemetry/ci-info");
 var _storage = require("../telemetry/storage");
-var _normalizePagePath = require("../server/normalize-page-path");
+var _normalizePagePath = require("../shared/lib/page-path/normalize-page-path");
+var _denormalizePagePath = require("../shared/lib/page-path/denormalize-page-path");
 var _env = require("@next/env");
 var _require = require("../server/require");
 async function exportApp(dir, options, span, configuration) {
@@ -143,22 +144,21 @@ async function exportApp(dir, options, span, configuration) {
                 return defaultMap;
             };
         }
-        const { i18n , images: { loader ='default'  } ,  } = nextConfig;
+        const { i18n , images: { loader ='default'  } , experimental ,  } = nextConfig;
         if (i18n && !options.buildExport) {
             throw new Error(`i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`);
         }
         if (!options.buildExport) {
+            var ref4;
             const { isNextImageImported  } = await nextExportSpan.traceChild('is-next-image-imported').traceAsyncFn(()=>_fs.promises.readFile((0, _path).join(distDir, _constants1.EXPORT_MARKER), 'utf8').then((text)=>JSON.parse(text)
                 ).catch(()=>({})
                 )
             );
-            if (isNextImageImported && loader === 'default' && !_ciInfo.hasNextSupport) {
+            if (isNextImageImported && loader === 'default' && !(experimental === null || experimental === void 0 ? void 0 : (ref4 = experimental.images) === null || ref4 === void 0 ? void 0 : ref4.unoptimized) && !_ciInfo.hasNextSupport) {
                 throw new Error(`Image Optimization using Next.js' default loader is not compatible with \`next export\`.
   Possible solutions:
     - Use \`next start\` to run a server, which includes the Image Optimization API.
-    - Use any provider which supports Image Optimization (like Vercel).
-    - Configure a third-party loader in \`next.config.js\`.
-    - Use the \`loader\` prop for \`next/image\`.
+    - Configure \`images.unoptimized = true\` in \`next.config.js\` to disable the Image Optimization API.
   Read more: https://nextjs.org/docs/messages/export-image-api`);
             }
         }
@@ -189,7 +189,8 @@ async function exportApp(dir, options, span, configuration) {
             optimizeCss: nextConfig.experimental.optimizeCss,
             nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
             optimizeFonts: nextConfig.optimizeFonts,
-            reactRoot: nextConfig.experimental.reactRoot || false
+            reactRoot: nextConfig.experimental.reactRoot || false,
+            largePageDataBytes: nextConfig.experimental.largePageDataBytes
         };
         const { serverRuntimeConfig , publicRuntimeConfig  } = nextConfig;
         if (Object.keys(publicRuntimeConfig).length > 0) {
@@ -209,14 +210,25 @@ async function exportApp(dir, options, span, configuration) {
                 buildId
             })
         );
-        if (!options.buildExport && !exportPathMap['/404'] && !exportPathMap['/404.html']) {
-            exportPathMap['/404'] = exportPathMap['/404.html'] = {
-                page: '/_error'
-            };
+        // only add missing 404 page when `buildExport` is false
+        if (!options.buildExport) {
+            // only add missing /404 if not specified in `exportPathMap`
+            if (!exportPathMap['/404']) {
+                exportPathMap['/404'] = {
+                    page: '/_error'
+                };
+            }
+            /**
+       * exports 404.html for backwards compat
+       * E.g. GitHub Pages, GitLab Pages, Cloudflare Pages, Netlify
+       */ if (!exportPathMap['/404.html']) {
+                // alias /404.html to /404 to be compatible with custom 404 / _error page
+                exportPathMap['/404.html'] = exportPathMap['/404'];
+            }
         }
         // make sure to prevent duplicates
         const exportPaths = [
-            ...new Set(Object.keys(exportPathMap).map((path)=>(0, _normalizePagePath).denormalizePagePath((0, _normalizePagePath).normalizePagePath(path))
+            ...new Set(Object.keys(exportPathMap).map((path)=>(0, _denormalizePagePath).denormalizePagePath((0, _normalizePagePath).normalizePagePath(path))
             )), 
         ];
         const filteredPaths = exportPaths.filter(// Remove API routes
@@ -314,6 +326,7 @@ async function exportApp(dir, options, span, configuration) {
                     outDir,
                     pagesDataDir,
                     renderOpts,
+                    appDir: nextConfig.experimental.appDir,
                     serverRuntimeConfig,
                     subFolders,
                     buildExport: options.buildExport,

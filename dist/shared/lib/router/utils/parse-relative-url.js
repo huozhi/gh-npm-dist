@@ -7,7 +7,7 @@ var _utils = require("../../utils");
 var _querystring = require("./querystring");
 function parseRelativeUrl(url, base) {
     const globalBase = new URL(typeof window === 'undefined' ? 'http://n' : (0, _utils).getLocationOrigin());
-    const resolvedBase = base ? new URL(base, globalBase) : globalBase;
+    const resolvedBase = base ? new URL(base, globalBase) : url.startsWith('.') ? new URL(typeof window === 'undefined' ? 'http://n' : window.location.href) : globalBase;
     const { pathname , searchParams , search , hash , href , origin  } = new URL(url, resolvedBase);
     if (origin !== globalBase.origin) {
         throw new Error(`invariant: invalid relative URL, router received ${url}`);

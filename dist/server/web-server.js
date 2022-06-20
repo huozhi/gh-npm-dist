@@ -5,6 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = void 0;
 var _baseServer = _interopRequireDefault(require("./base-server"));
 var _render = require("./render");
+var _web = require("./api-utils/web");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -13,7 +14,7 @@ function _interopRequireDefault(obj) {
 class NextWebServer extends _baseServer.default {
     constructor(options){
         super(options);
-        this.webServerConfig = options.webServerConfig;
+        // Extend `renderOpts`.
         Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts);
     }
     generateRewrites() {
@@ -48,16 +49,13 @@ class NextWebServer extends _baseServer.default {
         return '';
     }
     getBuildId() {
-        return globalThis.__server_context.buildId;
+        return this.serverOptions.webServerConfig.extendRenderOpts.buildId;
     }
     loadEnvConfig() {
     // The web server does not need to load the env config. This is done by the
     // runtime already.
     }
     getHasStaticDir() {
-        return false;
-    }
-    async hasMiddleware() {
         return false;
     }
     generateImageRoutes() {
@@ -72,21 +70,20 @@ class NextWebServer extends _baseServer.default {
     generatePublicRoutes() {
         return [];
     }
-    getMiddleware() {
-        return [];
-    }
     generateCatchAllMiddlewareRoute() {
-        return undefined;
+        return [];
     }
     getFontManifest() {
         return undefined;
     }
-    getMiddlewareManifest() {
-        return undefined;
-    }
     getPagesManifest() {
         return {
-            [globalThis.__server_context.page]: ''
+            [this.serverOptions.webServerConfig.page]: ''
+        };
+    }
+    getAppPathsManifest() {
+        return {
+            [this.serverOptions.webServerConfig.page]: ''
         };
     }
     getFilesystemPaths() {
@@ -111,7 +108,7 @@ class NextWebServer extends _baseServer.default {
     }
     async renderHTML(req, _res, pathname, query, renderOpts) {
         return (0, _render).renderToHTML({
-            url: pathname,
+            url: req.url,
             cookies: req.cookies,
             headers: req.headers
         }, {}, pathname, query, {
@@ -121,6 +118,7 @@ class NextWebServer extends _baseServer.default {
         });
     }
     async sendRenderResult(_req, res, options) {
+        res.setHeader('X-Edge-Runtime', '1');
         // Add necessary headers.
         // @TODO: Share the isomorphic logic with server/send-payload.ts.
         if (options.poweredByHeader && options.type === 'html') {
@@ -129,9 +127,8 @@ class NextWebServer extends _baseServer.default {
         if (!res.getHeader('Content-Type')) {
             res.setHeader('Content-Type', options.type === 'json' ? 'application/json' : 'text/html; charset=utf-8');
         }
-        // @TODO
-        const writer = res.transformStream.writable.getWriter();
         if (options.result.isDynamic()) {
+            const writer = res.transformStream.writable.getWriter();
             options.result.pipe({
                 write: (chunk)=>writer.write(chunk)
                 ,
@@ -143,8 +140,11 @@ class NextWebServer extends _baseServer.default {
                 uncork: ()=>{}
             });
         } else {
-            // TODO: generate Etag
             const payload = await options.result.toUnchunkedString();
+            res.setHeader('Content-Length', String((0, _web).byteLength(payload)));
+            if (options.generateEtags) {
+                res.setHeader('ETag', await (0, _web).generateETag(payload));
+            }
             res.body(payload);
         }
         res.send();
@@ -154,7 +154,7 @@ class NextWebServer extends _baseServer.default {
         return true;
     }
     async findPageComponents(pathname, query, params) {
-        const result = await this.webServerConfig.loadComponent(pathname);
+        const result = await this.serverOptions.webServerConfig.loadComponent(pathname);
         if (!result) return null;
         return {
             query: {

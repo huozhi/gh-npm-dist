@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.getScssError = getScssError;
-var _codeFrame = require("next/dist/compiled/babel/code-frame");
 var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _simpleWebpackError = require("./simpleWebpackError");
 function _interopRequireDefault(obj) {
@@ -28,7 +27,8 @@ function getScssError(fileName, fileContent, err) {
         let frame;
         if (fileContent) {
             try {
-                frame = (0, _codeFrame).codeFrameColumns(fileContent, {
+                const { codeFrameColumns ,  } = require('next/dist/compiled/babel/code-frame');
+                frame = codeFrameColumns(fileContent, {
                     start: {
                         line: lineNumber,
                         column

@@ -43,23 +43,26 @@ function _interopRequireWildcard(obj) {
 const requiredPackages = [
     {
         file: 'typescript',
-        pkg: 'typescript'
+        pkg: 'typescript',
+        exportsRestrict: false
     },
     {
         file: '@types/react/index.d.ts',
-        pkg: '@types/react'
+        pkg: '@types/react',
+        exportsRestrict: true
     },
     {
         file: '@types/node/index.d.ts',
-        pkg: '@types/node'
+        pkg: '@types/node',
+        exportsRestrict: false
     }, 
 ];
-async function verifyTypeScriptSetup(dir, pagesDir, typeCheckPreflight, config, cacheDir) {
-    const tsConfigPath = _path.default.join(dir, config.typescript.tsconfigPath);
+async function verifyTypeScriptSetup(dir, intentDirs, typeCheckPreflight, tsconfigPath, disableStaticImages, cacheDir) {
+    const resolvedTsConfigPath = _path.default.join(dir, tsconfigPath);
     try {
         var ref;
         // Check if the project uses TypeScript:
-        const intent = await (0, _getTypeScriptIntent).getTypeScriptIntent(dir, pagesDir, config);
+        const intent = await (0, _getTypeScriptIntent).getTypeScriptIntent(dir, intentDirs, tsconfigPath);
         if (!intent) {
             return {
                 version: null
@@ -76,15 +79,15 @@ async function verifyTypeScriptSetup(dir, pagesDir, typeCheckPreflight, config, 
             log.warn(`Minimum recommended TypeScript version is v4.3.2, older versions can potentially be incompatible with Next.js. Detected: ${ts.version}`);
         }
         // Reconfigure (or create) the user's `tsconfig.json` for them:
-        await (0, _writeConfigurationDefaults).writeConfigurationDefaults(ts, tsConfigPath, intent.firstTimeSetup);
+        await (0, _writeConfigurationDefaults).writeConfigurationDefaults(ts, resolvedTsConfigPath, intent.firstTimeSetup);
         // Write out the necessary `next-env.d.ts` file to correctly register
         // Next.js' types:
-        await (0, _writeAppTypeDeclarations).writeAppTypeDeclarations(dir, !config.images.disableStaticImages);
+        await (0, _writeAppTypeDeclarations).writeAppTypeDeclarations(dir, !disableStaticImages);
         let result;
         if (typeCheckPreflight) {
             const { runTypeCheck  } = require('./typescript/runTypeCheck');
             // Verify the project passes type-checking before we go to webpack phase:
-            result = await runTypeCheck(ts, dir, tsConfigPath, cacheDir);
+            result = await runTypeCheck(ts, dir, resolvedTsConfigPath, cacheDir);
         }
         return {
             result,

@@ -73,6 +73,7 @@ class BuildManifestPlugin {
             afterFiles: [],
             fallback: []
         };
+        this.appDirEnabled = options.appDirEnabled;
         this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute);
         this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute);
         this.rewrites.fallback = options.rewrites.fallback.map(processRoute);
@@ -88,6 +89,7 @@ class BuildManifestPlugin {
                 devFiles: [],
                 ampDevFiles: [],
                 lowPriorityFiles: [],
+                rootMainFiles: [],
                 pages: {
                     '/_app': []
                 },
@@ -104,6 +106,11 @@ class BuildManifestPlugin {
                 }
             }
             const mainFiles = new Set(getEntrypointFiles(entrypoints.get(_constants.CLIENT_STATIC_FILES_RUNTIME_MAIN)));
+            if (this.appDirEnabled) {
+                assetMap.rootMainFiles = [
+                    ...new Set(getEntrypointFiles(entrypoints.get(_constants.CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT))), 
+                ];
+            }
             const compilationAssets = compilation.getAssets();
             assetMap.polyfillFiles = compilationAssets.filter((p)=>{
                 // Ensure only .js files are passed through
@@ -119,7 +126,10 @@ class BuildManifestPlugin {
             const systemEntrypoints = new Set([
                 _constants.CLIENT_STATIC_FILES_RUNTIME_MAIN,
                 _constants.CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-                _constants.CLIENT_STATIC_FILES_RUNTIME_AMP, 
+                _constants.CLIENT_STATIC_FILES_RUNTIME_AMP,
+                ...this.appDirEnabled ? [
+                    _constants.CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT
+                ] : [], 
             ]);
             for (const entrypoint of compilation.entrypoints.values()){
                 if (systemEntrypoints.has(entrypoint.name)) continue;
@@ -147,10 +157,6 @@ class BuildManifestPlugin {
                 const ssgManifestPath = `${_constants.CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`;
                 assetMap.lowPriorityFiles.push(ssgManifestPath);
                 assets[ssgManifestPath] = new _webpack.sources.RawSource(srcEmptySsgManifest);
-                const srcEmptyMiddlewareManifest = `self.__MIDDLEWARE_MANIFEST=[];self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`;
-                const middlewareManifestPath = `${_constants.CLIENT_STATIC_FILES_PATH}/${this.buildId}/_middlewareManifest.js`;
-                assetMap.lowPriorityFiles.push(middlewareManifestPath);
-                assets[middlewareManifestPath] = new _webpack.sources.RawSource(srcEmptyMiddlewareManifest);
             }
             assetMap.pages = Object.keys(assetMap.pages).sort()// eslint-disable-next-line
             .reduce((a, c)=>(a[c] = assetMap.pages[c], a)

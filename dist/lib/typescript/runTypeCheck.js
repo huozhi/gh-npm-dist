@@ -8,6 +8,7 @@ var _diagnosticFormatter = require("./diagnosticFormatter");
 var _getTypeScriptConfiguration = require("./getTypeScriptConfiguration");
 var _writeConfigurationDefaults = require("./writeConfigurationDefaults");
 var _compileError = require("../compile-error");
+var _log = require("../../build/output/log");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -27,16 +28,22 @@ async function runTypeCheck(ts, baseDir, tsConfigPath, cacheDir) {
     const options = {
         ...effectiveConfiguration.options,
         ...requiredConfig,
+        declarationMap: false,
+        emitDeclarationOnly: false,
         noEmit: true
     };
     let program;
     let incremental = false;
-    if (options.incremental && cacheDir) {
+    if ((options.incremental || options.composite) && cacheDir) {
+        if (options.composite) {
+            (0, _log).warn('TypeScript project references are not fully supported. Attempting to build in incremental mode.');
+        }
         incremental = true;
         program = ts.createIncrementalProgram({
             rootNames: effectiveConfiguration.fileNames,
             options: {
                 ...options,
+                composite: false,
                 incremental: true,
                 tsBuildInfoFile: _path.default.join(cacheDir, '.tsbuildinfo')
             }

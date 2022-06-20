@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 require("./node-polyfill-fetch");
+var _react = _interopRequireDefault(require("react"));
 var log = _interopRequireWildcard(require("../build/output/log"));
 var _config = _interopRequireDefault(require("./config"));
 var _path = require("path");
@@ -109,10 +110,7 @@ class NextServer {
         return new ServerImplementation(options);
     }
     async loadConfig() {
-        const phase = this.options.dev ? _constants1.PHASE_DEVELOPMENT_SERVER : _constants1.PHASE_PRODUCTION_SERVER;
-        const dir = (0, _path).resolve(this.options.dir || '.');
-        const conf = await (0, _config).default(phase, dir, this.options.conf);
-        return conf;
+        return (0, _config).default(this.options.dev ? _constants1.PHASE_DEVELOPMENT_SERVER : _constants1.PHASE_PRODUCTION_SERVER, (0, _path).resolve(this.options.dir || '.'), this.options.conf);
     }
     async getServer() {
         if (!this.serverPromise) {
@@ -154,6 +152,10 @@ function createServer(options) {
     }
     if (options.dev && typeof options.dev !== 'boolean') {
         console.warn("Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options");
+    }
+    const shouldUseReactRoot = parseInt(_react.default.version) >= 18;
+    if (shouldUseReactRoot) {
+        process.env.__NEXT_REACT_ROOT = 'true';
     }
     return new NextServer(options);
 }

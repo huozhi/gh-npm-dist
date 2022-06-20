@@ -67,6 +67,7 @@ class TerserPlugin {
         const compilationSpan = _profilingPlugin.spans.get(compilation) || _profilingPlugin.spans.get(compiler);
         const terserSpan = compilationSpan.traceChild('terser-webpack-plugin-optimize');
         terserSpan.setAttribute('compilationName', compilation.name);
+        terserSpan.setAttribute('swcMinify', this.options.swcMinify);
         return terserSpan.traceAsyncFn(async ()=>{
             let numberOfAssetsForMinify = 0;
             const assetsList = Object.keys(assets);
@@ -84,7 +85,7 @@ class TerserPlugin {
                 }
                 // don't minify _middleware as it can break in some cases
                 // and doesn't provide too much of a benefit as it's server-side
-                if (name.match(/(middleware-runtime\.js|middleware-chunks|_middleware\.js$)/)) {
+                if (name.match(/(edge-runtime-webpack\.js|edge-chunks|middleware\.js$)/)) {
                     return false;
                 }
                 const { info  } = res;

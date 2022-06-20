@@ -21,6 +21,7 @@ module.exports = {
                     nextConfig: inputOptions.nextConfig,
                     jsConfig: inputOptions.jsConfig,
                     resolvedBaseUrl: inputOptions.resolvedBaseUrl,
+                    pagesDir: inputOptions.pagesDir,
                     esm: isSupportEsm && isEsm(Boolean(inputOptions.isEsmProject), filename, jestConfig)
                 });
                 return (0, _index).transformSync(src, {

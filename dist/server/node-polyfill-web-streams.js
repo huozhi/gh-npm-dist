@@ -1,10 +1,16 @@
 "use strict";
-var _webStreamsPolyfill = require("next/dist/compiled/web-streams-polyfill");
-var _readableStream = require("./web/sandbox/readable-stream");
-// Polyfill Web Streams in the Node.js environment
+var _primitives = _interopRequireDefault(require("next/dist/compiled/@edge-runtime/primitives"));
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+// Polyfill Web Streams for the Node.js runtime.
 if (!global.ReadableStream) {
-    global.ReadableStream = _readableStream.ReadableStream;
-    global.TransformStream = _webStreamsPolyfill.TransformStream;
+    global.ReadableStream = _primitives.default.ReadableStream;
+}
+if (!global.TransformStream) {
+    global.TransformStream = _primitives.default.TransformStream;
 }
 
 //# sourceMappingURL=node-polyfill-web-streams.js.map

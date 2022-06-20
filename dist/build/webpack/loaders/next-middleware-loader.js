@@ -3,12 +3,19 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = middlewareLoader;
+var _getModuleBuildInfo = require("./get-module-build-info");
 var _stringifyRequest = require("../stringify-request");
+var _constants = require("../../../lib/constants");
 function middlewareLoader() {
-    const { absolutePagePath , page  } = this.getOptions();
+    const { absolutePagePath , page , matcherRegexp  } = this.getOptions();
     const stringifiedPagePath = (0, _stringifyRequest).stringifyRequest(this, absolutePagePath);
+    const buildInfo = (0, _getModuleBuildInfo).getModuleBuildInfo(this._module);
+    buildInfo.nextEdgeMiddleware = {
+        matcherRegexp,
+        page: page.replace(new RegExp(`/${_constants.MIDDLEWARE_LOCATION_REGEXP}$`), '') || '/'
+    };
     return `
-        import { adapter } from 'next/dist/server/web/adapter'
+        import { adapter, blockUnallowedResponse } from 'next/dist/server/web/adapter'
 
         // The condition is true when the "process" module is provided
         if (process !== global.process) {
@@ -25,11 +32,11 @@ function middlewareLoader() {
         }
 
         export default function (opts) {
-          return adapter({
+          return blockUnallowedResponse(adapter({
               ...opts,
               page: ${JSON.stringify(page)},
               handler,
-          })
+          }))
         }
     `;
 }

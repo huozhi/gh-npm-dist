@@ -6,27 +6,14 @@ exports.default = initializeBuildWatcher;
 var _websocket = require("./error-overlay/websocket");
 function initializeBuildWatcher(toggleCallback, position = 'bottom-right') {
     const shadowHost = document.createElement('div');
+    const [verticalProperty, horizontalProperty] = position.split('-');
     shadowHost.id = '__next-build-watcher';
     // Make sure container is fixed and on a high zIndex so it shows
     shadowHost.style.position = 'fixed';
     // Ensure container's position to be top or bottom (default)
-    if ([
-        'top-left',
-        'top-right'
-    ].indexOf(position) > -1) {
-        shadowHost.style.top = '10px';
-    } else {
-        shadowHost.style.bottom = '10px';
-    }
+    shadowHost.style[verticalProperty] = '10px';
     // Ensure container's position to be left or right (default)
-    if ([
-        'bottom-left',
-        'top-left'
-    ].indexOf(position) > -1) {
-        shadowHost.style.left = '20px';
-    } else {
-        shadowHost.style.right = '20px';
-    }
+    shadowHost.style[horizontalProperty] = '20px';
     shadowHost.style.width = 0;
     shadowHost.style.height = 0;
     shadowHost.style.zIndex = 99999;
@@ -48,7 +35,10 @@ function initializeBuildWatcher(toggleCallback, position = 'bottom-right') {
     const container = createContainer(prefix);
     shadowRoot.appendChild(container);
     // CSS
-    const css = createCss(prefix);
+    const css = createCss(prefix, {
+        horizontalProperty,
+        verticalProperty
+    });
     shadowRoot.appendChild(css);
     // State
     let isVisible = false;
@@ -128,13 +118,13 @@ function createContainer(prefix) {
   `;
     return container;
 }
-function createCss(prefix) {
+function createCss(prefix, { horizontalProperty , verticalProperty  }) {
     const css = document.createElement('style');
     css.textContent = `
     #${prefix}container {
       position: absolute;
-      bottom: 10px;
-      right: 30px;
+      ${verticalProperty}: 10px;
+      ${horizontalProperty}: 30px;
 
       border-radius: 3px;
       background: #000;
@@ -152,7 +142,7 @@ function createCss(prefix) {
 
       display: none;
       opacity: 0;
-      transition: opacity 0.1s ease, bottom 0.1s ease;
+      transition: opacity 0.1s ease, ${verticalProperty} 0.1s ease;
       animation: ${prefix}fade-in 0.1s ease-in-out;
     }
 
@@ -161,7 +151,7 @@ function createCss(prefix) {
     }
 
     #${prefix}container.${prefix}building {
-      bottom: 20px;
+      ${verticalProperty}: 20px;
       opacity: 1;
     }
 
@@ -181,11 +171,11 @@ function createCss(prefix) {
 
     @keyframes ${prefix}fade-in {
       from {
-        bottom: 10px;
+        ${verticalProperty}: 10px;
         opacity: 0;
       }
       to {
-        bottom: 20px;
+        ${verticalProperty}: 20px;
         opacity: 1;
       }
     }
@@ -201,6 +191,12 @@ function createCss(prefix) {
     }
   `;
     return css;
+}
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
 }
 
 //# sourceMappingURL=dev-build-watcher.js.map

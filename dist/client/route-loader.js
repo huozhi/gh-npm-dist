@@ -5,9 +5,9 @@ Object.defineProperty(exports, "__esModule", {
 exports.markAssetError = markAssetError;
 exports.isAssetError = isAssetError;
 exports.getClientBuildManifest = getClientBuildManifest;
-exports.getMiddlewareManifest = getMiddlewareManifest;
 exports.createRouteLoader = createRouteLoader;
 var _getAssetPathFromRoute = _interopRequireDefault(require("../shared/lib/router/utils/get-asset-path-from-route"));
+var _trustedTypes = require("./trusted-types");
 var _requestIdleCallback = require("./request-idle-callback");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -147,24 +147,12 @@ function getClientBuildManifest() {
     });
     return resolvePromiseWithTimeout(onBuildManifest, MS_MAX_IDLE_DELAY, markAssetError(new Error('Failed to load client build manifest')));
 }
-function getMiddlewareManifest() {
-    if (self.__MIDDLEWARE_MANIFEST) {
-        return Promise.resolve(self.__MIDDLEWARE_MANIFEST);
-    }
-    const onMiddlewareManifest = new Promise((resolve)=>{
-        const cb = self.__MIDDLEWARE_MANIFEST_CB;
-        self.__MIDDLEWARE_MANIFEST_CB = ()=>{
-            resolve(self.__MIDDLEWARE_MANIFEST);
-            cb && cb();
-        };
-    });
-    return resolvePromiseWithTimeout(onMiddlewareManifest, MS_MAX_IDLE_DELAY, markAssetError(new Error('Failed to load client middleware manifest')));
-}
 function getFilesForRoute(assetPrefix, route) {
     if (process.env.NODE_ENV === 'development') {
+        const scriptUrl = assetPrefix + '/_next/static/chunks/pages' + encodeURI((0, _getAssetPathFromRoute).default(route, '.js'));
         return Promise.resolve({
             scripts: [
-                assetPrefix + '/_next/static/chunks/pages' + encodeURI((0, _getAssetPathFromRoute).default(route, '.js')), 
+                (0, _trustedTypes).__unsafeCreateTrustedScriptURL(scriptUrl)
             ],
             // Styles are handled by `style-loader` in development:
             css: []
@@ -178,6 +166,7 @@ function getFilesForRoute(assetPrefix, route) {
         );
         return {
             scripts: allFiles.filter((v)=>v.endsWith('.js')
+            ).map((v)=>(0, _trustedTypes).__unsafeCreateTrustedScriptURL(v)
             ),
             css: allFiles.filter((v)=>v.endsWith('.css')
             )
@@ -194,7 +183,7 @@ function createRouteLoader(assetPrefix) {
         // disposed and readded. Executing scripts twice has no functional
         // differences
         if (process.env.NODE_ENV !== 'development') {
-            let prom = loadedScripts.get(src);
+            let prom = loadedScripts.get(src.toString());
             if (prom) {
                 return prom;
             }
@@ -202,7 +191,7 @@ function createRouteLoader(assetPrefix) {
             if (document.querySelector(`script[src^="${src}"]`)) {
                 return Promise.resolve();
             }
-            loadedScripts.set(src, prom = appendScript(src));
+            loadedScripts.set(src.toString(), prom = appendScript(src));
             return prom;
         } else {
             return appendScript(src);
@@ -305,7 +294,7 @@ function createRouteLoader(assetPrefix) {
                 // Don't prefetch if using 2G or if Save-Data is enabled.
                 if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve();
             }
-            return getFilesForRoute(assetPrefix, route).then((output)=>Promise.all(canPrefetch ? output.scripts.map((script)=>prefetchViaDom(script, 'script')
+            return getFilesForRoute(assetPrefix, route).then((output)=>Promise.all(canPrefetch ? output.scripts.map((script)=>prefetchViaDom(script.toString(), 'script')
                 ) : [])
             ).then(()=>{
                 (0, _requestIdleCallback).requestIdleCallback(()=>this.loadRoute(route, true).catch(()=>{})
@@ -314,6 +303,12 @@ function createRouteLoader(assetPrefix) {
             ()=>{});
         }
     };
+}
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
 }
 
 //# sourceMappingURL=route-loader.js.map

@@ -29,7 +29,7 @@ function getNextInternalQuery(query) {
         '__nextLocale',
         '__nextSsgPath',
         '_nextBubbleNoFallback',
-        '_nextDataReq', 
+        '__nextDataReq', 
     ];
     const nextInternalQuery = {};
     for (const key of keysToInclude){

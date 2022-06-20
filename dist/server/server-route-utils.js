@@ -2,23 +2,23 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.stringifyQuery = exports.createRedirectRoute = exports.createHeaderRoute = exports.getCustomRoute = void 0;
+exports.getCustomRoute = getCustomRoute;
+exports.stringifyQuery = exports.createRedirectRoute = exports.createHeaderRoute = void 0;
 var _loadCustomRoutes = require("../lib/load-custom-routes");
-var _pathMatch = _interopRequireDefault(require("../shared/lib/router/utils/path-match"));
+var _pathMatch = require("../shared/lib/router/utils/path-match");
 var _prepareDestination = require("../shared/lib/router/utils/prepare-destination");
 var _requestMeta = require("./request-meta");
 var _querystring = require("querystring");
 var _url = require("url");
 var _utils = require("../shared/lib/utils");
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-const getCustomRouteMatcher = (0, _pathMatch).default(true);
-const getCustomRoute = ({ type , rule , restrictedRedirectPaths  })=>{
-    const match = getCustomRouteMatcher(rule.source, !rule.internal ? (regex)=>(0, _loadCustomRoutes).modifyRouteRegex(regex, type === 'redirect' ? restrictedRedirectPaths : undefined)
-     : undefined);
+function getCustomRoute(params) {
+    const { rule , type , restrictedRedirectPaths  } = params;
+    const match = (0, _pathMatch).getPathMatch(rule.source, {
+        strict: true,
+        removeUnnamedParams: true,
+        regexModifier: !rule.internal ? (regex)=>(0, _loadCustomRoutes).modifyRouteRegex(regex, type === 'redirect' ? restrictedRedirectPaths : undefined)
+         : undefined
+    });
     return {
         ...rule,
         type,
@@ -28,8 +28,7 @@ const getCustomRoute = ({ type , rule , restrictedRedirectPaths  })=>{
                 finished: false
             })
     };
-};
-exports.getCustomRoute = getCustomRoute;
+}
 const createHeaderRoute = ({ rule , restrictedRedirectPaths  })=>{
     const headerRoute = getCustomRoute({
         type: 'header',
@@ -38,6 +37,10 @@ const createHeaderRoute = ({ rule , restrictedRedirectPaths  })=>{
     });
     return {
         match: headerRoute.match,
+        matchesBasePath: true,
+        matchesLocale: true,
+        matchesLocaleAPIRoutes: true,
+        matchesTrailingSlash: true,
         has: headerRoute.has,
         type: headerRoute.type,
         name: `${headerRoute.type} ${headerRoute.source} header route`,
@@ -68,6 +71,10 @@ const createRedirectRoute = ({ rule , restrictedRedirectPaths  })=>{
         internal: redirectRoute.internal,
         type: redirectRoute.type,
         match: redirectRoute.match,
+        matchesBasePath: true,
+        matchesLocale: redirectRoute.internal ? undefined : true,
+        matchesLocaleAPIRoutes: true,
+        matchesTrailingSlash: true,
         has: redirectRoute.has,
         statusCode: redirectRoute.statusCode,
         name: `Redirect route ${redirectRoute.source}`,

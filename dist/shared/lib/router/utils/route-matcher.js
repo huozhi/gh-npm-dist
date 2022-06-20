@@ -4,8 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.getRouteMatcher = getRouteMatcher;
 var _utils = require("../../utils");
-function getRouteMatcher(routeRegex) {
-    const { re , groups  } = routeRegex;
+function getRouteMatcher({ re , groups  }) {
     return (pathname)=>{
         const routeMatch = re.exec(pathname);
         if (!routeMatch) {

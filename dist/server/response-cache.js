@@ -17,7 +17,9 @@ class ResponseCache {
     }
     get(key, responseGenerator, context) {
         var ref2;
-        const pendingResponse = key ? this.pendingResponses.get(key) : null;
+        // ensure manual revalidate doesn't block normal requests
+        const pendingResponseKey = key ? `${key}-${context.isManualRevalidate ? '1' : '0'}` : null;
+        const pendingResponse = pendingResponseKey ? this.pendingResponses.get(pendingResponseKey) : null;
         if (pendingResponse) {
             return pendingResponse;
         }
@@ -27,14 +29,14 @@ class ResponseCache {
             resolver = resolve;
             rejecter = reject;
         });
-        if (key) {
-            this.pendingResponses.set(key, promise);
+        if (pendingResponseKey) {
+            this.pendingResponses.set(pendingResponseKey, promise);
         }
         let resolved = false;
         const resolve1 = (cacheEntry)=>{
-            if (key) {
+            if (pendingResponseKey) {
                 // Ensure all reads from the cache get the latest value.
-                this.pendingResponses.set(key, Promise.resolve(cacheEntry));
+                this.pendingResponses.set(pendingResponseKey, Promise.resolve(cacheEntry));
             }
             if (!resolved) {
                 resolved = true;
@@ -43,9 +45,9 @@ class ResponseCache {
         };
         // we keep the previous cache entry around to leverage
         // when the incremental cache is disabled in minimal mode
-        if (key && this.minimalMode && ((ref2 = this.previousCacheItem) === null || ref2 === void 0 ? void 0 : ref2.key) === key && this.previousCacheItem.expiresAt > Date.now()) {
+        if (pendingResponseKey && this.minimalMode && ((ref2 = this.previousCacheItem) === null || ref2 === void 0 ? void 0 : ref2.key) === pendingResponseKey && this.previousCacheItem.expiresAt > Date.now()) {
             resolve1(this.previousCacheItem.entry);
-            this.pendingResponses.delete(key);
+            this.pendingResponses.delete(pendingResponseKey);
             return promise;
         }
         (async ()=>{
@@ -63,23 +65,27 @@ class ResponseCache {
                             pageData: cachedResponse.value.pageData
                         } : cachedResponse.value
                     });
-                    if (!cachedResponse.isStale) {
+                    if (!cachedResponse.isStale || context.isPrefetch) {
                         // The cached value is still valid, so we don't need
                         // to update it yet.
                         return;
                     }
                 }
                 const cacheEntry = await responseGenerator(resolved, !!cachedResponse);
-                resolve1(cacheEntry === null ? null : {
+                const resolveValue = cacheEntry === null ? null : {
                     ...cacheEntry,
                     isMiss: !cachedResponse
-                });
+                };
+                // for manual revalidate wait to resolve until cache is set
+                if (!context.isManualRevalidate) {
+                    resolve1(resolveValue);
+                }
                 if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
                     if (this.minimalMode) {
                         this.previousCacheItem = {
-                            key,
+                            key: pendingResponseKey || key,
                             entry: cacheEntry,
-                            expiresAt: typeof cacheEntry.revalidate !== 'number' ? Date.now() + 1000 : Date.now() + (cacheEntry === null || cacheEntry === void 0 ? void 0 : cacheEntry.revalidate) * 1000
+                            expiresAt: Date.now() + 1000
                         };
                     } else {
                         var ref1;
@@ -91,6 +97,9 @@ class ResponseCache {
                     }
                 } else {
                     this.previousCacheItem = undefined;
+                }
+                if (context.isManualRevalidate) {
+                    resolve1(resolveValue);
                 }
             } catch (err) {
                 // when a getStaticProps path is erroring we automatically re-set the
@@ -106,8 +115,8 @@ class ResponseCache {
                     rejecter(err);
                 }
             } finally{
-                if (key) {
-                    this.pendingResponses.delete(key);
+                if (pendingResponseKey) {
+                    this.pendingResponses.delete(pendingResponseKey);
                 }
             }
         })();

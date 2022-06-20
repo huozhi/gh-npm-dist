@@ -70,6 +70,11 @@ const defaultConfig = {
     staticPageGenerationTimeout: 60,
     swcMinify: false,
     experimental: {
+        // TODO: change default in next major release (current v12.1.5)
+        legacyBrowsers: true,
+        browsersListForSwc: false,
+        // TODO: change default in next major release (current v12.1.5)
+        newNextLinkBehavior: false,
         cpus: Math.max(1, (Number(process.env.CIRCLE_NODE_TOTAL) || (_os.default.cpus() || {
             length: 1
         }).length) - 1),
@@ -89,6 +94,7 @@ const defaultConfig = {
         swcFileReading: true,
         craCompat: false,
         esmExternals: true,
+        appDir: false,
         // default to 50MB limit
         isrMemoryCacheSize: 50 * 1024 * 1024,
         serverComponents: false,
@@ -96,8 +102,11 @@ const defaultConfig = {
         outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
         outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
         images: {
-            layoutRaw: false
-        }
+            layoutRaw: false,
+            remotePatterns: []
+        },
+        forceSwcTransforms: false,
+        largePageDataBytes: 128 * 1000
     }
 };
 exports.defaultConfig = defaultConfig;

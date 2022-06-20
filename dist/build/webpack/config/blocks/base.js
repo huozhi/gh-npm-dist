@@ -25,13 +25,11 @@ const base = (0, _lodashCurry).default(function base(ctx, config) {
         if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
             config.devtool = false;
         } else {
-            if (!ctx.isEdgeRuntime) {
-                // `eval-source-map` provides full-fidelity source maps for the
-                // original source, including columns and original variable names.
-                // This is desirable so the in-browser debugger can correctly pause
-                // and show scoped variables with their original names.
-                config.devtool = 'eval-source-map';
-            }
+            // `eval-source-map` provides full-fidelity source maps for the
+            // original source, including columns and original variable names.
+            // This is desirable so the in-browser debugger can correctly pause
+            // and show scoped variables with their original names.
+            config.devtool = 'eval-source-map';
         }
     } else {
         // Enable browser sourcemaps:

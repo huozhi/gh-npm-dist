@@ -21,8 +21,8 @@ function getCssError(fileName, err) {
     // https://github.com/postcss/postcss-loader/blob/d6931da177ac79707bd758436e476036a55e4f59/src/Error.js
     const res = regexCssError.exec(err.message);
     if (res) {
-        const [, _lineNumer, _column, reason] = res;
-        const lineNumber = Math.max(1, parseInt(_lineNumer, 10));
+        const [, _lineNumber, _column, reason] = res;
+        const lineNumber = Math.max(1, parseInt(_lineNumber, 10));
         const column = Math.max(1, parseInt(_column, 10));
         return new _simpleWebpackError.SimpleWebpackError(`${chalk.cyan(fileName)}:${chalk.yellow(lineNumber.toString())}:${chalk.yellow(column.toString())}`, chalk.red.bold('Syntax error').concat(`: ${reason}`));
     }

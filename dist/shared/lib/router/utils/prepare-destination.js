@@ -89,6 +89,7 @@ function prepareDestination(args) {
     const query = Object.assign({}, args.query);
     delete query.__nextLocale;
     delete query.__nextDefaultLocale;
+    delete query.__nextDataReq;
     let escapedDestination = args.destination;
     for (const param of Object.keys({
         ...args.params,
@@ -168,6 +169,7 @@ function prepareDestination(args) {
     };
     return {
         newUrl,
+        destQuery,
         parsedDestination
     };
 }

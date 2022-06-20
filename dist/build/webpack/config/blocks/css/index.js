@@ -5,7 +5,6 @@ Object.defineProperty(exports, "__esModule", {
 exports.lazyPostCSS = lazyPostCSS;
 exports.css = exports.regexLikeCss = void 0;
 var _lodashCurry = _interopRequireDefault(require("next/dist/compiled/lodash.curry"));
-var _miniCssExtractPlugin = _interopRequireDefault(require("../../../plugins/mini-css-extract-plugin"));
 var _helpers = require("../../helpers");
 var _utils = require("../../utils");
 var _loaders = require("./loaders");
@@ -375,8 +374,9 @@ const css = (0, _lodashCurry).default(async function css(ctx, config) {
     }
     if (ctx.isClient && ctx.isProduction) {
         // Extract CSS as CSS file(s) in the client-side production bundle.
+        const MiniCssExtractPlugin = require('../../../plugins/mini-css-extract-plugin').default;
         fns.push((0, _helpers).plugin(// @ts-ignore webpack 5 compat
-        new _miniCssExtractPlugin.default({
+        new MiniCssExtractPlugin({
             filename: 'static/css/[contenthash].css',
             chunkFilename: 'static/css/[contenthash].css',
             // Next.js guarantees that CSS order "doesn't matter", due to imposed

@@ -22,7 +22,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     // Make the loader async
     const filename = this.resourcePath;
     let loaderOptions = this.getOptions() || {};
-    const { isServer , pagesDir , hasReactRefresh , nextConfig , jsConfig  } = loaderOptions;
+    const { isServer , pagesDir , hasReactRefresh , nextConfig , jsConfig , supportedBrowsers ,  } = loaderOptions;
     const isPageFile = filename.startsWith(pagesDir);
     const swcOptions = (0, _options).getLoaderSWCOptions({
         pagesDir,
@@ -32,7 +32,8 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
         development: this.mode === 'development',
         hasReactRefresh,
         nextConfig,
-        jsConfig
+        jsConfig,
+        supportedBrowsers
     });
     const programmaticOptions = {
         ...swcOptions,
@@ -55,6 +56,11 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     }
     const swcSpan = parentTrace.traceChild('next-swc-transform');
     return swcSpan.traceAsyncFn(()=>(0, _swc).transform(source, programmaticOptions).then((output)=>{
+            if (output.eliminatedPackages && this.eliminatedPackages) {
+                for (const pkg of JSON.parse(output.eliminatedPackages)){
+                    this.eliminatedPackages.add(pkg);
+                }
+            }
             return [
                 output.code,
                 output.map ? JSON.parse(output.map) : undefined

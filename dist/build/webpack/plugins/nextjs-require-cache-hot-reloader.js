@@ -6,6 +6,7 @@ var _sandbox = require("../../../server/web/sandbox");
 var _fs = require("fs");
 var _path = _interopRequireDefault(require("path"));
 var _isError = _interopRequireDefault(require("../../../lib/is-error"));
+var _constants = require("../../../shared/lib/constants");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -39,16 +40,33 @@ function deleteCache(filePath) {
         for (const child of module.children){
             child.parent = null;
         }
+        delete require.cache[filePath];
+        return true;
     }
-    delete require.cache[filePath];
+    return false;
 }
 const PLUGIN_NAME = 'NextJsRequireCacheHotReloader';
 class NextJsRequireCacheHotReloader {
+    constructor(opts){
+        this.prevAssets = null;
+        this.previousOutputPathsWebpack5 = new Set();
+        this.currentOutputPathsWebpack5 = new Set();
+        this.hasServerComponents = opts.hasServerComponents;
+    }
     apply(compiler) {
-        compiler.hooks.assetEmitted.tap(PLUGIN_NAME, (_file, { targetPath , content  })=>{
+        compiler.hooks.assetEmitted.tap(PLUGIN_NAME, (file, { targetPath , content  })=>{
             this.currentOutputPathsWebpack5.add(targetPath);
             deleteCache(targetPath);
             (0, _sandbox).clearModuleContext(targetPath, content.toString('utf-8'));
+            if (this.hasServerComponents && /^(app|pages)\//.test(file) && /\.js$/.test(targetPath)) {
+                // Also clear the potential __sc_client__ cache.
+                // @TODO: Investigate why the client ssr bundle isn't emitted as an asset here.
+                const clientComponentsSSRTarget = targetPath.replace(/\.js$/, _constants.NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js');
+                if (deleteCache(clientComponentsSSRTarget)) {
+                    this.currentOutputPathsWebpack5.add(clientComponentsSSRTarget);
+                    (0, _sandbox).clearModuleContext(clientComponentsSSRTarget, content.toString('utf-8'));
+                }
+            }
         });
         compiler.hooks.afterEmit.tap(PLUGIN_NAME, (compilation)=>{
             RUNTIME_NAMES.forEach((name)=>{
@@ -69,11 +87,6 @@ class NextJsRequireCacheHotReloader {
         });
         this.previousOutputPathsWebpack5 = new Set(this.currentOutputPathsWebpack5);
         this.currentOutputPathsWebpack5.clear();
-    }
-    constructor(){
-        this.prevAssets = null;
-        this.previousOutputPathsWebpack5 = new Set();
-        this.currentOutputPathsWebpack5 = new Set();
     }
 }
 exports.NextJsRequireCacheHotReloader = NextJsRequireCacheHotReloader;

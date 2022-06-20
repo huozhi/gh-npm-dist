@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+var _webpack = require("next/dist/compiled/webpack/webpack");
 // Map of a feature module to the file it belongs in the next package.
 const FEATURE_MODULE_MAP = new Map([
     [
@@ -42,6 +43,7 @@ const BUILD_FEATURES = [
     'swc/target/aarch64-unknown-linux-musl',
     'swc/target/aarch64-pc-windows-msvc', 
 ];
+const ELIMINATED_PACKAGES = new Set();
 class TelemetryPlugin {
     // Build feature usage is on/off and is known before the build starts
     constructor(buildFeaturesMap){
@@ -75,11 +77,22 @@ class TelemetryPlugin {
             });
             callback();
         });
+        if (compiler.options.mode === 'production' && !compiler.watchMode) {
+            compiler.hooks.compilation.tap(TelemetryPlugin.name, (compilation)=>{
+                const moduleHooks = _webpack.NormalModule.getCompilationHooks(compilation);
+                moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext)=>{
+                    loaderContext.eliminatedPackages = ELIMINATED_PACKAGES;
+                });
+            });
+        }
     }
     usages() {
         return [
             ...this.usageTracker.values()
         ];
+    }
+    packagesUsedInServerSideProps() {
+        return Array.from(ELIMINATED_PACKAGES);
     }
 }
 exports.TelemetryPlugin = TelemetryPlugin;

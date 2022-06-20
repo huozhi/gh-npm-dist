@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.commands = void 0;
 var log = _interopRequireWildcard(require("../build/output/log"));
 var _indexJs = _interopRequireDefault(require("next/dist/compiled/arg/index.js"));
+var _react = _interopRequireDefault(require("react"));
 var _constants = require("../lib/constants");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -74,7 +75,7 @@ const args = (0, _indexJs).default({
 });
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
-    console.log(`Next.js v${"12.1.1"}`);
+    console.log(`Next.js v${"12.1.7-canary.41"}`);
     process.exit(0);
 }
 // Check if we are running `next <subcommand>` or `next`
@@ -125,6 +126,11 @@ if (process.env.NODE_ENV) {
     }
 }
 process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv;
+process.env.NEXT_RUNTIME = 'nodejs';
+const shouldUseReactRoot = parseInt(_react.default.version) >= 18;
+if (shouldUseReactRoot) {
+    process.env.__NEXT_REACT_ROOT = 'true';
+}
 // x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
 if (process.versions.pnp === '3') {
     const nodeVersionParts = process.versions.node.split('.').map((v)=>Number(v)
@@ -134,10 +140,13 @@ if (process.versions.pnp === '3') {
     }
 }
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
-process.on('SIGTERM', ()=>process.exit(0)
-);
-process.on('SIGINT', ()=>process.exit(0)
-);
+// Allow the graceful termination to be manually configurable
+if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+    process.on('SIGTERM', ()=>process.exit(0)
+    );
+    process.on('SIGINT', ()=>process.exit(0)
+    );
+}
 commands[command]().then((exec)=>exec(forwardedArgs)
 ).then(()=>{
     if (command === 'build') {
@@ -146,16 +155,5 @@ commands[command]().then((exec)=>exec(forwardedArgs)
         process.exit(0);
     }
 });
-if (command === 'dev') {
-    const { CONFIG_FILES  } = require('../shared/lib/constants');
-    const { watchFile  } = require('fs');
-    for (const CONFIG_FILE of CONFIG_FILES){
-        watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur, prev)=>{
-            if (cur.size > 0 || prev.size > 0) {
-                console.log(`\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`);
-            }
-        });
-    }
-}
 
 //# sourceMappingURL=next.map

@@ -3,23 +3,18 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = void 0;
+var _addBasePath = require("./add-base-path");
 var _router = require("../shared/lib/router/router");
 var _getAssetPathFromRoute = _interopRequireDefault(require("../shared/lib/router/utils/get-asset-path-from-route"));
+var _addLocale = require("./add-locale");
 var _isDynamic = require("../shared/lib/router/utils/is-dynamic");
 var _parseRelativeUrl = require("../shared/lib/router/utils/parse-relative-url");
-var _normalizeTrailingSlash = require("./normalize-trailing-slash");
+var _removeTrailingSlash = require("../shared/lib/router/utils/remove-trailing-slash");
 var _routeLoader = require("./route-loader");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
     };
-}
-function normalizeRoute(route) {
-    if (route[0] !== '/') {
-        throw new Error(`Route name should start with a "/", got "${route}"`);
-    }
-    if (route === '/') return route;
-    return route.replace(/\/$/, '');
 }
 class PageLoader {
     getPageList() {
@@ -48,7 +43,14 @@ class PageLoader {
     }
     getMiddlewareList() {
         if (process.env.NODE_ENV === 'production') {
-            return (0, _routeLoader).getMiddlewareManifest();
+            const middlewareRegex = process.env.__NEXT_MIDDLEWARE_REGEX;
+            window.__MIDDLEWARE_MANIFEST = middlewareRegex ? [
+                [
+                    middlewareRegex,
+                    false
+                ]
+            ] : [];
+            return window.__MIDDLEWARE_MANIFEST;
         } else {
             if (window.__DEV_MIDDLEWARE_MANIFEST) {
                 return window.__DEV_MIDDLEWARE_MANIFEST;
@@ -69,24 +71,19 @@ class PageLoader {
             }
         }
     }
-    /**
-   * @param {string} href the route href (file-system path)
-   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
-   * @returns {string}
-   */ getDataHref({ href , asPath , ssg , rsc , locale  }) {
+    getDataHref(params) {
+        const { asPath , href , locale  } = params;
         const { pathname: hrefPathname , query , search  } = (0, _parseRelativeUrl).parseRelativeUrl(href);
         const { pathname: asPathname  } = (0, _parseRelativeUrl).parseRelativeUrl(asPath);
-        const route = normalizeRoute(hrefPathname);
+        const route = (0, _removeTrailingSlash).removeTrailingSlash(hrefPathname);
+        if (route[0] !== '/') {
+            throw new Error(`Route name should start with a "/", got "${route}"`);
+        }
         const getHrefForSlug = (path)=>{
-            if (rsc) {
-                return path + search + (search ? `&` : '?') + '__flight__=1';
-            }
-            const dataRoute = (0, _getAssetPathFromRoute).default((0, _normalizeTrailingSlash).removePathTrailingSlash((0, _router).addLocale(path, locale)), '.json');
-            return (0, _router).addBasePath(`/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`);
+            const dataRoute = (0, _getAssetPathFromRoute).default((0, _removeTrailingSlash).removeTrailingSlash((0, _addLocale).addLocale(path, locale)), '.json');
+            return (0, _addBasePath).addBasePath(`/_next/data/${this.buildId}${dataRoute}${search}`, true);
         };
-        const isDynamic = (0, _isDynamic).isDynamicRoute(route);
-        const interpolatedRoute = isDynamic ? (0, _router).interpolateAs(hrefPathname, asPathname, query).result : '';
-        return isDynamic ? interpolatedRoute && getHrefForSlug(interpolatedRoute) : getHrefForSlug(route);
+        return getHrefForSlug(params.skipInterpolation ? asPathname : (0, _isDynamic).isDynamicRoute(route) ? (0, _router).interpolateAs(hrefPathname, asPathname, query).result : route);
     }
     /**
    * @param {string} route - the route (file-system path)
@@ -129,5 +126,11 @@ class PageLoader {
     }
 }
 exports.default = PageLoader;
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
+}
 
 //# sourceMappingURL=page-loader.js.map

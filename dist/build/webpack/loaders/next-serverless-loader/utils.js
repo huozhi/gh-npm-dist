@@ -7,14 +7,14 @@ exports.vercelHeader = void 0;
 var _url = require("url");
 var _querystring = require("querystring");
 var _normalizeLocalePath = require("../../../../shared/lib/i18n/normalize-locale-path");
-var _pathMatch = _interopRequireDefault(require("../../../../shared/lib/router/utils/path-match"));
+var _pathMatch = require("../../../../shared/lib/router/utils/path-match");
 var _routeRegex = require("../../../../shared/lib/router/utils/route-regex");
 var _routeMatcher = require("../../../../shared/lib/router/utils/route-matcher");
 var _prepareDestination = require("../../../../shared/lib/router/utils/prepare-destination");
 var _acceptHeader = require("../../../../server/accept-header");
 var _detectLocaleCookie = require("../../../../shared/lib/i18n/detect-locale-cookie");
 var _detectDomainLocale = require("../../../../shared/lib/i18n/detect-domain-locale");
-var _denormalizePagePath = require("../../../../server/denormalize-page-path");
+var _denormalizePagePath = require("../../../../shared/lib/page-path/denormalize-page-path");
 var _cookie = _interopRequireDefault(require("next/dist/compiled/cookie"));
 var _constants = require("../../../../shared/lib/constants");
 var _requestMeta = require("../../../../server/request-meta");
@@ -23,7 +23,6 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
-const getCustomRouteMatcher = (0, _pathMatch).default(true);
 const vercelHeader = 'x-vercel-id';
 exports.vercelHeader = vercelHeader;
 function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
@@ -31,13 +30,21 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
     let dynamicRouteMatcher;
     let defaultRouteMatches;
     if (pageIsDynamic) {
-        defaultRouteRegex = (0, _routeRegex).getRouteRegex(page);
+        defaultRouteRegex = (0, _routeRegex).getNamedRouteRegex(page);
         dynamicRouteMatcher = (0, _routeMatcher).getRouteMatcher(defaultRouteRegex);
         defaultRouteMatches = dynamicRouteMatcher(page);
     }
     function handleRewrites(req, parsedUrl) {
-        for (const rewrite of rewrites){
-            const matcher = getCustomRouteMatcher(rewrite.source);
+        const rewriteParams = {};
+        let fsPathname = parsedUrl.pathname;
+        const matchesPage = ()=>{
+            return fsPathname === page || (dynamicRouteMatcher === null || dynamicRouteMatcher === void 0 ? void 0 : dynamicRouteMatcher(fsPathname));
+        };
+        const checkRewrite = (rewrite)=>{
+            const matcher = (0, _pathMatch).getPathMatch(rewrite.source, {
+                removeUnnamedParams: true,
+                strict: true
+            });
             let params = matcher(parsedUrl.pathname);
             if (rewrite.has && params) {
                 const hasParams = (0, _prepareDestination).matchHas(req, rewrite.has, parsedUrl.query);
@@ -48,16 +55,21 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
                 }
             }
             if (params) {
-                const { parsedDestination  } = (0, _prepareDestination).prepareDestination({
+                const { parsedDestination , destQuery  } = (0, _prepareDestination).prepareDestination({
                     appendParamsToQuery: true,
                     destination: rewrite.destination,
                     params: params,
                     query: parsedUrl.query
                 });
+                // if the rewrite destination is external break rewrite chain
+                if (parsedDestination.protocol) {
+                    return true;
+                }
+                Object.assign(rewriteParams, destQuery, params);
                 Object.assign(parsedUrl.query, parsedDestination.query);
                 delete parsedDestination.query;
                 Object.assign(parsedUrl, parsedDestination);
-                let fsPathname = parsedUrl.pathname;
+                fsPathname = parsedUrl.pathname;
                 if (basePath) {
                     fsPathname = fsPathname.replace(new RegExp(`^${basePath}`), '') || '/';
                 }
@@ -67,7 +79,7 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
                     parsedUrl.query.nextInternalLocale = destLocalePathResult.detectedLocale || params.nextInternalLocale;
                 }
                 if (fsPathname === page) {
-                    break;
+                    return true;
                 }
                 if (pageIsDynamic && dynamicRouteMatcher) {
                     const dynamicParams = dynamicRouteMatcher(fsPathname);
@@ -76,12 +88,29 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
                             ...parsedUrl.query,
                             ...dynamicParams
                         };
-                        break;
+                        return true;
                     }
                 }
             }
+            return false;
+        };
+        for (const rewrite1 of rewrites.beforeFiles || []){
+            checkRewrite(rewrite1);
         }
-        return parsedUrl;
+        if (fsPathname !== page) {
+            let finished = false;
+            for (const rewrite of rewrites.afterFiles || []){
+                finished = checkRewrite(rewrite);
+                if (finished) break;
+            }
+            if (!finished && !matchesPage()) {
+                for (const rewrite of rewrites.fallback || []){
+                    finished = checkRewrite(rewrite);
+                    if (finished) break;
+                }
+            }
+        }
+        return rewriteParams;
     }
     function handleBasePath(req, parsedUrl) {
         // always strip the basePath if configured since it is required
@@ -175,19 +204,19 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
         }
         return pathname;
     }
-    function normalizeVercelUrl(req, trustQuery) {
+    function normalizeVercelUrl(req, trustQuery, paramKeys) {
         // make sure to normalize req.url on Vercel to strip dynamic params
         // from the query which are added during routing
         if (pageIsDynamic && trustQuery && defaultRouteRegex) {
             const _parsedUrl = (0, _url).parse(req.url, true);
             delete _parsedUrl.search;
-            for (const param of Object.keys(defaultRouteRegex.groups)){
+            for (const param of paramKeys || Object.keys(defaultRouteRegex.groups)){
                 delete _parsedUrl.query[param];
             }
             req.url = (0, _url).format(_parsedUrl);
         }
     }
-    function normalizeDynamicRouteParams(params) {
+    function normalizeDynamicRouteParams(params, ignoreOptional) {
         let hasValidParams = true;
         if (!defaultRouteRegex) return {
             params,
@@ -199,16 +228,17 @@ function getUtils({ page , i18n , basePath , rewrites , pageIsDynamic  }) {
             // on the parsed params, this is used to signal if we need
             // to parse x-now-route-matches or not
             const defaultValue = defaultRouteMatches[key];
+            const isOptional = defaultRouteRegex.groups[key].optional;
             const isDefaultValue = Array.isArray(defaultValue) ? defaultValue.some((defaultVal)=>{
                 return Array.isArray(value) ? value.some((val)=>val.includes(defaultVal)
                 ) : value === null || value === void 0 ? void 0 : value.includes(defaultVal);
             }) : value === null || value === void 0 ? void 0 : value.includes(defaultValue);
-            if (isDefaultValue || typeof value === 'undefined') {
+            if (isDefaultValue || typeof value === 'undefined' && !(isOptional && ignoreOptional)) {
                 hasValidParams = false;
             }
             // non-provided optional values should be undefined so normalize
             // them to undefined
-            if (defaultRouteRegex.groups[key].optional && (!value || Array.isArray(value) && value.length === 1 && // fallback optional catch-all SSG pages have
+            if (isOptional && (!value || Array.isArray(value) && value.length === 1 && // fallback optional catch-all SSG pages have
             // [[...paramName]] for the root path on Vercel
             (value[0] === 'index' || value[0] === `[[...${key}]]`))) {
                 value = undefined;

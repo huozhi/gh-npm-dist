@@ -109,4 +109,10 @@ function _tryApplyUpdates() {
 (0, _fouc).displayContent();
 (0, _onDemandEntriesClient).default(data.page);
 
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
+}
+
 //# sourceMappingURL=amp-dev.js.map

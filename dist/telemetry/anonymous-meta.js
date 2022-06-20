@@ -56,7 +56,7 @@ function getAnonymousMeta() {
         isWsl: _isWsl.default,
         isCI: ciEnvironment.isCI,
         ciName: ciEnvironment.isCI && ciEnvironment.name || null,
-        nextVersion: "12.1.1"
+        nextVersion: "12.1.7-canary.41"
     };
     return traits;
 }

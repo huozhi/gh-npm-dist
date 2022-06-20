@@ -2,13 +2,19 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.bodyStreamToNodeStream = bodyStreamToNodeStream;
 exports.clonableBodyForRequest = clonableBodyForRequest;
+var _primitives = _interopRequireDefault(require("next/dist/compiled/@edge-runtime/primitives"));
 var _stream = require("stream");
-var _webStreamsPolyfill = require("next/dist/compiled/web-streams-polyfill");
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 /**
  * Creates a ReadableStream from a Node.js HTTP request
  */ function requestToBodyStream(request) {
-    const transform = new _webStreamsPolyfill.TransformStream({
+    const transform = new _primitives.default.TransformStream({
         start (controller) {
             request.on('data', (chunk)=>controller.enqueue(chunk)
             );

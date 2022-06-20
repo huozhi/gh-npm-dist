@@ -20,7 +20,8 @@ async function verifyAndLint(dir, cacheLocation, configLintDirs, numWorkers, ena
     try {
         const lintWorkers = new _jestWorker.Worker(require.resolve('./eslint/runLintCheck'), {
             numWorkers,
-            enableWorkerThreads
+            enableWorkerThreads,
+            maxRetries: 0
         });
         lintWorkers.getStdout().pipe(process.stdout);
         lintWorkers.getStderr().pipe(process.stderr);

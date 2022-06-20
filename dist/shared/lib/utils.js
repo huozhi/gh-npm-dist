@@ -9,7 +9,7 @@ exports.getDisplayName = getDisplayName;
 exports.isResSent = isResSent;
 exports.normalizeRepeatedSlashes = normalizeRepeatedSlashes;
 exports.loadGetInitialProps = loadGetInitialProps;
-exports.ST = exports.SP = exports.warnOnce = void 0;
+exports.ST = exports.SP = exports.warnOnce = exports.isAbsoluteUrl = void 0;
 function execOnce(fn) {
     let used = false;
     let result;
@@ -21,6 +21,12 @@ function execOnce(fn) {
         return result;
     };
 }
+// Scheme: https://tools.ietf.org/html/rfc3986#section-3.1
+// Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
+const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/;
+const isAbsoluteUrl = (url)=>ABSOLUTE_URL_REGEX.test(url)
+;
+exports.isAbsoluteUrl = isAbsoluteUrl;
 function getLocationOrigin() {
     const { protocol , hostname , port  } = window.location;
     return `${protocol}//${hostname}${port ? ':' + port : ''}`;
@@ -95,5 +101,16 @@ exports.ST = ST;
 class DecodeError extends Error {
 }
 exports.DecodeError = DecodeError;
+class NormalizeError extends Error {
+}
+exports.NormalizeError = NormalizeError;
+class PageNotFoundError extends Error {
+    constructor(page){
+        super();
+        this.code = 'ENOENT';
+        this.message = `Cannot find module for page: ${page}`;
+    }
+}
+exports.PageNotFoundError = PageNotFoundError;
 
 //# sourceMappingURL=utils.js.map

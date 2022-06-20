@@ -45,16 +45,9 @@ function dynamic(dynamicOptions, options) {
         ...loadableOptions,
         ...options
     };
-    const suspenseOptions = loadableOptions;
-    if (!process.env.__NEXT_CONCURRENT_FEATURES) {
-        // Error if react root is not enabled and `suspense` option is set to true
-        if (!process.env.__NEXT_REACT_ROOT && suspenseOptions.suspense) {
-            // TODO: add error doc when this feature is stable
-            throw new Error(`Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`);
-        }
-    }
-    if (suspenseOptions.suspense) {
-        return loadableFn(suspenseOptions);
+    // Error if Fizz rendering is not enabled and `suspense` option is set to true
+    if (!process.env.__NEXT_REACT_ROOT && loadableOptions.suspense) {
+        throw new Error(`Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`);
     }
     // coming from build/babel/plugins/react-loadable-plugin.js
     if (loadableOptions.loadableGenerated) {
@@ -64,8 +57,9 @@ function dynamic(dynamicOptions, options) {
         };
         delete loadableOptions.loadableGenerated;
     }
-    // support for disabling server side rendering, eg: dynamic(import('../hello-world'), {ssr: false})
-    if (typeof loadableOptions.ssr === 'boolean') {
+    // support for disabling server side rendering, eg: dynamic(import('../hello-world'), {ssr: false}).
+    // skip `ssr` for suspense mode and opt-in React.lazy directly
+    if (typeof loadableOptions.ssr === 'boolean' && !loadableOptions.suspense) {
         if (!loadableOptions.ssr) {
             delete loadableOptions.ssr;
             return noSSR(loadableFn, loadableOptions);
@@ -97,6 +91,12 @@ function noSSR(LoadableInitializer, loadableOptions) {
             timedOut: false
         })
     ;
+}
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
 }
 
 //# sourceMappingURL=dynamic.js.map

@@ -57,11 +57,13 @@ function isValidSeverity(severity) {
 const requiredPackages = [
     {
         file: 'eslint',
-        pkg: 'eslint'
+        pkg: 'eslint',
+        exportsRestrict: false
     },
     {
         file: 'eslint-config-next',
-        pkg: 'eslint-config-next'
+        pkg: 'eslint-config-next',
+        exportsRestrict: false
     }, 
 ];
 async function cliPrompt() {
@@ -144,7 +146,8 @@ async function lint(baseDir, lintDirs, eslintrcFile, pkgJsonPath, lintDuringBuil
                 break;
             }
         }
-        const pagesDir = (0, _findPagesDir).findPagesDir(baseDir);
+        // TODO: should we apply these rules to "root" dir as well?
+        const pagesDir = (0, _findPagesDir).findPagesDir(baseDir).pages;
         if (nextEslintPluginIsEnabled) {
             let updatedPagesDir = false;
             for (const rule of pagesDirRules){
@@ -204,8 +207,10 @@ async function runLintCheck(baseDir, lintDirs, lintDuringBuild = false, eslintOp
     try {
         var ref;
         // Find user's .eslintrc file
+        // See: https://eslint.org/docs/user-guide/configuring/configuration-files#configuration-file-formats
         const eslintrcFile = (ref = await (0, _findUp).default([
             '.eslintrc.js',
+            '.eslintrc.cjs',
             '.eslintrc.yaml',
             '.eslintrc.yml',
             '.eslintrc.json',

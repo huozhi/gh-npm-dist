@@ -9,7 +9,6 @@ var Log = _interopRequireWildcard(require("./output/log"));
 var _getTypeScriptConfiguration = require("../lib/typescript/getTypeScriptConfiguration");
 var _fs = require("fs");
 var _isError = _interopRequireDefault(require("../lib/is-error"));
-var _codeFrame = require("next/dist/compiled/babel/code-frame");
 async function loadJsConfig(dir, config) {
     var ref;
     let typeScriptPath;
@@ -87,7 +86,8 @@ function parseJsonFile(filePath) {
         return JSON5.parse(contents);
     } catch (err) {
         if (!(0, _isError).default(err)) throw err;
-        const codeFrame = (0, _codeFrame).codeFrameColumns(String(contents), {
+        const { codeFrameColumns  } = require('next/dist/compiled/babel/code-frame');
+        const codeFrame = codeFrameColumns(String(contents), {
             start: {
                 line: err.lineNumber || 0,
                 column: err.columnNumber || 0

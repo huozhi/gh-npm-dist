@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = connect;
-var _client = require("next/dist/compiled/@next/react-dev-overlay/client");
+var _client = require("next/dist/compiled/@next/react-dev-overlay/dist/client");
 var _stripAnsi = _interopRequireDefault(require("next/dist/compiled/strip-ansi"));
 var _websocket = require("./websocket");
 var _formatWebpackMessages = _interopRequireDefault(require("./format-webpack-messages"));
@@ -38,6 +38,7 @@ function _interopRequireDefault(obj) {
 // It makes some opinionated choices on top, like adding a syntax error overlay
 // that looks similar to our console output. The error overlay is inspired by:
 // https://github.com/glenjamin/webpack-hot-middleware
+window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now());
 let hadRuntimeError = false;
 let customHmrEventHandler;
 // Remember some state related to hot module replacement.
@@ -133,8 +134,15 @@ function onFastRefresh(hasUpdates) {
         (0, _client).onRefresh();
     }
     if (startLatency) {
-        const latency = Date.now() - startLatency;
+        const endLatency = Date.now();
+        const latency = endLatency - startLatency;
         console.log(`[Fast Refresh] done in ${latency}ms`);
+        (0, _websocket).sendMessage(JSON.stringify({
+            event: 'client-hmr-latency',
+            id: window.__nextDevClientId,
+            startTime: startLatency,
+            endTime: endLatency
+        }));
         if (self.__NEXT_HMR_LATENCY_CB) {
             self.__NEXT_HMR_LATENCY_CB(latency);
         }
@@ -164,12 +172,26 @@ function processMessage(e) {
                 const { errors , warnings  } = obj;
                 const hasErrors = Boolean(errors && errors.length);
                 if (hasErrors) {
+                    (0, _websocket).sendMessage(JSON.stringify({
+                        event: 'client-error',
+                        errorCount: errors.length,
+                        clientId: window.__nextDevClientId
+                    }));
                     return handleErrors(errors);
                 }
                 const hasWarnings = Boolean(warnings && warnings.length);
                 if (hasWarnings) {
+                    (0, _websocket).sendMessage(JSON.stringify({
+                        event: 'client-warning',
+                        warningCount: warnings.length,
+                        clientId: window.__nextDevClientId
+                    }));
                     return handleWarnings(warnings);
                 }
+                (0, _websocket).sendMessage(JSON.stringify({
+                    event: 'client-success',
+                    clientId: window.__nextDevClientId
+                }));
                 return handleSuccess();
             }
         default:
@@ -272,6 +294,12 @@ function hasAlreadyWarnedAboutFullRefresh() {
 }
 function clearFullRefreshStorage() {
     if (sessionStorage.getItem(FULL_REFRESH_STORAGE_KEY) !== 'ignore') sessionStorage.removeItem(FULL_REFRESH_STORAGE_KEY);
+}
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
 }
 
 //# sourceMappingURL=hot-dev-client.js.map

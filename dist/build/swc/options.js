@@ -23,7 +23,7 @@ function getParserOptions({ filename , jsConfig , ...rest }) {
     };
 }
 function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , globalWindow , nextConfig , resolvedBaseUrl , jsConfig ,  }) {
-    var ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9;
+    var ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, ref10, ref11;
     const parserConfig = getParserOptions({
         filename,
         jsConfig
@@ -31,15 +31,19 @@ function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , g
     const paths = jsConfig === null || jsConfig === void 0 ? void 0 : (ref = jsConfig.compilerOptions) === null || ref === void 0 ? void 0 : ref.paths;
     const enableDecorators = Boolean(jsConfig === null || jsConfig === void 0 ? void 0 : (ref1 = jsConfig.compilerOptions) === null || ref1 === void 0 ? void 0 : ref1.experimentalDecorators);
     const emitDecoratorMetadata = Boolean(jsConfig === null || jsConfig === void 0 ? void 0 : (ref2 = jsConfig.compilerOptions) === null || ref2 === void 0 ? void 0 : ref2.emitDecoratorMetadata);
+    const useDefineForClassFields = Boolean(jsConfig === null || jsConfig === void 0 ? void 0 : (ref3 = jsConfig.compilerOptions) === null || ref3 === void 0 ? void 0 : ref3.useDefineForClassFields);
+    var ref12, ref13;
     return {
         jsc: {
             ...resolvedBaseUrl && paths ? {
                 baseUrl: resolvedBaseUrl,
                 paths
             } : {},
+            externalHelpers: !process.versions.pnp,
             parser: parserConfig,
             experimental: {
-                keepImportAssertions: true
+                keepImportAssertions: true,
+                plugins: (ref12 = nextConfig === null || nextConfig === void 0 ? void 0 : (ref4 = nextConfig.experimental) === null || ref4 === void 0 ? void 0 : ref4.swcPlugins) !== null && ref12 !== void 0 ? ref12 : undefined
             },
             transform: {
                 // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
@@ -50,8 +54,9 @@ function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , g
                 } : {},
                 legacyDecorator: enableDecorators,
                 decoratorMetadata: emitDecoratorMetadata,
+                useDefineForClassFields: useDefineForClassFields,
                 react: {
-                    importSource: (nextConfig === null || nextConfig === void 0 ? void 0 : (ref3 = nextConfig.experimental) === null || ref3 === void 0 ? void 0 : ref3.emotion) ? '@emotion/react' : (jsConfig === null || jsConfig === void 0 ? void 0 : (ref4 = jsConfig.compilerOptions) === null || ref4 === void 0 ? void 0 : ref4.jsxImportSource) || 'react',
+                    importSource: (ref13 = jsConfig === null || jsConfig === void 0 ? void 0 : (ref5 = jsConfig.compilerOptions) === null || ref5 === void 0 ? void 0 : ref5.jsxImportSource) !== null && ref13 !== void 0 ? ref13 : (nextConfig === null || nextConfig === void 0 ? void 0 : (ref6 = nextConfig.compiler) === null || ref6 === void 0 ? void 0 : ref6.emotion) ? '@emotion/react' : 'react',
                     runtime: 'automatic',
                     pragma: 'React.createElement',
                     pragmaFrag: 'React.Fragment',
@@ -77,23 +82,25 @@ function getBaseSWCOptions({ filename , jest , development , hasReactRefresh , g
             }
         },
         sourceMaps: jest ? 'inline' : undefined,
-        styledComponents: (nextConfig === null || nextConfig === void 0 ? void 0 : (ref5 = nextConfig.compiler) === null || ref5 === void 0 ? void 0 : ref5.styledComponents) ? {
+        styledComponents: (nextConfig === null || nextConfig === void 0 ? void 0 : (ref7 = nextConfig.compiler) === null || ref7 === void 0 ? void 0 : ref7.styledComponents) ? {
             displayName: Boolean(development)
         } : null,
-        removeConsole: nextConfig === null || nextConfig === void 0 ? void 0 : (ref6 = nextConfig.compiler) === null || ref6 === void 0 ? void 0 : ref6.removeConsole,
-        reactRemoveProperties: nextConfig === null || nextConfig === void 0 ? void 0 : (ref7 = nextConfig.compiler) === null || ref7 === void 0 ? void 0 : ref7.reactRemoveProperties,
-        modularizeImports: nextConfig === null || nextConfig === void 0 ? void 0 : (ref8 = nextConfig.experimental) === null || ref8 === void 0 ? void 0 : ref8.modularizeImports,
-        relay: nextConfig === null || nextConfig === void 0 ? void 0 : (ref9 = nextConfig.compiler) === null || ref9 === void 0 ? void 0 : ref9.relay,
+        removeConsole: nextConfig === null || nextConfig === void 0 ? void 0 : (ref8 = nextConfig.compiler) === null || ref8 === void 0 ? void 0 : ref8.removeConsole,
+        // disable "reactRemoveProperties" when "jest" is true
+        // otherwise the setting from next.config.js will be used
+        reactRemoveProperties: jest ? false : nextConfig === null || nextConfig === void 0 ? void 0 : (ref9 = nextConfig.compiler) === null || ref9 === void 0 ? void 0 : ref9.reactRemoveProperties,
+        modularizeImports: nextConfig === null || nextConfig === void 0 ? void 0 : (ref10 = nextConfig.experimental) === null || ref10 === void 0 ? void 0 : ref10.modularizeImports,
+        relay: nextConfig === null || nextConfig === void 0 ? void 0 : (ref11 = nextConfig.compiler) === null || ref11 === void 0 ? void 0 : ref11.relay,
         emotion: getEmotionOptions(nextConfig, development)
     };
 }
 function getEmotionOptions(nextConfig, development) {
-    var ref, ref10, ref11, ref12, ref13, ref14, ref15;
-    if (!(nextConfig === null || nextConfig === void 0 ? void 0 : (ref = nextConfig.experimental) === null || ref === void 0 ? void 0 : ref.emotion)) {
+    var ref, ref14, ref15, ref16, ref17, ref18, ref19;
+    if (!(nextConfig === null || nextConfig === void 0 ? void 0 : (ref = nextConfig.compiler) === null || ref === void 0 ? void 0 : ref.emotion)) {
         return null;
     }
     let autoLabel = false;
-    switch(nextConfig === null || nextConfig === void 0 ? void 0 : (ref10 = nextConfig.experimental) === null || ref10 === void 0 ? void 0 : (ref11 = ref10.emotion) === null || ref11 === void 0 ? void 0 : ref11.autoLabel){
+    switch(nextConfig === null || nextConfig === void 0 ? void 0 : (ref14 = nextConfig.compiler) === null || ref14 === void 0 ? void 0 : (ref15 = ref14.emotion) === null || ref15 === void 0 ? void 0 : ref15.autoLabel){
         case 'never':
             autoLabel = false;
             break;
@@ -105,15 +112,15 @@ function getEmotionOptions(nextConfig, development) {
             autoLabel = !!development;
             break;
     }
-    var ref16;
+    var ref20;
     return {
         enabled: true,
         autoLabel,
-        labelFormat: nextConfig === null || nextConfig === void 0 ? void 0 : (ref12 = nextConfig.experimental) === null || ref12 === void 0 ? void 0 : (ref13 = ref12.emotion) === null || ref13 === void 0 ? void 0 : ref13.labelFormat,
-        sourcemap: development ? (ref16 = nextConfig === null || nextConfig === void 0 ? void 0 : (ref14 = nextConfig.experimental) === null || ref14 === void 0 ? void 0 : (ref15 = ref14.emotion) === null || ref15 === void 0 ? void 0 : ref15.sourceMap) !== null && ref16 !== void 0 ? ref16 : true : false
+        labelFormat: nextConfig === null || nextConfig === void 0 ? void 0 : (ref16 = nextConfig.experimental) === null || ref16 === void 0 ? void 0 : (ref17 = ref16.emotion) === null || ref17 === void 0 ? void 0 : ref17.labelFormat,
+        sourcemap: development ? (ref20 = nextConfig === null || nextConfig === void 0 ? void 0 : (ref18 = nextConfig.experimental) === null || ref18 === void 0 ? void 0 : (ref19 = ref18.emotion) === null || ref19 === void 0 ? void 0 : ref19.sourceMap) !== null && ref20 !== void 0 ? ref20 : true : false
     };
 }
-function getJestSWCOptions({ isServer , filename , esm , nextConfig , jsConfig ,  }) {
+function getJestSWCOptions({ isServer , filename , esm , nextConfig , jsConfig , pagesDir ,  }) {
     let baseOptions = getBaseSWCOptions({
         filename,
         jest: true,
@@ -130,23 +137,17 @@ function getJestSWCOptions({ isServer , filename , esm , nextConfig , jsConfig ,
             targets: {
                 // Targets the current version of Node.js
                 node: process.versions.node
-            },
-            // we always transpile optional chaining and nullish coalescing
-            // since it can cause issues with webpack even if the node target
-            // supports them
-            include: [
-                'proposal-optional-chaining',
-                'proposal-nullish-coalescing-operator', 
-            ]
+            }
         },
         module: {
             type: esm && !isNextDist ? 'es6' : 'commonjs'
         },
         disableNextSsg: true,
-        disablePageConfig: true
+        disablePageConfig: true,
+        pagesDir
     };
 }
-function getLoaderSWCOptions({ filename , development , isServer , pagesDir , isPageFile , hasReactRefresh , nextConfig , jsConfig ,  }) {
+function getLoaderSWCOptions({ filename , development , isServer , pagesDir , isPageFile , hasReactRefresh , nextConfig , jsConfig , supportedBrowsers ,  }) {
     let baseOptions = getBaseSWCOptions({
         filename,
         development,
@@ -170,14 +171,7 @@ function getLoaderSWCOptions({ filename , development , isServer , pagesDir , is
                 targets: {
                     // Targets the current version of Node.js
                     node: process.versions.node
-                },
-                // we always transpile optional chaining and nullish coalescing
-                // since it can cause issues with webpack even if the node target
-                // supports them
-                include: [
-                    'proposal-optional-chaining',
-                    'proposal-nullish-coalescing-operator', 
-                ]
+                }
             }
         };
     } else {
@@ -195,7 +189,12 @@ function getLoaderSWCOptions({ filename , development , isServer , pagesDir , is
             isDevelopment: development,
             isServer,
             pagesDir,
-            isPageFile
+            isPageFile,
+            ...supportedBrowsers && supportedBrowsers.length > 0 ? {
+                env: {
+                    targets: supportedBrowsers
+                }
+            } : {}
         };
     }
 }

@@ -2,8 +2,58 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.default = void 0;
+exports.default = SideEffect;
 var _react = _interopRequireWildcard(require("react"));
+function SideEffect(props) {
+    const { headManager , reduceComponentsToState  } = props;
+    function emitChange() {
+        if (headManager && headManager.mountedInstances) {
+            const headElements = _react.Children.toArray(headManager.mountedInstances).filter(Boolean);
+            headManager.updateHead(reduceComponentsToState(headElements, props));
+        }
+    }
+    if (isServer) {
+        var ref;
+        headManager === null || headManager === void 0 ? void 0 : (ref = headManager.mountedInstances) === null || ref === void 0 ? void 0 : ref.add(props.children);
+        emitChange();
+    }
+    useClientOnlyLayoutEffect(()=>{
+        var ref1;
+        headManager === null || headManager === void 0 ? void 0 : (ref1 = headManager.mountedInstances) === null || ref1 === void 0 ? void 0 : ref1.add(props.children);
+        return ()=>{
+            var ref;
+            headManager === null || headManager === void 0 ? void 0 : (ref = headManager.mountedInstances) === null || ref === void 0 ? void 0 : ref.delete(props.children);
+        };
+    });
+    // We need to call `updateHead` method whenever the `SideEffect` is trigger in all
+    // life-cycles: mount, update, unmount. However, if there are multiple `SideEffect`s
+    // being rendered, we only trigger the method from the last one.
+    // This is ensured by keeping the last unflushed `updateHead` in the `_pendingUpdate`
+    // singleton in the layout effect pass, and actually trigger it in the effect pass.
+    useClientOnlyLayoutEffect(()=>{
+        if (headManager) {
+            headManager._pendingUpdate = emitChange;
+        }
+        return ()=>{
+            if (headManager) {
+                headManager._pendingUpdate = emitChange;
+            }
+        };
+    });
+    useClientOnlyEffect(()=>{
+        if (headManager && headManager._pendingUpdate) {
+            headManager._pendingUpdate();
+            headManager._pendingUpdate = null;
+        }
+        return ()=>{
+            if (headManager && headManager._pendingUpdate) {
+                headManager._pendingUpdate();
+                headManager._pendingUpdate = null;
+            }
+        };
+    });
+    return null;
+}
 function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
@@ -26,41 +76,7 @@ function _interopRequireWildcard(obj) {
     }
 }
 const isServer = typeof window === 'undefined';
-class _class extends _react.Component {
-    constructor(props){
-        super(props);
-        this.emitChange = ()=>{
-            if (this._hasHeadManager) {
-                this.props.headManager.updateHead(this.props.reduceComponentsToState([
-                    ...this.props.headManager.mountedInstances
-                ], this.props));
-            }
-        };
-        this._hasHeadManager = this.props.headManager && this.props.headManager.mountedInstances;
-        if (isServer && this._hasHeadManager) {
-            this.props.headManager.mountedInstances.add(this);
-            this.emitChange();
-        }
-    }
-    componentDidMount() {
-        if (this._hasHeadManager) {
-            this.props.headManager.mountedInstances.add(this);
-        }
-        this.emitChange();
-    }
-    componentDidUpdate() {
-        this.emitChange();
-    }
-    componentWillUnmount() {
-        if (this._hasHeadManager) {
-            this.props.headManager.mountedInstances.delete(this);
-        }
-        this.emitChange();
-    }
-    render() {
-        return null;
-    }
-}
-exports.default = _class;
+const useClientOnlyLayoutEffect = isServer ? ()=>{} : _react.useLayoutEffect;
+const useClientOnlyEffect = isServer ? ()=>{} : _react.useEffect;
 
 //# sourceMappingURL=side-effect.js.map

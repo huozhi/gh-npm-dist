@@ -20,17 +20,28 @@ const existsSync = (f)=>{
     }
 };
 exports.existsSync = existsSync;
-function findPagesDir(dir) {
-    // prioritize ./pages over ./src/pages
-    let curDir = _path.default.join(dir, 'pages');
+function findDir(dir, name) {
+    // prioritize ./${name} over ./src/${name}
+    let curDir = _path.default.join(dir, name);
     if (existsSync(curDir)) return curDir;
-    curDir = _path.default.join(dir, 'src/pages');
+    curDir = _path.default.join(dir, 'src', name);
     if (existsSync(curDir)) return curDir;
-    // Check one level up the tree to see if the pages directory might be there
-    if (existsSync(_path.default.join(dir, '..', 'pages'))) {
-        throw new Error('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?');
+    return null;
+}
+function findPagesDir(dir, appDirEnabled) {
+    const pagesDir = findDir(dir, 'pages');
+    let appDir;
+    if (appDirEnabled) {
+        appDir = findDir(dir, 'app') || undefined;
     }
-    throw new Error("> Couldn't find a `pages` directory. Please create one under the project root");
+    // TODO: allow "root" dir without pages dir
+    if (pagesDir === null) {
+        throw new Error("> Couldn't find a `pages` directory. Please create one under the project root");
+    }
+    return {
+        pages: pagesDir,
+        appDir
+    };
 }
 
 //# sourceMappingURL=find-pages-dir.js.map

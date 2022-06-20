@@ -8,6 +8,7 @@ var _constants = require("../shared/lib/constants");
 var _path = require("path");
 var _require = require("./require");
 var _interopDefault = require("../lib/interop-default");
+var _normalizePagePath = require("../shared/lib/page-path/normalize-page-path");
 async function loadDefaultErrorComponents(distDir) {
     const Document = (0, _interopDefault).interopDefault(require('next/dist/pages/_document'));
     const AppMod = require('next/dist/pages/_app');
@@ -21,11 +22,10 @@ async function loadDefaultErrorComponents(distDir) {
         pageConfig: {},
         buildManifest: require((0, _path).join(distDir, `fallback-${_constants.BUILD_MANIFEST}`)),
         reactLoadableManifest: {},
-        ComponentMod,
-        AppMod
+        ComponentMod
     };
 }
-async function loadComponents(distDir, pathname, serverless, serverComponents) {
+async function loadComponents(distDir, pathname, serverless, hasServerComponents, appDirEnabled) {
     if (serverless) {
         const ComponentMod = await (0, _require).requirePage(pathname, distDir, serverless);
         if (typeof ComponentMod === 'string') {
@@ -51,19 +51,36 @@ async function loadComponents(distDir, pathname, serverless, serverComponents) {
         };
     }
     const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
-        (0, _require).requirePage('/_document', distDir, serverless),
-        (0, _require).requirePage('/_app', distDir, serverless),
-        (0, _require).requirePage(pathname, distDir, serverless), 
+        Promise.resolve().then(()=>(0, _require).requirePage('/_document', distDir, serverless, appDirEnabled)
+        ),
+        Promise.resolve().then(()=>(0, _require).requirePage('/_app', distDir, serverless, appDirEnabled)
+        ),
+        Promise.resolve().then(()=>(0, _require).requirePage(pathname, distDir, serverless, appDirEnabled)
+        ), 
     ]);
     const [buildManifest, reactLoadableManifest, serverComponentManifest] = await Promise.all([
         require((0, _path).join(distDir, _constants.BUILD_MANIFEST)),
         require((0, _path).join(distDir, _constants.REACT_LOADABLE_MANIFEST)),
-        serverComponents ? require((0, _path).join(distDir, 'server', _constants.MIDDLEWARE_FLIGHT_MANIFEST + '.json')) : null, 
+        hasServerComponents ? require((0, _path).join(distDir, 'server', _constants.MIDDLEWARE_FLIGHT_MANIFEST + '.json')) : null, 
     ]);
+    if (hasServerComponents) {
+        try {
+            // Make sure to also load the client entry in cache.
+            await (0, _require).requirePage((0, _normalizePagePath).normalizePagePath(pathname) + _constants.NEXT_CLIENT_SSR_ENTRY_SUFFIX, distDir, serverless, appDirEnabled);
+        } catch (_) {
+        // This page might not be a server component page, so there is no
+        // client entry to load.
+        }
+    }
     const Component = (0, _interopDefault).interopDefault(ComponentMod);
     const Document = (0, _interopDefault).interopDefault(DocumentMod);
     const App = (0, _interopDefault).interopDefault(AppMod);
     const { getServerSideProps , getStaticProps , getStaticPaths  } = ComponentMod;
+    let isAppPath = false;
+    if (appDirEnabled) {
+        const pagePath = (0, _require).getPagePath(pathname, distDir, serverless, false, undefined, appDirEnabled);
+        isAppPath = !!(pagePath === null || pagePath === void 0 ? void 0 : pagePath.match(/server[/\\]app[/\\]/));
+    }
     return {
         App,
         Document,
@@ -72,11 +89,11 @@ async function loadComponents(distDir, pathname, serverless, serverComponents) {
         reactLoadableManifest,
         pageConfig: ComponentMod.config || {},
         ComponentMod,
-        AppMod,
         getServerSideProps,
         getStaticProps,
         getStaticPaths,
-        serverComponentManifest
+        serverComponentManifest,
+        isAppPath
     };
 }
 

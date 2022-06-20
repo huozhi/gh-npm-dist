@@ -5,6 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.tryGetPreviewData = tryGetPreviewData;
 exports.parseBody = parseBody;
 exports.apiResolver = apiResolver;
+var _ = require(".");
 var _bytes = _interopRequireDefault(require("next/dist/compiled/bytes"));
 var _jsonwebtoken = _interopRequireDefault(require("next/dist/compiled/jsonwebtoken"));
 var _cryptoUtils = require("../crypto-utils");
@@ -171,7 +172,7 @@ async function apiResolver(req, res, query, resolverModule, apiContext, propagat
         ;
         apiRes.clearPreviewData = ()=>(0, _index).clearPreviewData(apiRes)
         ;
-        apiRes.unstable_revalidate = (urlPath)=>unstable_revalidate(urlPath, req, apiContext)
+        apiRes.unstable_revalidate = (urlPath, opts)=>unstable_revalidate(urlPath, opts || {}, req, apiContext)
         ;
         const resolver = (0, _interopDefault).interopDefault(resolverModule);
         let wasPiped = false;
@@ -203,15 +204,21 @@ async function apiResolver(req, res, query, resolverModule, apiContext, propagat
         }
     }
 }
-async function unstable_revalidate(urlPath, req, context) {
+async function unstable_revalidate(urlPath, opts, req, context) {
     if (typeof urlPath !== 'string' || !urlPath.startsWith('/')) {
         throw new Error(`Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`);
     }
+    const revalidateHeaders = {
+        [_index.PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+        ...opts.unstable_onlyGenerated ? {
+            [_.PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]: '1'
+        } : {}
+    };
     try {
         if (context.trustHostHeader) {
             const res = await fetch(`https://${req.headers.host}${urlPath}`, {
                 headers: {
-                    [_index.PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+                    ...revalidateHeaders,
                     cookie: req.headers.cookie || ''
                 }
             });
@@ -219,17 +226,15 @@ async function unstable_revalidate(urlPath, req, context) {
             // a non-200 status code can be returned from a successful revalidate
             // e.g. notFound: true returns 404 status code but is successful
             const cacheHeader = res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache');
-            if ((cacheHeader === null || cacheHeader === void 0 ? void 0 : cacheHeader.toUpperCase()) !== 'REVALIDATED') {
+            if ((cacheHeader === null || cacheHeader === void 0 ? void 0 : cacheHeader.toUpperCase()) !== 'REVALIDATED' && !(res.status === 404 && opts.unstable_onlyGenerated)) {
                 throw new Error(`Invalid response ${res.status}`);
             }
         } else if (context.revalidate) {
-            const { req: mockReq , res: mockRes , streamPromise ,  } = (0, _mockRequest).mockRequest(urlPath, {
-                [_index.PRERENDER_REVALIDATE_HEADER]: context.previewModeId
-            }, 'GET');
+            const { req: mockReq , res: mockRes , streamPromise ,  } = (0, _mockRequest).mockRequest(urlPath, revalidateHeaders, 'GET');
             await context.revalidate(mockReq, mockRes);
             await streamPromise;
-            if (mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED') {
-                throw new Error(`Invalid response ${mockRes.status}`);
+            if (mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED' && !(mockRes.statusCode === 404 && opts.unstable_onlyGenerated)) {
+                throw new Error(`Invalid response ${mockRes.statusCode}`);
             }
         } else {
             throw new Error(`Invariant: required internal revalidate method not passed to api-utils`);
@@ -313,7 +318,7 @@ async function unstable_revalidate(urlPath, req, context) {
     // Set header to application/json
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     // Use send to handle request
-    res.send(jsonBody);
+    res.send(JSON.stringify(jsonBody));
 }
 function isNotValidData(str) {
     return typeof str !== 'string' || str.length < 16;

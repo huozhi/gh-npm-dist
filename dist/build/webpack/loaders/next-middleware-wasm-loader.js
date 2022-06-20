@@ -4,15 +4,16 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = MiddlewareWasmLoader;
 exports.raw = void 0;
+var _getModuleBuildInfo = require("./get-module-build-info");
 var _crypto = _interopRequireDefault(require("crypto"));
 function MiddlewareWasmLoader(source) {
     const name = `wasm_${sha1(source)}`;
-    const filePath = `server/middleware-chunks/${name}.wasm`;
-    const binding = {
-        filePath,
+    const filePath = `edge-chunks/${name}.wasm`;
+    const buildInfo = (0, _getModuleBuildInfo).getModuleBuildInfo(this._module);
+    buildInfo.nextWasmMiddlewareBinding = {
+        filePath: `server/${filePath}`,
         name
     };
-    this._module.buildInfo.nextWasmMiddlewareBinding = binding;
     this.emitFile(`/${filePath}`, source, null);
     return `module.exports = ${name};`;
 }

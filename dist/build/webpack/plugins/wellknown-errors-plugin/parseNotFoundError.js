@@ -5,7 +5,8 @@ Object.defineProperty(exports, "__esModule", {
 exports.getNotFoundError = getNotFoundError;
 var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _simpleWebpackError = require("./simpleWebpackError");
-var _middleware = require("next/dist/compiled/@next/react-dev-overlay/middleware");
+var _middleware = require("next/dist/compiled/@next/react-dev-overlay/dist/middleware");
+var _utils = require("../../../utils");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -54,7 +55,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     }
     return moduleTrace;
 }
-async function getNotFoundError(compilation, input, fileName) {
+async function getNotFoundError(compilation, input, fileName, config) {
     if (input.name !== 'ModuleNotFoundError') {
         return false;
     }
@@ -84,7 +85,13 @@ async function getNotFoundError(compilation, input, fileName) {
         };
         var _originalCodeFrame;
         const frame = (_originalCodeFrame = result.originalCodeFrame) !== null && _originalCodeFrame !== void 0 ? _originalCodeFrame : '';
-        const message = chalk.red.bold('Module not found') + `: ${errorMessage}` + '\n' + frame + (frame !== '' ? '\n' : '') + importTrace() + '\nhttps://nextjs.org/docs/messages/module-not-found';
+        let message = chalk.red.bold('Module not found') + `: ${errorMessage}` + '\n' + frame + (frame !== '' ? '\n' : '') + importTrace() + '\nhttps://nextjs.org/docs/messages/module-not-found';
+        const moduleName = (0, _utils).getUnresolvedModuleFromError(input.message);
+        if (moduleName) {
+            if (await (0, _utils).isEdgeRuntimeCompiled(compilation, input.module, config)) {
+                message += '\n\n' + (0, _utils).getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(moduleName);
+            }
+        }
         var ref2, ref3;
         return new _simpleWebpackError.SimpleWebpackError(`${chalk.cyan(fileName)}:${chalk.yellow((ref2 = (ref = result.originalStackFrame.lineNumber) === null || ref === void 0 ? void 0 : ref.toString()) !== null && ref2 !== void 0 ? ref2 : '')}:${chalk.yellow((ref3 = (ref1 = result.originalStackFrame.column) === null || ref1 === void 0 ? void 0 : ref1.toString()) !== null && ref3 !== void 0 ? ref3 : '')}`, message);
     } catch (err) {

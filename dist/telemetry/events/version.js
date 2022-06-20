@@ -29,13 +29,14 @@ function hasBabelConfig(dir) {
     }
 }
 function eventCliSession(dir, nextConfig, event) {
+    var ref;
     // This should be an invariant, if it fails our build tooling is broken.
-    if (typeof "12.1.1" !== 'string') {
+    if (typeof "12.1.7-canary.41" !== 'string') {
         return [];
     }
-    const { images , i18n  } = nextConfig || {};
+    const { images , i18n , experimental  } = nextConfig || {};
     const payload = {
-        nextVersion: "12.1.1",
+        nextVersion: "12.1.7-canary.41",
         nodeVersion: process.version,
         cliCommand: event.cliCommand,
         isSrcDir: event.isSrcDir,
@@ -52,8 +53,10 @@ function eventCliSession(dir, nextConfig, event) {
         localeDomainsCount: (i18n === null || i18n === void 0 ? void 0 : i18n.domains) ? i18n.domains.length : null,
         localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
         imageDomainsCount: (images === null || images === void 0 ? void 0 : images.domains) ? images.domains.length : null,
+        imageRemotePatternsCount: (experimental === null || experimental === void 0 ? void 0 : (ref = experimental.images) === null || ref === void 0 ? void 0 : ref.remotePatterns) ? experimental.images.remotePatterns.length : null,
         imageSizes: (images === null || images === void 0 ? void 0 : images.imageSizes) ? images.imageSizes.join(',') : null,
         imageLoader: images === null || images === void 0 ? void 0 : images.loader,
+        imageFormats: (images === null || images === void 0 ? void 0 : images.formats) ? images.formats.join(',') : null,
         trailingSlashEnabled: !!(nextConfig === null || nextConfig === void 0 ? void 0 : nextConfig.trailingSlash),
         reactStrictMode: !!(nextConfig === null || nextConfig === void 0 ? void 0 : nextConfig.reactStrictMode),
         webpackVersion: event.webpackVersion || null

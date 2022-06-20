@@ -3,23 +3,24 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = transformSource;
+var _util = require("util");
 var _swc = require("../../swc");
 var _utils = require("./utils");
 async function transformSource(source) {
-    const { resourcePath  } = this;
+    const { resourcePath , resolve , loadModule , context  } = this;
     const transformedSource = source;
     if (typeof transformedSource !== 'string') {
         throw new Error('Expected source to have been transformed to a string.');
     }
-    const names = [];
-    await parseModuleInfo(resourcePath, transformedSource, names);
-    // next.js/packages/next/<component>.js
-    if (/[\\/]next[\\/](link|image)\.js$/.test(resourcePath)) {
-        names.push('default');
-    }
+    const names = await collectExports(resourcePath, transformedSource, {
+        resolve: (...args)=>(0, _util).promisify(resolve)(context, ...args)
+        ,
+        loadModule: (0, _util).promisify(loadModule)
+    });
     const moduleRefDef = "const MODULE_REFERENCE = Symbol.for('react.module.reference');\n";
+    const isNextClientBuiltIn = (0, _utils).isNextBuiltinClientComponent(resourcePath);
     const clientRefsExports = names.reduce((res, name)=>{
-        const moduleRef = '{ $$typeof: MODULE_REFERENCE, filepath: ' + JSON.stringify(resourcePath) + ', name: ' + JSON.stringify(name) + ' };\n';
+        const moduleRef = '{ $$typeof: MODULE_REFERENCE, filepath: ' + JSON.stringify(resourcePath) + ', name: ' + JSON.stringify(name === 'default' && isNextClientBuiltIn ? '' : name) + ' };\n';
         res[name] = moduleRef;
         return res;
     }, {});
@@ -28,6 +29,7 @@ async function transformSource(source) {
     return output;
 }
 function addExportNames(names, node) {
+    if (!node) return;
     switch(node.type){
         case 'Identifier':
             names.push(node.value);
@@ -57,16 +59,19 @@ function addExportNames(names, node) {
             return;
     }
 }
-async function parseModuleInfo(resourcePath, transformedSource, names) {
+async function collectExports(resourcePath, transformedSource, { resolve , loadModule  }) {
+    const names = [];
+    // Next.js built-in client components
+    if ((0, _utils).isNextBuiltinClientComponent(resourcePath)) {
+        names.push('default');
+    }
     const { body  } = await (0, _swc).parse(transformedSource, {
         filename: resourcePath,
-        isModule: true
+        isModule: 'unknown'
     });
     for(let i = 0; i < body.length; i++){
         const node = body[i];
         switch(node.type){
-            // TODO: support export * from module path
-            // case 'ExportAllDeclaration':
             case 'ExportDefaultExpression':
             case 'ExportDefaultDeclaration':
                 names.push('default');
@@ -82,10 +87,10 @@ async function parseModuleInfo(resourcePath, transformedSource, names) {
                         addExportNames(names, node.declaration.id);
                     }
                 }
-                if (node.specificers) {
-                    const specificers = node.specificers;
-                    for(let j = 0; j < specificers.length; j++){
-                        addExportNames(names, specificers[j].exported);
+                if (node.specifiers) {
+                    const specifiers = node.specifiers;
+                    for(let j = 0; j < specifiers.length; j++){
+                        addExportNames(names, specifiers[j].exported);
                     }
                 }
                 break;
@@ -97,18 +102,30 @@ async function parseModuleInfo(resourcePath, transformedSource, names) {
                 break;
             case 'ExpressionStatement':
                 {
-                    var ref1;
                     const { expression: { left  } ,  } = node;
                     // exports.xxx = xxx
-                    if (left.type === 'MemberExpression' && (left === null || left === void 0 ? void 0 : left.object.type) === 'Identifier' && ((ref1 = left.object) === null || ref1 === void 0 ? void 0 : ref1.value) === 'exports') {
+                    if ((left === null || left === void 0 ? void 0 : left.object) && left.type === 'MemberExpression' && left.object.type === 'Identifier' && left.object.value === 'exports') {
                         addExportNames(names, left.property);
                     }
                     break;
                 }
+            case 'ExportAllDeclaration':
+                if (node.exported) {
+                    addExportNames(names, node.exported);
+                    break;
+                }
+                const reexportedFromResourcePath = await resolve(node.source.value);
+                const reexportedFromResourceSource = await loadModule(reexportedFromResourcePath);
+                names.push(...await collectExports(reexportedFromResourcePath, reexportedFromResourceSource, {
+                    resolve,
+                    loadModule
+                }));
+                continue;
             default:
                 break;
         }
     }
+    return names;
 }
 
 //# sourceMappingURL=next-flight-client-loader.js.map

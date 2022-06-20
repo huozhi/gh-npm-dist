@@ -4,10 +4,10 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 let chalk;
-if (!process.browser) {
-    chalk = require('next/dist/compiled/chalk');
-} else {
+if (process.env.NEXT_RUNTIME === 'edge') {
     chalk = require('./web/chalk').default;
+} else {
+    chalk = require('next/dist/compiled/chalk');
 }
 var _default = chalk;
 exports.default = _default;

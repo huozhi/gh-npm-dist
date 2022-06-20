@@ -61,12 +61,19 @@ var _default = (onPerfEntry)=>{
         return;
     }
     isRegistered = true;
-    (0, _webVitals).getCLS(onReport);
-    (0, _webVitals).getFID(onReport);
-    (0, _webVitals).getFCP(onReport);
-    (0, _webVitals).getLCP(onReport);
-    (0, _webVitals).getTTFB(onReport);
+    (0, _webVitals).onCLS(onReport);
+    (0, _webVitals).onFID(onReport);
+    (0, _webVitals).onFCP(onReport);
+    (0, _webVitals).onLCP(onReport);
+    (0, _webVitals).onTTFB(onReport);
+    (0, _webVitals).onINP(onReport);
 };
 exports.default = _default;
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
+}
 
 //# sourceMappingURL=performance-relayer.js.map

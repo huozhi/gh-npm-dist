@@ -19,7 +19,8 @@ function getApiHandler(ctx) {
             // We need to trust the dynamic route params from the proxy
             // to ensure we are using the correct values
             const trustQuery = req.headers[_utils.vercelHeader];
-            const parsedUrl = handleRewrites(req, (0, _url).parse(req.url, true));
+            const parsedUrl = (0, _url).parse(req.url, true);
+            handleRewrites(req, parsedUrl);
             if (parsedUrl.query.nextInternalLocale) {
                 delete parsedUrl.query.nextInternalLocale;
             }

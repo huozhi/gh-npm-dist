@@ -7,11 +7,9 @@ exports.hydrate = hydrate;
 exports.emitter = exports.router = exports.version = void 0;
 require("../build/polyfills/polyfill-module");
 var _react = _interopRequireWildcard(require("react"));
-var _reactDom = _interopRequireDefault(require("react-dom"));
 var _headManagerContext = require("../shared/lib/head-manager-context");
 var _mitt = _interopRequireDefault(require("../shared/lib/mitt"));
 var _routerContext = require("../shared/lib/router-context");
-var _router = require("../shared/lib/router/router");
 var _isDynamic = require("../shared/lib/router/utils/is-dynamic");
 var _querystring = require("../shared/lib/router/utils/querystring");
 var _runtimeConfig = require("../shared/lib/runtime-config");
@@ -21,11 +19,11 @@ var _headManager = _interopRequireDefault(require("./head-manager"));
 var _pageLoader = _interopRequireDefault(require("./page-loader"));
 var _performanceRelayer = _interopRequireDefault(require("./performance-relayer"));
 var _routeAnnouncer = require("./route-announcer");
-var _router1 = require("./router");
+var _router = require("./router");
 var _isError = require("../lib/is-error");
-var _vitals = require("./streaming/vitals");
-var _refresh = require("./streaming/refresh");
 var _imageConfigContext = require("../shared/lib/image-config-context");
+var _removeBasePath = require("./remove-base-path");
+var _hasBasePath = require("./has-base-path");
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -109,34 +107,8 @@ function _objectSpread(target) {
     }
     return target;
 }
-function _objectWithoutProperties(source, excluded) {
-    if (source == null) return {};
-    var target = _objectWithoutPropertiesLoose(source, excluded);
-    var key, i;
-    if (Object.getOwnPropertySymbols) {
-        var sourceSymbolKeys = Object.getOwnPropertySymbols(source);
-        for(i = 0; i < sourceSymbolKeys.length; i++){
-            key = sourceSymbolKeys[i];
-            if (excluded.indexOf(key) >= 0) continue;
-            if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue;
-            target[key] = source[key];
-        }
-    }
-    return target;
-}
-function _objectWithoutPropertiesLoose(source, excluded) {
-    if (source == null) return {};
-    var target = {};
-    var sourceKeys = Object.keys(source);
-    var key, i;
-    for(i = 0; i < sourceKeys.length; i++){
-        key = sourceKeys[i];
-        if (excluded.indexOf(key) >= 0) continue;
-        target[key] = source[key];
-    }
-    return target;
-}
-const version = "12.1.1";
+const ReactDOM = process.env.__NEXT_REACT_ROOT ? require('react-dom/client') : require('react-dom');
+const version = "12.1.7-canary.41";
 exports.version = version;
 let router;
 exports.router = router;
@@ -154,7 +126,7 @@ let lastRenderReject;
 let webpackHMR;
 let CachedApp, onPerfEntry;
 let CachedComponent;
-let isAppRSC;
+self.__next_require__ = __webpack_require__;
 class Container extends _react.default.Component {
     componentDidCatch(componentErr, info) {
         this.props.fn(componentErr, info);
@@ -165,24 +137,29 @@ class Container extends _react.default.Component {
         // - the page was (auto) exported and has a query string or search (hash)
         // - it was auto exported and is a dynamic route (to provide params)
         // - if it is a client-side skeleton (fallback render)
-        if (router.isSsr && // We don't update for 404 requests as this can modify
-        // the asPath unexpectedly e.g. adding basePath when
-        // it wasn't originally present
-        initialData.page !== '/404' && initialData.page !== '/_error' && (initialData.isFallback || initialData.nextExport && ((0, _isDynamic).isDynamicRoute(router.pathname) || location.search || process.env.__NEXT_HAS_REWRITES) || initialData.props && initialData.props.__N_SSG && (location.search || process.env.__NEXT_HAS_REWRITES))) {
-            // update query on mount for exported pages
-            router.replace(router.pathname + '?' + String((0, _querystring).assign((0, _querystring).urlQueryToSearchParams(router.query), new URLSearchParams(location.search))), asPath, {
-                // @ts-ignore
-                // WARNING: `_h` is an internal option for handing Next.js
-                // client-side hydration. Your app should _never_ use this property.
-                // It may change at any time without notice.
-                _h: 1,
-                // Fallback pages must trigger the data fetch, so the transition is
-                // not shallow.
-                // Other pages (strictly updating query) happens shallowly, as data
-                // requirements would already be present.
-                shallow: !initialData.isFallback
-            });
-        }
+        const handleQueryUpdate = (matchesMiddleware = false)=>{
+            if (router.isSsr && // We don't update for 404 requests as this can modify
+            // the asPath unexpectedly e.g. adding basePath when
+            // it wasn't originally present
+            initialData.page !== '/404' && initialData.page !== '/_error' && (initialData.isFallback || initialData.nextExport && ((0, _isDynamic).isDynamicRoute(router.pathname) || location.search || process.env.__NEXT_HAS_REWRITES || matchesMiddleware) || initialData.props && initialData.props.__N_SSG && (location.search || process.env.__NEXT_HAS_REWRITES || matchesMiddleware))) {
+                // update query on mount for exported pages
+                router.replace(router.pathname + '?' + String((0, _querystring).assign((0, _querystring).urlQueryToSearchParams(router.query), new URLSearchParams(location.search))), asPath, {
+                    // @ts-ignore
+                    // WARNING: `_h` is an internal option for handing Next.js
+                    // client-side hydration. Your app should _never_ use this property.
+                    // It may change at any time without notice.
+                    _h: 1,
+                    // Fallback pages must trigger the data fetch, so the transition is
+                    // not shallow.
+                    // Other pages (strictly updating query) happens shallowly, as data
+                    // requirements would already be present.
+                    shallow: !initialData.isFallback && !matchesMiddleware
+                });
+            }
+        };
+        router._initialMatchesMiddlewarePromise.then((matchesMiddleware)=>handleQueryUpdate(matchesMiddleware)
+        ).catch(()=>handleQueryUpdate()
+        );
     }
     componentDidUpdate() {
         this.scrollToHash();
@@ -202,7 +179,7 @@ class Container extends _react.default.Component {
         if (process.env.NODE_ENV === 'production') {
             return this.props.children;
         } else {
-            const { ReactDevOverlay ,  } = require('next/dist/compiled/@next/react-dev-overlay/client');
+            const { ReactDevOverlay ,  } = require('next/dist/compiled/@next/react-dev-overlay/dist/client');
             return(/*#__PURE__*/ _react.default.createElement(ReactDevOverlay, null, this.props.children));
         }
     }
@@ -231,8 +208,8 @@ function _initialize() {
         });
         asPath = (0, _utils).getURL();
         // make sure not to attempt stripping basePath for 404s
-        if ((0, _router).hasBasePath(asPath)) {
-            asPath = (0, _router).delBasePath(asPath);
+        if ((0, _hasBasePath).hasBasePath(asPath)) {
+            asPath = (0, _removeBasePath).removeBasePath(asPath);
         }
         if (process.env.__NEXT_I18N_SUPPORT) {
             const { normalizeLocalePath  } = require('../shared/lib/i18n/normalize-locale-path');
@@ -300,25 +277,24 @@ function _hydrate() {
             }
             const { component: app , exports: mod  } = appEntrypoint;
             CachedApp = app;
-            isAppRSC = !!mod.__next_rsc__;
-            const exportedReportWebVitals = mod && mod.reportWebVitals;
-            onPerfEntry = ({ id , name , startTime , value , duration , entryType , entries  })=>{
-                // Combines timestamp with random number for unique ID
-                const uniqueID = `${Date.now()}-${Math.floor(Math.random() * (9000000000000 - 1)) + 1000000000000}`;
-                let perfStartEntry;
-                if (entries && entries.length) {
-                    perfStartEntry = entries[0].startTime;
-                }
-                const webVitals = {
-                    id: id || uniqueID,
-                    name,
-                    startTime: startTime || perfStartEntry,
-                    value: value == null ? duration : value,
-                    label: entryType === 'mark' || entryType === 'measure' ? 'custom' : 'web-vital'
+            if (mod && mod.reportWebVitals) {
+                onPerfEntry = ({ id , name , startTime , value , duration , entryType , entries  })=>{
+                    // Combines timestamp with random number for unique ID
+                    const uniqueID = `${Date.now()}-${Math.floor(Math.random() * (9000000000000 - 1)) + 1000000000000}`;
+                    let perfStartEntry;
+                    if (entries && entries.length) {
+                        perfStartEntry = entries[0].startTime;
+                    }
+                    const webVitals = {
+                        id: id || uniqueID,
+                        name,
+                        startTime: startTime || perfStartEntry,
+                        value: value == null ? duration : value,
+                        label: entryType === 'mark' || entryType === 'measure' ? 'custom' : 'web-vital'
+                    };
+                    mod.reportWebVitals(webVitals);
                 };
-                exportedReportWebVitals === null || exportedReportWebVitals === void 0 ? void 0 : exportedReportWebVitals(webVitals);
-                (0, _vitals).trackWebVitalMetric(webVitals);
-            };
+            }
             const pageEntrypoint = // The dev server fails to serve script assets when there's a hydration
             // error, so we need to skip waiting for the entrypoint.
             process.env.NODE_ENV === 'development' && initialData.err ? {
@@ -339,7 +315,7 @@ function _hydrate() {
             initialErr = (0, _isError).getProperError(error1);
         }
         if (process.env.NODE_ENV === 'development') {
-            const { getNodeError ,  } = require('next/dist/compiled/@next/react-dev-overlay/client');
+            const { getServerError ,  } = require('next/dist/compiled/@next/react-dev-overlay/dist/client');
             // Server-side runtime errors need to be re-thrown on the client-side so
             // that the overlay is rendered.
             if (initialErr) {
@@ -356,13 +332,7 @@ function _hydrate() {
                         }
                         error.name = initialErr.name;
                         error.stack = initialErr.stack;
-                        // Errors from the middleware are reported as client-side errors
-                        // since the middleware is compiled using the client compiler
-                        if (initialData.err && 'middleware' in initialData.err) {
-                            throw error;
-                        }
-                        const node = getNodeError(error);
-                        throw node;
+                        throw getServerError(error, initialErr.source);
                     });
                 } else {
                     setTimeout(()=>{
@@ -374,7 +344,7 @@ function _hydrate() {
         if (window.__NEXT_PRELOADREADY) {
             yield window.__NEXT_PRELOADREADY(initialData.dynamicIds);
         }
-        exports.router = router = (0, _router1).createRouter(initialData.page, initialData.query, asPath, {
+        exports.router = router = (0, _router).createRouter(initialData.page, initialData.query, asPath, {
             initialProps: initialData.props,
             pageLoader,
             App: CachedApp,
@@ -508,22 +478,24 @@ function renderReactElement(domEl, fn) {
     }
     const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete);
     if (process.env.__NEXT_REACT_ROOT) {
-        const ReactDOMClient = require('react-dom/client');
         if (!reactRoot) {
             // Unlike with createRoot, you don't need a separate root.render() call here
-            reactRoot = ReactDOMClient.hydrateRoot(domEl, reactEl);
+            reactRoot = ReactDOM.hydrateRoot(domEl, reactEl);
             // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
             shouldHydrate = false;
         } else {
-            reactRoot.render(reactEl);
+            const startTransition = _react.default.startTransition;
+            startTransition(()=>{
+                reactRoot.render(reactEl);
+            });
         }
     } else {
         // The check for `.hydrate` is there to support React alternatives like preact
         if (shouldHydrate) {
-            _reactDom.default.hydrate(reactEl, domEl);
+            ReactDOM.hydrate(reactEl, domEl);
             shouldHydrate = false;
         } else {
-            _reactDom.default.render(reactEl, domEl);
+            ReactDOM.render(reactEl, domEl);
         }
     }
 }
@@ -574,7 +546,7 @@ function AppContainer({ children  }) {
             }).catch((err)=>console.error('Error rendering page: ', err)
             )
     }, /*#__PURE__*/ _react.default.createElement(_routerContext.RouterContext.Provider, {
-        value: (0, _router1).makePublicRouterInstance(router)
+        value: (0, _router).makePublicRouterInstance(router)
     }, /*#__PURE__*/ _react.default.createElement(_headManagerContext.HeadManagerContext.Provider, {
         value: headManager
     }, /*#__PURE__*/ _react.default.createElement(_imageConfigContext.ImageConfigContext.Provider, {
@@ -582,16 +554,7 @@ function AppContainer({ children  }) {
     }, children)))));
 }
 function renderApp(App, appProps) {
-    if (process.env.__NEXT_RSC && isAppRSC) {
-        const { Component , err: _ , router: __  } = appProps, props = _objectWithoutProperties(appProps, [
-            "Component",
-            "err",
-            "router"
-        ]);
-        return(/*#__PURE__*/ _react.default.createElement(Component, Object.assign({}, props)));
-    } else {
-        return(/*#__PURE__*/ _react.default.createElement(App, Object.assign({}, appProps)));
-    }
+    return(/*#__PURE__*/ _react.default.createElement(App, Object.assign({}, appProps)));
 }
 const wrapApp = (App)=>(wrappedAppProps)=>{
         const appProps = _objectSpread({}, wrappedAppProps, {
@@ -608,7 +571,8 @@ if (process.env.__NEXT_RSC) {
         const { pathname , search  } = location;
         return pathname + search;
     };
-    const { createFromFetch ,  } = require('next/dist/compiled/react-server-dom-webpack');
+    const { createFromFetch , createFromReadableStream ,  } = require('next/dist/compiled/react-server-dom-webpack');
+    const { RefreshContext  } = require('./streaming/refresh');
     const encoder = new TextEncoder();
     let initialServerDataBuffer = undefined;
     let initialServerDataWriter = undefined;
@@ -620,7 +584,7 @@ if (process.env.__NEXT_RSC) {
         } else {
             if (!initialServerDataBuffer) throw new Error('Unexpected server data: missing bootstrap script.');
             if (initialServerDataWriter) {
-                initialServerDataWriter.write(encoder.encode(seg[2]));
+                initialServerDataWriter.enqueue(encoder.encode(seg[2]));
             } else {
                 initialServerDataBuffer.push(seg[2]);
             }
@@ -634,18 +598,18 @@ if (process.env.__NEXT_RSC) {
     // Hence, we use two variables `initialServerDataLoaded` and
     // `initialServerDataFlushed` to make sure the writer will be closed and
     // `initialServerDataBuffer` will be cleared in the right time.
-    function nextServerDataRegisterWriter(writer) {
+    function nextServerDataRegisterWriter(ctr) {
         if (initialServerDataBuffer) {
             initialServerDataBuffer.forEach((val)=>{
-                writer.write(encoder.encode(val));
+                ctr.enqueue(encoder.encode(val));
             });
             if (initialServerDataLoaded && !initialServerDataFlushed) {
-                writer.close();
+                ctr.close();
                 initialServerDataFlushed = true;
                 initialServerDataBuffer = undefined;
             }
         }
-        initialServerDataWriter = writer;
+        initialServerDataWriter = ctr;
     }
     // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
     const DOMContentLoaded = function() {
@@ -682,24 +646,24 @@ if (process.env.__NEXT_RSC) {
         let response = rscCache.get(cacheKey);
         if (response) return response;
         if (initialServerDataBuffer) {
-            const t = new TransformStream();
-            const writer = t.writable.getWriter();
-            response = createFromFetch(Promise.resolve({
-                body: t.readable
-            }));
-            nextServerDataRegisterWriter(writer);
+            const readable = new ReadableStream({
+                start (controller) {
+                    nextServerDataRegisterWriter(controller);
+                }
+            });
+            response = createFromReadableStream(readable);
         } else {
-            const fetchPromise = serialized ? (()=>{
-                const t = new TransformStream();
-                const writer = t.writable.getWriter();
-                writer.ready.then(()=>{
-                    writer.write(new TextEncoder().encode(serialized));
+            if (serialized) {
+                const readable = new ReadableStream({
+                    start (controller) {
+                        controller.enqueue(encoder.encode(serialized));
+                        controller.close();
+                    }
                 });
-                return Promise.resolve({
-                    body: t.readable
-                });
-            })() : fetchFlight(getCacheKey());
-            response = createFromFetch(fetchPromise);
+                response = createFromReadableStream(readable);
+            } else {
+                response = createFromFetch(fetchFlight(getCacheKey()));
+            }
         }
         rscCache.set(cacheKey, response);
         return response;
@@ -709,12 +673,11 @@ if (process.env.__NEXT_RSC) {
             rscCache.delete(cacheKey);
         });
         const response = useServerResponse(cacheKey, serialized);
-        const root = response.readRoot();
-        return root;
+        return response.readRoot();
     };
     RSCComponent = (props)=>{
         const cacheKey = getCacheKey();
-        const { __flight_serialized__  } = props;
+        const { __flight__  } = props;
         const [, dispatch] = (0, _react).useState({});
         const startTransition = _react.default.startTransition;
         const rerender = ()=>dispatch({})
@@ -728,11 +691,11 @@ if (process.env.__NEXT_RSC) {
                 rerender();
             });
         }
-        return(/*#__PURE__*/ _react.default.createElement(_refresh.RefreshContext.Provider, {
+        return(/*#__PURE__*/ _react.default.createElement(RefreshContext.Provider, {
             value: refreshCache
         }, /*#__PURE__*/ _react.default.createElement(ServerRoot, {
             cacheKey: cacheKey,
-            serialized: __flight_serialized__
+            serialized: __flight__
         })));
     };
 }
@@ -864,6 +827,11 @@ function Root({ callbacks , children  }) {
     , [
         callbacks
     ]);
+    // We should ask to measure the Web Vitals after rendering completes so we
+    // don't cause any hydration delay:
+    _react.default.useEffect(()=>{
+        (0, _performanceRelayer).default(onPerfEntry);
+    }, []);
     if (process.env.__NEXT_TEST_MODE) {
         // eslint-disable-next-line react-hooks/rules-of-hooks
         _react.default.useEffect(()=>{
@@ -873,12 +841,6 @@ function Root({ callbacks , children  }) {
             }
         }, []);
     }
-    // We should ask to measure the Web Vitals after rendering completes so we
-    // don't cause any hydration delay:
-    _react.default.useEffect(()=>{
-        (0, _performanceRelayer).default(onPerfEntry);
-        (0, _vitals).flushBufferedVitalsMetrics();
-    }, []);
     return children;
 }
 // Dummy component that we render as a child of Root so that we can
@@ -891,6 +853,12 @@ function Head({ callback  }) {
         callback
     ]);
     return null;
+}
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
 }
 
 //# sourceMappingURL=index.js.map

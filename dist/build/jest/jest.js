@@ -9,6 +9,8 @@ var _config = _interopRequireDefault(require("../../server/config"));
 var _constants = require("../../shared/lib/constants");
 var _loadJsconfig = _interopRequireDefault(require("../load-jsconfig"));
 var Log = _interopRequireWildcard(require("../output/log"));
+var _findPagesDir = require("../../lib/find-pages-dir");
+var _swc = require("../swc");
 function nextJest(options = {}) {
     // createJestConfig
     return (customJestConfig)=>{
@@ -19,8 +21,10 @@ function nextJest(options = {}) {
             let jsConfig;
             let resolvedBaseUrl;
             let isEsmProject = false;
+            let pagesDir;
             if (options.dir) {
                 const resolvedDir = (0, _path).resolve(options.dir);
+                pagesDir = (0, _findPagesDir).findPagesDir(resolvedDir).pages;
                 const packageConfig = loadClosestPackageJson(resolvedDir);
                 isEsmProject = packageConfig.type === 'module';
                 nextConfig = await getConfig(resolvedDir);
@@ -33,6 +37,11 @@ function nextJest(options = {}) {
             var ref;
             // Ensure provided async config is supported
             const resolvedJestConfig = (ref = typeof customJestConfig === 'function' ? await customJestConfig() : customJestConfig) !== null && ref !== void 0 ? ref : {};
+            // eagerly load swc bindings instead of waiting for transform calls
+            await (0, _swc).loadBindings();
+            if (_swc.lockfilePatchPromise.cur) {
+                await _swc.lockfilePatchPromise.cur;
+            }
             return {
                 ...resolvedJestConfig,
                 moduleNameMapper: {
@@ -42,8 +51,12 @@ function nextJest(options = {}) {
                     // Handle CSS imports (without CSS modules)
                     '^.+\\.(css|sass|scss)$': require.resolve('./__mocks__/styleMock.js'),
                     // Handle image imports
-                    '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$': require.resolve(`./__mocks__/fileMock.js`),
-                    // Custom config will be able to override the default mappings
+                    '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$': require.resolve(`./__mocks__/fileMock.js`),
+                    // Keep .svg to it's own rule to make overriding easy
+                    '^.+\\.(svg)$': require.resolve(`./__mocks__/fileMock.js`),
+                    // custom config comes last to ensure the above rules are matched,
+                    // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
+                    // CSS/image mocks
                     ...resolvedJestConfig.moduleNameMapper || {}
                 },
                 testPathIgnorePatterns: [
@@ -63,7 +76,8 @@ function nextJest(options = {}) {
                             nextConfig,
                             jsConfig,
                             resolvedBaseUrl,
-                            isEsmProject
+                            isEsmProject,
+                            pagesDir
                         }, 
                     ],
                     // Allow for appending/overriding the default transforms
@@ -129,6 +143,12 @@ async function getConfig(dir) {
     } catch (e) {
         return loadClosestPackageJson(dir, attempts + 1);
     }
+}
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
 }
 
 //# sourceMappingURL=jest.js.map

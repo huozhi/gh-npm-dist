@@ -10,22 +10,20 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
-// Polyfilled for `path-browserify` inside the Web Server.
-process.cwd = ()=>''
-;
 function getRender({ dev , page , appMod , pageMod , errorMod , error500Mod , Document , buildManifest , reactLoadableManifest , serverComponentManifest , config , buildId  }) {
     const baseLoadComponentResult = {
         dev,
         buildManifest,
         reactLoadableManifest,
         Document,
-        App: appMod.default,
-        AppMod: appMod
+        App: appMod.default
     };
     const server = new _webServer.default({
+        dev,
         conf: config,
         minimalMode: true,
         webServerConfig: {
+            page,
             extendRenderOpts: {
                 buildId,
                 reactRoot: true,
@@ -75,15 +73,6 @@ function getRender({ dev , page , appMod , pageMod , errorMod , error500Mod , Do
     });
     const requestHandler = server.getRequestHandler();
     return async function render(request) {
-        // Preflight request
-        if (request.method === 'HEAD') {
-            // Hint the client that the matched route is a SSR page.
-            return new Response(null, {
-                headers: {
-                    'x-middleware-ssr': '1'
-                }
-            });
-        }
         const extendedReq = new _web.WebNextRequest(request);
         const extendedRes = new _web.WebNextResponse();
         requestHandler(extendedReq, extendedRes);

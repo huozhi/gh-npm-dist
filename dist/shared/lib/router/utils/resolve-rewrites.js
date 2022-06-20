@@ -3,20 +3,23 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 exports.default = resolveRewrites;
-var _pathMatch = _interopRequireDefault(require("./path-match"));
+var _pathMatch = require("./path-match");
 var _prepareDestination = require("./prepare-destination");
-var _normalizeTrailingSlash = require("../../../../client/normalize-trailing-slash");
+var _removeTrailingSlash = require("./remove-trailing-slash");
 var _normalizeLocalePath = require("../../i18n/normalize-locale-path");
+var _removeBasePath = require("../../../../client/remove-base-path");
 var _parseRelativeUrl = require("./parse-relative-url");
-var _router = require("../router");
 function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
     let matchedPage = false;
     let externalDest = false;
     let parsedAs = (0, _parseRelativeUrl).parseRelativeUrl(asPath);
-    let fsPathname = (0, _normalizeTrailingSlash).removePathTrailingSlash((0, _normalizeLocalePath).normalizeLocalePath((0, _router).delBasePath(parsedAs.pathname), locales).pathname);
+    let fsPathname = (0, _removeTrailingSlash).removeTrailingSlash((0, _normalizeLocalePath).normalizeLocalePath((0, _removeBasePath).removeBasePath(parsedAs.pathname), locales).pathname);
     let resolvedHref;
     const handleRewrite = (rewrite)=>{
-        const matcher = customRouteMatcher(rewrite.source);
+        const matcher = (0, _pathMatch).getPathMatch(rewrite.source, {
+            removeUnnamedParams: true,
+            strict: true
+        });
         let params = matcher(parsedAs.pathname);
         if (rewrite.has && params) {
             const hasParams = (0, _prepareDestination).matchHas({
@@ -50,7 +53,7 @@ function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
             parsedAs = destRes.parsedDestination;
             asPath = destRes.newUrl;
             Object.assign(query, destRes.parsedDestination.query);
-            fsPathname = (0, _normalizeTrailingSlash).removePathTrailingSlash((0, _normalizeLocalePath).normalizeLocalePath((0, _router).delBasePath(asPath), locales).pathname);
+            fsPathname = (0, _removeTrailingSlash).removeTrailingSlash((0, _normalizeLocalePath).normalizeLocalePath((0, _removeBasePath).removeBasePath(asPath), locales).pathname);
             if (pages.includes(fsPathname)) {
                 // check if we now match a page as this means we are done
                 // resolving the rewrites
@@ -70,7 +73,7 @@ function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
     for(let i = 0; i < rewrites.beforeFiles.length; i++){
         // we don't end after match in beforeFiles to allow
         // continuing through all beforeFiles rewrites
-        finished = handleRewrite(rewrites.beforeFiles[i]) || false;
+        handleRewrite(rewrites.beforeFiles[i]);
     }
     matchedPage = pages.includes(fsPathname);
     if (!matchedPage) {
@@ -105,11 +108,5 @@ function resolveRewrites(asPath, pages, rewrites, query, resolveHref, locales) {
         externalDest
     };
 }
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-const customRouteMatcher = (0, _pathMatch).default(true);
 
 //# sourceMappingURL=resolve-rewrites.js.map

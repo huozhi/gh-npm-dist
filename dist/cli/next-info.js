@@ -70,9 +70,10 @@ const nextInfo = async (argv)=>{
         Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
         Read more - https://nextjs.org/docs/messages/opening-an-issue`);
         }
-    } catch  {
-        console.warn(`${_chalk.default.yellow(_chalk.default.bold('warn'))}  - Failed to fetch latest canary version. Visit https://github.com/vercel/next.js/releases. Detected "${installedRelease}".
-      Make sure to try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
+    } catch (e) {
+        console.warn(`${_chalk.default.yellow(_chalk.default.bold('warn'))}  - Failed to fetch latest canary version. (Reason: ${e.message}.)
+      Detected "${installedRelease}". Visit https://github.com/vercel/next.js/releases.
+      Make sure to try the latest canary version (eg.: \`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
       Read more - https://nextjs.org/docs/messages/opening-an-issue`);
     }
 };

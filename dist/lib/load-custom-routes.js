@@ -8,11 +8,9 @@ exports.normalizeRouteRegex = normalizeRouteRegex;
 exports.modifyRouteRegex = modifyRouteRegex;
 exports.allowedStatusCodes = void 0;
 var _chalk = _interopRequireDefault(require("./chalk"));
-var _url = require("url");
-var pathToRegexp = _interopRequireWildcard(require("next/dist/compiled/path-to-regexp"));
 var _escapeRegexp = require("../shared/lib/escape-regexp");
 var _constants = require("../shared/lib/constants");
-var _isError = _interopRequireDefault(require("./is-error"));
+var _tryToParsePath = require("./try-to-parse-path");
 async function loadCustomRoutes(config) {
     const [headers, rewrites, redirects] = await Promise.all([
         loadHeaders(config),
@@ -77,27 +75,6 @@ function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
     };
-}
-function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-        return obj;
-    } else {
-        var newObj = {};
-        if (obj != null) {
-            for(var key in obj){
-                if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
-                    if (desc.get || desc.set) {
-                        Object.defineProperty(newObj, key, desc);
-                    } else {
-                        newObj[key] = obj[key];
-                    }
-                }
-            }
-        }
-        newObj.default = obj;
-        return newObj;
-    }
 }
 const allowedStatusCodes = new Set([
     301,
@@ -167,31 +144,6 @@ function checkHeader(route) {
         }
     }
     return invalidParts;
-}
-function tryParsePath(route, handleUrl) {
-    const result = {};
-    let routePath = route;
-    try {
-        if (handleUrl) {
-            const parsedDestination = (0, _url).parse(route, true);
-            routePath = `${parsedDestination.pathname}${parsedDestination.hash || ''}`;
-        }
-        // Make sure we can parse the source properly
-        result.tokens = pathToRegexp.parse(routePath);
-        const regex = pathToRegexp.tokensToRegexp(result.tokens);
-        result.regexStr = regex.source;
-    } catch (err) {
-        // If there is an error show our error link but still show original error or a formatted one if we can
-        let errMatches;
-        if ((0, _isError).default(err) && (errMatches = err.message.match(/at (\d{0,})/))) {
-            const position = parseInt(errMatches[1], 10);
-            console.error(`\nError parsing \`${route}\` ` + `https://nextjs.org/docs/messages/invalid-route-source\n` + `Reason: ${err.message}\n\n` + `  ${routePath}\n` + `  ${new Array(position).fill(' ').join('')}^\n`);
-        } else {
-            console.error(`\nError parsing ${route} https://nextjs.org/docs/messages/invalid-route-source`, err);
-        }
-        result.error = true;
-    }
-    return result;
 }
 function checkCustomRoutes(routes, type) {
     if (!Array.isArray(routes)) {
@@ -298,7 +250,7 @@ function checkCustomRoutes(routes, type) {
         if (typeof route.source === 'string' && route.source.startsWith('/')) {
             // only show parse error if we didn't already show error
             // for not being a string
-            const { tokens , error , regexStr  } = tryParsePath(route.source);
+            const { tokens , error , regexStr  } = (0, _tryToParsePath).tryToParsePath(route.source);
             if (error) {
                 invalidParts.push('`source` parse failed');
             }
@@ -343,7 +295,9 @@ function checkCustomRoutes(routes, type) {
                         ...unnamedInDest
                     ].join(', ')}`);
                 } else {
-                    const { tokens: destTokens , regexStr: destRegexStr , error: destinationParseFailed ,  } = tryParsePath(route.destination, true);
+                    const { tokens: destTokens , regexStr: destRegexStr , error: destinationParseFailed ,  } = (0, _tryToParsePath).tryToParsePath(route.destination, {
+                        handleUrl: true
+                    });
                     if (destRegexStr && destRegexStr.length > 4096) {
                         invalidParts.push('`destination` exceeds max built length of 4096');
                     }

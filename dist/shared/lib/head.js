@@ -8,7 +8,7 @@ var _react = _interopRequireWildcard(require("react"));
 var _sideEffect = _interopRequireDefault(require("./side-effect"));
 var _ampContext = require("./amp-context");
 var _headManagerContext = require("./head-manager-context");
-var _amp = require("./amp");
+var _ampMode = require("./amp-mode");
 var _utils = require("./utils");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
@@ -131,12 +131,9 @@ const METATYPES = [
 }
 /**
  *
- * @param headElements List of multiple <Head> instances
- */ function reduceComponents(headElements, props) {
-    return headElements.reduce((list, headElement)=>{
-        const headElementChildren = _react.default.Children.toArray(headElement.props.children);
-        return list.concat(headElementChildren);
-    }, []).reduce(onlyReactElement, []).reverse().concat(defaultHead(props.inAmpMode)).filter(unique()).reverse().map((c, i)=>{
+ * @param headChildrenElements List of children of <Head>
+ */ function reduceComponents(headChildrenElements, props) {
+    return headChildrenElements.reduce(onlyReactElement, []).reverse().concat(defaultHead(props.inAmpMode).reverse()).filter(unique()).reverse().map((c, i)=>{
         const key = c.key || i;
         if (process.env.NODE_ENV !== 'development' && process.env.__NEXT_OPTIMIZE_FONTS && !props.inAmpMode) {
             if (c.type === 'link' && c.props['href'] && // TODO(prateekbh@): Replace this with const from `constants` when the tree shaking works.
@@ -155,7 +152,7 @@ const METATYPES = [
                 return(/*#__PURE__*/ _react.default.cloneElement(c, newProps));
             }
         }
-        if (process.env.NODE_ENV === 'development' && process.env.__NEXT_CONCURRENT_FEATURES) {
+        if (process.env.NODE_ENV === 'development' && process.env.__NEXT_REACT_ROOT) {
             // omit JSON-LD structured data snippets from the warning
             if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
                 const srcMessage = c.props['src'] ? `<script> tag with src="${c.props['src']}"` : `inline <script>`;
@@ -178,10 +175,16 @@ const METATYPES = [
     return(/*#__PURE__*/ _react.default.createElement(_sideEffect.default, {
         reduceComponentsToState: reduceComponents,
         headManager: headManager,
-        inAmpMode: (0, _amp).isInAmpMode(ampState)
+        inAmpMode: (0, _ampMode).isInAmpMode(ampState)
     }, children));
 }
 var _default = Head;
 exports.default = _default;
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
+}
 
 //# sourceMappingURL=head.js.map

@@ -34,26 +34,28 @@ function _interopRequireWildcard(obj) {
     }
 }
 let cachedDeps;
-async function getDependencies({ cwd  }) {
+function getDependencies({ cwd  }) {
     if (cachedDeps) {
         return cachedDeps;
     }
-    const configurationPath = await (0, _findUp).default('package.json', {
-        cwd
-    });
-    if (!configurationPath) {
-        return cachedDeps = {
-            dependencies: {},
-            devDependencies: {}
+    return cachedDeps = (async ()=>{
+        const configurationPath = await (0, _findUp).default('package.json', {
+            cwd
+        });
+        if (!configurationPath) {
+            return {
+                dependencies: {},
+                devDependencies: {}
+            };
+        }
+        const content = await _fs.promises.readFile(configurationPath, 'utf-8');
+        const packageJson = _json5.default.parse(content);
+        const { dependencies ={} , devDependencies ={}  } = packageJson || {};
+        return {
+            dependencies,
+            devDependencies
         };
-    }
-    const content = await _fs.promises.readFile(configurationPath, 'utf-8');
-    const packageJson = _json5.default.parse(content);
-    const { dependencies ={} , devDependencies ={}  } = packageJson || {};
-    return cachedDeps = {
-        dependencies,
-        devDependencies
-    };
+    })();
 }
 async function getPackageVersion({ cwd , name  }) {
     const { dependencies , devDependencies  } = await getDependencies({

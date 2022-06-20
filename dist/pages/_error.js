@@ -24,15 +24,27 @@ function _getInitialProps({ res , err  }) {
 }
 class Error extends _react.default.Component {
     render() {
-        const { statusCode  } = this.props;
+        const { statusCode , withDarkMode =true  } = this.props;
         const title = this.props.title || statusCodes[statusCode] || 'An unexpected error has occurred';
         return(/*#__PURE__*/ _react.default.createElement("div", {
             style: styles.error
-        }, !process.env.__NEXT_RSC && /*#__PURE__*/ _react.default.createElement(_head.default, null, /*#__PURE__*/ _react.default.createElement("title", null, statusCode ? `${statusCode}: ${title}` : 'Application error: a client-side exception has occurred')), /*#__PURE__*/ _react.default.createElement("div", null, /*#__PURE__*/ _react.default.createElement("style", {
+        }, /*#__PURE__*/ _react.default.createElement(_head.default, null, /*#__PURE__*/ _react.default.createElement("title", null, statusCode ? `${statusCode}: ${title}` : 'Application error: a client-side exception has occurred')), /*#__PURE__*/ _react.default.createElement("div", null, /*#__PURE__*/ _react.default.createElement("style", {
             dangerouslySetInnerHTML: {
-                __html: 'body { margin: 0 }'
+                __html: `
+                body { margin: 0; color: #000; background: #fff; }
+                .next-error-h1 {
+                  border-right: 1px solid rgba(0, 0, 0, .3);
+                }
+                
+                ${withDarkMode ? `@media (prefers-color-scheme: dark) {
+                  body { color: #fff; background: #000; }
+                  .next-error-h1 {
+                    border-right: 1px solid rgba(255, 255, 255, .3);
+                  }
+                }` : ''}`
             }
         }), statusCode ? /*#__PURE__*/ _react.default.createElement("h1", {
+            className: "next-error-h1",
             style: styles.h1
         }, statusCode) : null, /*#__PURE__*/ _react.default.createElement("div", {
             style: styles.desc
@@ -47,8 +59,6 @@ Error.getInitialProps = _getInitialProps;
 Error.origGetInitialProps = _getInitialProps;
 const styles = {
     error: {
-        color: '#000',
-        background: '#fff',
         fontFamily: '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
         height: '100vh',
         textAlign: 'center',
@@ -66,7 +76,6 @@ const styles = {
     },
     h1: {
         display: 'inline-block',
-        borderRight: '1px solid rgba(0, 0, 0,.3)',
         margin: 0,
         marginRight: '20px',
         padding: '10px 23px 10px 0',

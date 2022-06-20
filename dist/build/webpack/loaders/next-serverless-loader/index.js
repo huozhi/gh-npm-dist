@@ -47,19 +47,15 @@ const nextServerlessLoader = function() {
 
         import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
 
-        const combinedRewrites = Array.isArray(routesManifest.rewrites)
-          ? routesManifest.rewrites
-          : []
-
-        if (!Array.isArray(routesManifest.rewrites)) {
-          combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
-          combinedRewrites.push(...routesManifest.rewrites.afterFiles)
-          combinedRewrites.push(...routesManifest.rewrites.fallback)
-        }
+        const rewrites = Array.isArray(routesManifest.rewrites)
+          ? {
+            afterFiles: routesManifest.rewrites
+          }
+          : routesManifest.rewrites
 
         const apiHandler = getApiHandler({
           pageModule: require(${(0, _stringifyRequest).stringifyRequest(this, absolutePagePath)}),
-          rewrites: combinedRewrites,
+          rewrites: rewrites,
           i18n: ${i18n || 'undefined'},
           page: "${page}",
           basePath: "${basePath}",
@@ -103,15 +99,11 @@ const nextServerlessLoader = function() {
       export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
       export const _app = App
 
-      const combinedRewrites = Array.isArray(routesManifest.rewrites)
-        ? routesManifest.rewrites
-        : []
-
-      if (!Array.isArray(routesManifest.rewrites)) {
-        combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
-        combinedRewrites.push(...routesManifest.rewrites.afterFiles)
-        combinedRewrites.push(...routesManifest.rewrites.fallback)
-      }
+      const rewrites = Array.isArray(routesManifest.rewrites)
+        ? {
+          afterFiles: routesManifest.rewrites
+        }
+        : routesManifest.rewrites
 
       const { renderReqToHTML, render } = getPageHandler({
         pageModule: compMod,
@@ -135,7 +127,7 @@ const nextServerlessLoader = function() {
         buildManifest,
         reactLoadableManifest,
 
-        rewrites: combinedRewrites,
+        rewrites: rewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",
         buildId: "${buildId}",

@@ -2,26 +2,10 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.streamToIterator = streamToIterator;
-exports.notImplemented = notImplemented;
 exports.fromNodeHeaders = fromNodeHeaders;
 exports.toNodeHeaders = toNodeHeaders;
 exports.splitCookiesString = splitCookiesString;
 exports.validateURL = validateURL;
-async function* streamToIterator(readable) {
-    const reader = readable.getReader();
-    while(true){
-        const { value , done  } = await reader.read();
-        if (done) break;
-        if (value) {
-            yield value;
-        }
-    }
-    reader.releaseLock();
-}
-function notImplemented(name, method) {
-    throw new Error(`Failed to get the '${method}' property on '${name}': the property is not implemented`);
-}
 function fromNodeHeaders(object) {
     const headers = new Headers();
     for (let [key, value] of Object.entries(object)){
@@ -107,8 +91,7 @@ function validateURL(url) {
     try {
         return String(new URL(String(url)));
     } catch (error) {
-        throw new Error(`URLs is malformed. Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls`, // @ts-expect-error This will work for people who enable the error causes polyfill
-        {
+        throw new Error(`URLs is malformed. Please use only absolute URLs - https://nextjs.org/docs/messages/middleware-relative-urls`, {
             cause: error
         });
     }

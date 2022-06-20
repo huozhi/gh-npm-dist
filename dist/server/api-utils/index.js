@@ -9,7 +9,7 @@ exports.checkIsManualRevalidate = checkIsManualRevalidate;
 exports.clearPreviewData = clearPreviewData;
 exports.sendError = sendError;
 exports.setLazyProp = setLazyProp;
-exports.SYMBOL_CLEARED_COOKIES = exports.SYMBOL_PREVIEW_DATA = exports.RESPONSE_LIMIT_DEFAULT = exports.COOKIE_NAME_PRERENDER_DATA = exports.COOKIE_NAME_PRERENDER_BYPASS = exports.PRERENDER_REVALIDATE_HEADER = void 0;
+exports.SYMBOL_CLEARED_COOKIES = exports.SYMBOL_PREVIEW_DATA = exports.RESPONSE_LIMIT_DEFAULT = exports.COOKIE_NAME_PRERENDER_DATA = exports.COOKIE_NAME_PRERENDER_BYPASS = exports.PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER = exports.PRERENDER_REVALIDATE_HEADER = void 0;
 function getCookieParser(headers) {
     return function parseCookie() {
         const header = headers.cookie;
@@ -41,8 +41,13 @@ function redirect(res, statusOrUrl, url) {
 }
 const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate';
 exports.PRERENDER_REVALIDATE_HEADER = PRERENDER_REVALIDATE_HEADER;
+const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER = 'x-prerender-revalidate-if-generated';
+exports.PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER = PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER;
 function checkIsManualRevalidate(req, previewProps) {
-    return req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId;
+    return {
+        isManualRevalidate: req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId,
+        revalidateOnlyGenerated: !!req.headers[PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]
+    };
 }
 const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`;
 exports.COOKIE_NAME_PRERENDER_BYPASS = COOKIE_NAME_PRERENDER_BYPASS;

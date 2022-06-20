@@ -14,7 +14,7 @@ function _interopRequireDefault(obj) {
 if (!window._nextSetupHydrationWarning) {
     const origConsoleError = window.console.error;
     window.console.error = (...args)=>{
-        const isHydrateError = args.some((arg)=>typeof arg === 'string' && arg.match(/Warning:.*?did not match.*?Server:/)
+        const isHydrateError = args.some((arg)=>typeof arg === 'string' && arg.match(/(hydration|content does not match|did not match)/i)
         );
         if (isHydrateError) {
             args = [
@@ -69,7 +69,9 @@ const webpackHMR = (0, _webpackHotMiddlewareClient).default();
                     buildIndicatorHandler('building');
                     const clearIndicator = ()=>buildIndicatorHandler('built')
                     ;
-                    _.router.replace(_.router.pathname + '?' + String((0, _querystring).assign((0, _querystring).urlQueryToSearchParams(_.router.query), new URLSearchParams(location.search))), _.router.asPath).finally(clearIndicator);
+                    _.router.replace(_.router.pathname + '?' + String((0, _querystring).assign((0, _querystring).urlQueryToSearchParams(_.router.query), new URLSearchParams(location.search))), _.router.asPath, {
+                        scroll: false
+                    }).finally(clearIndicator);
                 }
             }
         }
@@ -83,5 +85,11 @@ const webpackHMR = (0, _webpackHotMiddlewareClient).default();
 }).catch((err)=>{
     console.error('Error was not caught', err);
 });
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
+}
 
 //# sourceMappingURL=next-dev.js.map

@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.collectPages = collectPages;
 exports.printTreeView = printTreeView;
 exports.printCustomRoutes = printCustomRoutes;
 exports.computeFromManifest = computeFromManifest;
@@ -13,12 +12,17 @@ exports.isPageStatic = isPageStatic;
 exports.hasCustomGetInitialProps = hasCustomGetInitialProps;
 exports.getNamedExports = getNamedExports;
 exports.detectConflictingPaths = detectConflictingPaths;
-exports.getRawPageExtensions = getRawPageExtensions;
-exports.isFlightPage = isFlightPage;
+exports.withoutRSCExtensions = withoutRSCExtensions;
+exports.isServerComponentPage = isServerComponentPage;
 exports.getUnresolvedModuleFromError = getUnresolvedModuleFromError;
 exports.copyTracedFiles = copyTracedFiles;
 exports.isReservedPage = isReservedPage;
 exports.isCustomErrorPage = isCustomErrorPage;
+exports.isEdgeRuntimeCompiled = isEdgeRuntimeCompiled;
+exports.getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage = getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage;
+exports.isMiddlewareFile = isMiddlewareFile;
+exports.isMiddlewareFilename = isMiddlewareFilename;
+exports.getPossibleMiddlewareFilenames = getPossibleMiddlewareFilenames;
 require("../server/node-polyfill-fetch");
 var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _gzipSize = _interopRequireDefault(require("next/dist/compiled/gzip-size"));
@@ -28,14 +32,14 @@ var _fs = require("fs");
 var _reactIs = require("next/dist/compiled/react-is");
 var _stripAnsi = _interopRequireDefault(require("next/dist/compiled/strip-ansi"));
 var _constants = require("../lib/constants");
+var _constants1 = require("../shared/lib/constants");
 var _prettyBytes = _interopRequireDefault(require("../lib/pretty-bytes"));
-var _recursiveReaddir = require("../lib/recursive-readdir");
-var _utils = require("../shared/lib/router/utils");
+var _routeRegex = require("../shared/lib/router/utils/route-regex");
+var _routeMatcher = require("../shared/lib/router/utils/route-matcher");
 var _isDynamic = require("../shared/lib/router/utils/is-dynamic");
 var _escapePathDelimiters = _interopRequireDefault(require("../shared/lib/router/utils/escape-path-delimiters"));
 var _findPageFile = require("../server/lib/find-page-file");
-var _normalizePagePath = require("../server/normalize-page-path");
-var _normalizeTrailingSlash = require("../client/normalize-trailing-slash");
+var _removeTrailingSlash = require("../shared/lib/router/utils/remove-trailing-slash");
 var _normalizeLocalePath = require("../shared/lib/i18n/normalize-locale-path");
 var Log = _interopRequireWildcard(require("./output/log"));
 var _loadComponents = require("../server/load-components");
@@ -44,6 +48,9 @@ var _config = require("../server/config");
 var _isError = _interopRequireDefault(require("../lib/is-error"));
 var _recursiveDelete = require("../lib/recursive-delete");
 var _asyncSema = require("next/dist/compiled/async-sema");
+var _denormalizePagePath = require("../shared/lib/page-path/denormalize-page-path");
+var _normalizePagePath = require("../shared/lib/page-path/normalize-page-path");
+var _getPageStaticInfo = require("./analysis/get-page-static-info");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -86,10 +93,8 @@ const fsStat = (file)=>{
     if (cached) return cached;
     return fileStats[file] = fileSize(file);
 };
-function collectPages(directory, pageExtensions) {
-    return (0, _recursiveReaddir).recursiveReadDir(directory, new RegExp(`\\.(?:${pageExtensions.join('|')})$`));
-}
-async function printTreeView(list, pageInfos, serverless, { distPath , buildId , pagesDir , pageExtensions , buildManifest , useStatic404 , gzipSize =true  }) {
+async function printTreeView(list, pageInfos, serverless, { distPath , buildId , pagesDir , pageExtensions , buildManifest , middlewareManifest , useStatic404 , gzipSize =true  }) {
+    var ref3;
     const getPrettySize = (_size)=>{
         const size = (0, _prettyBytes).default(_size);
         // green for 0-130kb
@@ -145,7 +150,7 @@ async function printTreeView(list, pageInfos, serverless, { distPath , buildId ,
         const ampFirst = buildManifest.ampFirstPages.includes(item);
         const totalDuration = ((pageInfo === null || pageInfo === void 0 ? void 0 : pageInfo.pageDuration) || 0) + ((pageInfo === null || pageInfo === void 0 ? void 0 : (ref = pageInfo.ssgPageDurations) === null || ref === void 0 ? void 0 : ref.reduce((a, b)=>a + (b || 0)
         , 0)) || 0);
-        const symbol = item === '/_app' ? ' ' : item.endsWith('/_middleware') ? 'ƒ' : (pageInfo === null || pageInfo === void 0 ? void 0 : pageInfo.isWebSsr) ? 'ℇ' : (pageInfo === null || pageInfo === void 0 ? void 0 : pageInfo.static) ? '○' : (pageInfo === null || pageInfo === void 0 ? void 0 : pageInfo.isSsg) ? '●' : 'λ';
+        const symbol = item === '/_app' || item === '/_app.server' ? ' ' : (pageInfo === null || pageInfo === void 0 ? void 0 : pageInfo.static) ? '○' : (pageInfo === null || pageInfo === void 0 ? void 0 : pageInfo.isSsg) ? '●' : (pageInfo === null || pageInfo === void 0 ? void 0 : pageInfo.runtime) === 'edge' ? 'ℇ' : 'λ';
         usedSymbols.add(symbol);
         if (pageInfo === null || pageInfo === void 0 ? void 0 : pageInfo.initialRevalidateSeconds) usedSymbols.add('ISR');
         messages.push([
@@ -248,6 +253,21 @@ async function printTreeView(list, pageInfos, serverless, { distPath , buildId ,
             '', 
         ]);
     });
+    const middlewareInfo = (ref3 = middlewareManifest.middleware) === null || ref3 === void 0 ? void 0 : ref3['/'];
+    if ((middlewareInfo === null || middlewareInfo === void 0 ? void 0 : middlewareInfo.files.length) > 0) {
+        const sizes = await Promise.all(middlewareInfo.files.map((dep)=>`${distPath}/${dep}`
+        ).map(gzipSize ? fsStatGzip : fsStat));
+        messages.push([
+            '',
+            '',
+            ''
+        ]);
+        messages.push([
+            'ƒ Middleware',
+            getPrettySize(sum(sizes)),
+            ''
+        ]);
+    }
     console.log((0, _textTable).default(messages, {
         align: [
             'l',
@@ -258,11 +278,6 @@ async function printTreeView(list, pageInfos, serverless, { distPath , buildId ,
     }));
     console.log();
     console.log((0, _textTable).default([
-        usedSymbols.has('ƒ') && [
-            'ƒ',
-            '(Middleware)',
-            `intercepts requests (uses ${_chalk.default.cyan('_middleware')})`, 
-        ],
         usedSymbols.has('ℇ') && [
             'ℇ',
             '(Streaming)',
@@ -453,7 +468,7 @@ async function getJsPageSizeInKb(page, distPath, buildManifest, gzipSize = true,
     const data = computedManifestData || await computeFromManifest(buildManifest, distPath, gzipSize);
     const fnFilterJs = (entry)=>entry.endsWith('.js')
     ;
-    const pageFiles = (buildManifest.pages[(0, _normalizePagePath).denormalizePagePath(page)] || []).filter(fnFilterJs);
+    const pageFiles = (buildManifest.pages[(0, _denormalizePagePath).denormalizePagePath(page)] || []).filter(fnFilterJs);
     const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterJs);
     const fnMapRealPath = (dep)=>`${distPath}/${dep}`
     ;
@@ -483,10 +498,10 @@ async function getJsPageSizeInKb(page, distPath, buildManifest, gzipSize = true,
 async function buildStaticPaths(page, getStaticPaths, configFileName, locales, defaultLocale) {
     const prerenderPaths = new Set();
     const encodedPrerenderPaths = new Set();
-    const _routeRegex = (0, _utils).getRouteRegex(page);
-    const _routeMatcher = (0, _utils).getRouteMatcher(_routeRegex);
+    const _routeRegex1 = (0, _routeRegex).getRouteRegex(page);
+    const _routeMatcher1 = (0, _routeMatcher).getRouteMatcher(_routeRegex1);
     // Get the default list of allowed params.
-    const _validParamKeys = Object.keys(_routeMatcher(page));
+    const _validParamKeys = Object.keys(_routeMatcher1(page));
     const staticPathsResult = await getStaticPaths({
         locales,
         defaultLocale
@@ -511,7 +526,7 @@ async function buildStaticPaths(page, getStaticPaths, configFileName, locales, d
         // For a string-provided path, we must make sure it matches the dynamic
         // route.
         if (typeof entry === 'string') {
-            entry = (0, _normalizeTrailingSlash).removePathTrailingSlash(entry);
+            entry = (0, _removeTrailingSlash).removeTrailingSlash(entry);
             const localePathResult = (0, _normalizeLocalePath).normalizeLocalePath(entry, locales);
             let cleanedEntry = entry;
             if (localePathResult.detectedLocale) {
@@ -519,7 +534,7 @@ async function buildStaticPaths(page, getStaticPaths, configFileName, locales, d
             } else if (defaultLocale) {
                 entry = `/${defaultLocale}${entry}`;
             }
-            const result = _routeMatcher(cleanedEntry);
+            const result = _routeMatcher1(cleanedEntry);
             if (!result) {
                 throw new Error(`The provided path \`${cleanedEntry}\` does not match the page: \`${page}\`.`);
             }
@@ -540,7 +555,7 @@ async function buildStaticPaths(page, getStaticPaths, configFileName, locales, d
             let builtPage = page;
             let encodedBuiltPage = page;
             _validParamKeys.forEach((validParamKey)=>{
-                const { repeat , optional  } = _routeRegex.groups[validParamKey];
+                const { repeat , optional  } = _routeRegex1.groups[validParamKey];
                 let paramValue = params[validParamKey];
                 if (optional && params.hasOwnProperty(validParamKey) && (paramValue === null || paramValue === undefined || paramValue === false)) {
                     paramValue = [];
@@ -585,7 +600,6 @@ async function isPageStatic(page, distDir, serverless, configFileName, runtimeEn
             if (!Comp || !(0, _reactIs).isValidElementType(Comp) || typeof Comp === 'string') {
                 throw new Error('INVALID_DEFAULT_EXPORT');
             }
-            const hasFlightData = !!mod.__next_rsc__;
             const hasGetInitialProps = !!Comp.getInitialProps;
             const hasStaticProps = !!mod.getStaticProps;
             const hasStaticPaths = !!mod.getStaticPaths;
@@ -634,7 +648,7 @@ async function isPageStatic(page, distDir, serverless, configFileName, runtimeEn
             const isNextImageImported = global.__NEXT_IMAGE_IMPORTED;
             const config = mod.pageConfig;
             return {
-                isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps && !hasFlightData,
+                isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
                 isHybridAmp: config.amp === 'hybrid',
                 isAmpOnly: config.amp === true,
                 prerenderRoutes,
@@ -642,7 +656,6 @@ async function isPageStatic(page, distDir, serverless, configFileName, runtimeEn
                 encodedPrerenderRoutes,
                 hasStaticProps,
                 hasServerProps,
-                hasFlightData,
                 isNextImageImported,
                 traceIncludes: config.unstable_includeFiles || [],
                 traceExcludes: config.unstable_excludeFiles || []
@@ -733,21 +746,21 @@ function detectConflictingPaths(combinedPages, ssgPages, additionalSsgPaths) {
         process.exit(1);
     }
 }
-function getRawPageExtensions(pageExtensions) {
+function withoutRSCExtensions(pageExtensions) {
     return pageExtensions.filter((ext)=>!ext.startsWith('client.') && !ext.startsWith('server.')
     );
 }
-function isFlightPage(nextConfig, filePath) {
+function isServerComponentPage(nextConfig, filePath) {
     if (!nextConfig.experimental.serverComponents) {
         return false;
     }
-    const rawPageExtensions = getRawPageExtensions(nextConfig.pageExtensions || []);
+    const rawPageExtensions = withoutRSCExtensions(nextConfig.pageExtensions || []);
     return rawPageExtensions.some((ext)=>{
         return filePath.endsWith(`.server.${ext}`);
     });
 }
 function getUnresolvedModuleFromError(error) {
-    const moduleErrorRegex = new RegExp(`Module not found: Can't resolve '(\\w+)'`);
+    const moduleErrorRegex = new RegExp(`Module not found: Error: Can't resolve '(\\w+)'`);
     const [, moduleName] = error.match(moduleErrorRegex) || [];
     return builtinModules.find((item)=>item === moduleName
     );
@@ -775,7 +788,7 @@ async function copyTracedFiles(dir, distDir, pageKeys, tracingRoot, serverConfig
                 );
                 if (symlink) {
                     console.log('symlink', _path.default.relative(tracingRoot, symlink));
-                    await _fs.promises.symlink(_path.default.relative(tracingRoot, symlink), fileOutputPath);
+                    await _fs.promises.symlink(symlink, fileOutputPath);
                 } else {
                     await _fs.promises.copyFile(tracedFilePath, fileOutputPath);
                 }
@@ -783,10 +796,9 @@ async function copyTracedFiles(dir, distDir, pageKeys, tracingRoot, serverConfig
             await copySema.release();
         }));
     }
-    for (const page of pageKeys){
-        if (_constants.MIDDLEWARE_ROUTE.test(page)) {
-            const { files  } = middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/'];
-            for (const file of files){
+    for (const middleware of Object.values(middlewareManifest.middleware) || []){
+        if (isMiddlewareFilename(middleware.name)) {
+            for (const file of middleware.files){
                 const originalPath = _path.default.join(distDir, file);
                 const fileOutputPath = _path.default.join(outputPath, _path.default.relative(tracingRoot, distDir), file);
                 await _fs.promises.mkdir(_path.default.dirname(fileOutputPath), {
@@ -794,8 +806,9 @@ async function copyTracedFiles(dir, distDir, pageKeys, tracingRoot, serverConfig
                 });
                 await _fs.promises.copyFile(originalPath, fileOutputPath);
             }
-            continue;
         }
+    }
+    for (const page of pageKeys){
         const pageFile = _path.default.join(distDir, 'server', 'pages', `${(0, _normalizePagePath).normalizePagePath(page)}.js`);
         const pageTraceFile = `${pageFile}.nft.json`;
         await handleTraceFiles(pageTraceFile);
@@ -831,7 +844,6 @@ server.listen(currentPort, (err) => {
     console.error("Failed to start server", err)
     process.exit(1)
   }
-  const addr = server.address()
   const nextServer = new NextServer({
     hostname: 'localhost',
     port: currentPort,
@@ -854,5 +866,53 @@ function isReservedPage(page) {
 function isCustomErrorPage(page) {
     return page === '/404' || page === '/500';
 }
+async function isEdgeRuntimeCompiled(compilation, module, config) {
+    if (!module) return false;
+    for (const chunk of compilation.chunkGraph.getModuleChunksIterable(module)){
+        let runtimes;
+        if (typeof chunk.runtime === 'string') {
+            runtimes = [
+                chunk.runtime
+            ];
+        } else if (chunk.runtime) {
+            runtimes = [
+                ...chunk.runtime
+            ];
+        } else {
+            runtimes = [];
+        }
+        if (runtimes.some((r)=>r === _constants1.EDGE_RUNTIME_WEBPACK
+        )) {
+            return true;
+        }
+    }
+    const staticInfo = await (0, _getPageStaticInfo).getPageStaticInfo({
+        pageFilePath: module.resource,
+        nextConfig: config
+    });
+    // Check the page runtime as well since we cannot detect the runtime from
+    // compilation when it's for the client part of edge function
+    return staticInfo.runtime === 'edge';
+}
+function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(name) {
+    return `You're using a Node.js module (${name}) which is not supported in the Edge Runtime.\n` + 'Learn more: https://nextjs.org/docs/api-reference/edge-runtime';
+}
+function isMiddlewareFile(file) {
+    return file === `/${_constants.MIDDLEWARE_FILENAME}` || file === `/src/${_constants.MIDDLEWARE_FILENAME}`;
+}
+function isMiddlewareFilename(file) {
+    return file === _constants.MIDDLEWARE_FILENAME || file === `src/${_constants.MIDDLEWARE_FILENAME}`;
+}
+function getPossibleMiddlewareFilenames(folder, extensions) {
+    return extensions.map((extension)=>_path.default.join(folder, `${_constants.MIDDLEWARE_FILENAME}.${extension}`)
+    );
+}
+class NestedMiddlewareError extends Error {
+    constructor(nestedFileNames, mainDir, pagesDir){
+        super(`Nested Middleware is not allowed, found:\n` + `${nestedFileNames.map((file)=>`pages${file}`
+        ).join('\n')}\n` + `Please move your code to a single file at ${_path.default.join(_path.default.posix.sep, _path.default.relative(mainDir, _path.default.resolve(pagesDir, '..')), 'middleware')} instead.\n` + `Read More - https://nextjs.org/docs/messages/nested-middleware`);
+    }
+}
+exports.NestedMiddlewareError = NestedMiddlewareError;
 
 //# sourceMappingURL=utils.js.map

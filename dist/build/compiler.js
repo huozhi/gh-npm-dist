@@ -46,14 +46,16 @@ function runCompiler(config, { runWebpackSpan  }) {
                                     details: err.details
                                 }
                             ],
-                            warnings: []
+                            warnings: [],
+                            stats
                         });
                     }
                     return reject(err);
                 } else if (!stats) throw new Error('No Stats from webpack');
                 const result = webpackCloseSpan.traceChild('webpack-generate-error-stats').traceFn(()=>generateStats({
                         errors: [],
-                        warnings: []
+                        warnings: [],
+                        stats
                     }, stats)
                 );
                 return resolve(result);

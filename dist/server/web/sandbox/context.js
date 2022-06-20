@@ -4,47 +4,19 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.clearModuleContext = clearModuleContext;
 exports.getModuleContext = getModuleContext;
-var _formdataNode = require("next/dist/compiled/formdata-node");
+var _middleware = require("next/dist/compiled/@next/react-dev-overlay/dist/middleware");
+var _constants = require("../../../shared/lib/constants");
+var _edgeRuntime = require("next/dist/compiled/edge-runtime");
 var _fs = require("fs");
-var _require = require("./require");
-var _webStreamsPolyfill = require("next/dist/compiled/web-streams-polyfill");
-var _cookie = _interopRequireDefault(require("next/dist/compiled/cookie"));
-var polyfills = _interopRequireWildcard(require("./polyfills"));
-var _abortController = require("next/dist/compiled/abort-controller");
-var _vm = _interopRequireDefault(require("vm"));
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
-function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-        return obj;
-    } else {
-        var newObj = {};
-        if (obj != null) {
-            for(var key in obj){
-                if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
-                    if (desc.get || desc.set) {
-                        Object.defineProperty(newObj, key, desc);
-                    } else {
-                        newObj[key] = obj[key];
-                    }
-                }
-            }
-        }
-        newObj.default = obj;
-        return newObj;
-    }
-}
+var _utils = require("../utils");
+var _pick = require("../../../lib/pick");
 const WEBPACK_HASH_REGEX = /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g;
 function clearModuleContext(path, content) {
-    for (const [key, cache] of caches){
+    for (const [key, cache] of moduleContexts){
         var ref;
         const prev = (ref = cache === null || cache === void 0 ? void 0 : cache.paths.get(path)) === null || ref === void 0 ? void 0 : ref.replace(WEBPACK_HASH_REGEX, '');
         if (typeof prev !== 'undefined' && prev !== content.toString().replace(WEBPACK_HASH_REGEX, '')) {
-            caches.delete(key);
+            moduleContexts.delete(key);
         }
     }
 }
@@ -52,191 +24,158 @@ function clearModuleContext(path, content) {
  * A Map of cached module contexts indexed by the module name. It allows
  * to have a different cache scoped per module name or depending on the
  * provided module key on creation.
- */ const caches = new Map();
-async function getModuleContext(options) {
-    let moduleCache = options.useCache ? caches.get(options.module) : await createModuleContext(options);
-    if (!moduleCache) {
-        moduleCache = await createModuleContext(options);
-        caches.set(options.module, moduleCache);
+ */ const moduleContexts = new Map();
+const pendingModuleCaches = new Map();
+function getModuleContextShared(options) {
+    let deferredModuleContext = pendingModuleCaches.get(options.moduleName);
+    if (!deferredModuleContext) {
+        deferredModuleContext = createModuleContext(options);
+        pendingModuleCaches.set(options.moduleName, deferredModuleContext);
     }
-    return {
-        context: moduleCache.context,
-        runInContext: (paramPath)=>{
-            if (!moduleCache.paths.has(paramPath)) {
-                const content = (0, _fs).readFileSync(paramPath, 'utf-8');
-                try {
-                    _vm.default.runInNewContext(content, moduleCache.context, {
-                        filename: paramPath
-                    });
-                    moduleCache.paths.set(paramPath, content);
-                } catch (error) {
-                    if (options.useCache) {
-                        caches.delete(options.module);
-                    }
-                    throw error;
+    return deferredModuleContext;
+}
+async function getModuleContext(options) {
+    let moduleContext = options.useCache ? moduleContexts.get(options.moduleName) : await getModuleContextShared(options);
+    if (!moduleContext) {
+        moduleContext = await createModuleContext(options);
+        moduleContexts.set(options.moduleName, moduleContext);
+    }
+    const evaluateInContext = (filepath)=>{
+        if (!moduleContext.paths.has(filepath)) {
+            const content = (0, _fs).readFileSync(filepath, 'utf-8');
+            try {
+                moduleContext === null || moduleContext === void 0 ? void 0 : moduleContext.runtime.evaluate(content);
+                moduleContext.paths.set(filepath, content);
+            } catch (error) {
+                if (options.useCache) {
+                    moduleContext === null || moduleContext === void 0 ? void 0 : moduleContext.paths.delete(options.moduleName);
                 }
+                throw error;
             }
         }
+    };
+    return {
+        ...moduleContext,
+        evaluateInContext
     };
 }
 /**
  * Create a module cache specific for the provided parameters. It includes
- * a context, require cache and paths cache and loads three types:
- * 1. Dependencies that hold no runtime dependencies.
- * 2. Dependencies that require runtime globals such as Blob.
- * 3. Dependencies that are scoped for the provided parameters.
+ * a runtime context, require cache and paths cache.
  */ async function createModuleContext(options) {
-    const requireCache = new Map([
-        [
-            require.resolve('next/dist/compiled/cookie'),
-            {
-                exports: _cookie.default
+    const warnedEvals = new Set();
+    const warnedWasmCodegens = new Set();
+    const wasm = await loadWasm(options.wasm);
+    const runtime = new _edgeRuntime.EdgeRuntime({
+        codeGeneration: process.env.NODE_ENV !== 'production' ? {
+            strings: true,
+            wasm: false
+        } : undefined,
+        extend: (context)=>{
+            context.process = createProcessPolyfill(options);
+            context.__next_eval__ = function __next_eval__(fn) {
+                const key = fn.toString();
+                if (!warnedEvals.has(key)) {
+                    const warning = new Error(`Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`);
+                    warning.name = 'DynamicCodeEvaluationWarning';
+                    Error.captureStackTrace(warning, __next_eval__);
+                    warnedEvals.add(key);
+                    options.onWarning((0, _middleware).getServerError(warning, 'edge-server'));
+                }
+                return fn();
+            };
+            context.__next_webassembly_compile__ = function __next_webassembly_compile__(fn) {
+                const key = fn.toString();
+                if (!warnedWasmCodegens.has(key)) {
+                    const warning = (0, _middleware).getServerError(new Error("Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Middleware.\n" + 'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'), 'edge-server');
+                    warning.name = 'DynamicWasmCodeGenerationWarning';
+                    Error.captureStackTrace(warning, __next_webassembly_compile__);
+                    warnedWasmCodegens.add(key);
+                    options.onWarning(warning);
+                }
+                return fn();
+            };
+            context.__next_webassembly_instantiate__ = async function __next_webassembly_instantiate__(fn) {
+                const result = await fn();
+                // If a buffer is given, WebAssembly.instantiate returns an object
+                // containing both a module and an instance while it returns only an
+                // instance if a WASM module is given. Utilize the fact to determine
+                // if the WASM code generation happens.
+                //
+                // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code
+                const instantiatedFromBuffer = result.hasOwnProperty('module');
+                const key = fn.toString();
+                if (instantiatedFromBuffer && !warnedWasmCodegens.has(key)) {
+                    const warning = (0, _middleware).getServerError(new Error("Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Middleware.\n" + 'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'), 'edge-server');
+                    warning.name = 'DynamicWasmCodeGenerationWarning';
+                    Error.captureStackTrace(warning, __next_webassembly_instantiate__);
+                    warnedWasmCodegens.add(key);
+                    options.onWarning(warning);
+                }
+                return result;
+            };
+            const __fetch = context.fetch;
+            context.fetch = (input, init = {})=>{
+                var ref;
+                var _headers;
+                init.headers = new Headers((_headers = init.headers) !== null && _headers !== void 0 ? _headers : {});
+                const prevs = ((ref = init.headers.get(`x-middleware-subrequest`)) === null || ref === void 0 ? void 0 : ref.split(':')) || [];
+                const value = prevs.concat(options.moduleName).join(':');
+                init.headers.set('x-middleware-subrequest', value);
+                if (!init.headers.has('user-agent')) {
+                    init.headers.set(`user-agent`, `Next.js Middleware`);
+                }
+                if (typeof input === 'object' && 'url' in input) {
+                    return __fetch(input.url, {
+                        ...(0, _pick).pick(input, [
+                            'method',
+                            'body',
+                            'cache',
+                            'credentials',
+                            'integrity',
+                            'keepalive',
+                            'mode',
+                            'redirect',
+                            'referrer',
+                            'referrerPolicy',
+                            'signal', 
+                        ]),
+                        ...init,
+                        headers: {
+                            ...Object.fromEntries(input.headers),
+                            ...Object.fromEntries(init.headers)
+                        }
+                    });
+                }
+                return __fetch(String(input), init);
+            };
+            const __Request = context.Request;
+            context.Request = class extends __Request {
+                constructor(input, init){
+                    const url = typeof input === 'string' ? input : input.url;
+                    (0, _utils).validateURL(url);
+                    super(input, init);
+                }
+            };
+            const __redirect = context.Response.redirect.bind(context.Response);
+            context.Response.redirect = (...args)=>{
+                (0, _utils).validateURL(args[0]);
+                return __redirect(...args);
+            };
+            for (const name of _constants.EDGE_UNSUPPORTED_NODE_APIS){
+                addStub(context, name, options);
             }
-        ], 
-    ]);
-    const context = createContext(options);
-    (0, _require).requireDependencies({
-        requireCache: requireCache,
-        context: context,
-        dependencies: [
-            {
-                path: require.resolve('../spec-compliant/headers'),
-                mapExports: {
-                    Headers: 'Headers'
-                }
-            },
-            {
-                path: require.resolve('../spec-compliant/response'),
-                mapExports: {
-                    Response: 'Response'
-                }
-            },
-            {
-                path: require.resolve('../spec-compliant/request'),
-                mapExports: {
-                    Request: 'Request'
-                }
-            }, 
-        ]
+            Object.assign(context, wasm);
+            return context;
+        }
     });
-    const moduleCache = {
-        context: context,
+    runtime.context.addEventListener('unhandledrejection', decorateUnhandledError);
+    runtime.context.addEventListener('error', decorateUnhandledError);
+    return {
+        runtime,
         paths: new Map(),
-        require: requireCache,
         warnedEvals: new Set()
     };
-    context.__next_eval__ = function __next_eval__(fn) {
-        const key = fn.toString();
-        if (!moduleCache.warnedEvals.has(key)) {
-            const warning = new Error(`Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`);
-            warning.name = 'DynamicCodeEvaluationWarning';
-            Error.captureStackTrace(warning, __next_eval__);
-            moduleCache.warnedEvals.add(key);
-            options.onWarning(warning);
-        }
-        return fn();
-    };
-    context.fetch = (input, init = {})=>{
-        var ref;
-        var _headers;
-        init.headers = new Headers((_headers = init.headers) !== null && _headers !== void 0 ? _headers : {});
-        const prevs = ((ref = init.headers.get(`x-middleware-subrequest`)) === null || ref === void 0 ? void 0 : ref.split(':')) || [];
-        const value = prevs.concat(options.module).join(':');
-        init.headers.set('x-middleware-subrequest', value);
-        init.headers.set(`user-agent`, `Next.js Middleware`);
-        if (typeof input === 'object' && 'url' in input) {
-            return fetch(input.url, {
-                ...init,
-                headers: {
-                    ...Object.fromEntries(input.headers),
-                    ...Object.fromEntries(init.headers)
-                }
-            });
-        }
-        return fetch(String(input), init);
-    };
-    Object.assign(context, await loadWasm(options.wasm));
-    return moduleCache;
-}
-/**
- * Create a base context with all required globals for the runtime that
- * won't depend on any externally provided dependency.
- */ function createContext(options) {
-    const context = {
-        _ENTRIES: {},
-        atob: polyfills.atob,
-        Blob: _formdataNode.Blob,
-        btoa: polyfills.btoa,
-        clearInterval,
-        clearTimeout,
-        console: {
-            assert: console.assert.bind(console),
-            error: console.error.bind(console),
-            info: console.info.bind(console),
-            log: console.log.bind(console),
-            time: console.time.bind(console),
-            timeEnd: console.timeEnd.bind(console),
-            timeLog: console.timeLog.bind(console),
-            warn: console.warn.bind(console)
-        },
-        AbortController: _abortController.AbortController,
-        AbortSignal: _abortController.AbortSignal,
-        CryptoKey: polyfills.CryptoKey,
-        Crypto: polyfills.Crypto,
-        crypto: new polyfills.Crypto(),
-        File: _formdataNode.File,
-        FormData: _formdataNode.FormData,
-        process: {
-            ...polyfills.process,
-            env: buildEnvironmentVariablesFrom(options.env)
-        },
-        ReadableStream: polyfills.ReadableStream,
-        setInterval,
-        setTimeout,
-        TextDecoder,
-        TextEncoder,
-        TransformStream: _webStreamsPolyfill.TransformStream,
-        URL,
-        URLSearchParams,
-        // Indexed collections
-        Array,
-        Int8Array,
-        Uint8Array,
-        Uint8ClampedArray,
-        Int16Array,
-        Uint16Array,
-        Int32Array,
-        Uint32Array,
-        Float32Array,
-        Float64Array,
-        BigInt64Array,
-        BigUint64Array,
-        // Keyed collections
-        Map,
-        Set,
-        WeakMap,
-        WeakSet,
-        // Structured data
-        ArrayBuffer,
-        SharedArrayBuffer
-    };
-    // Self references
-    context.self = context;
-    context.globalThis = context;
-    return _vm.default.createContext(context, {
-        codeGeneration: process.env.NODE_ENV === 'production' ? {
-            strings: false,
-            wasm: false
-        } : undefined
-    });
-}
-function buildEnvironmentVariablesFrom(keys) {
-    const pairs = keys.map((key)=>[
-            key,
-            process.env[key]
-        ]
-    );
-    return Object.fromEntries(pairs);
 }
 async function loadWasm(wasm) {
     const modules = {};
@@ -245,6 +184,62 @@ async function loadWasm(wasm) {
         modules[binding.name] = module;
     }));
     return modules;
+}
+function buildEnvironmentVariablesFrom(keys) {
+    const pairs = keys.map((key)=>[
+            key,
+            process.env[key]
+        ]
+    );
+    const env = Object.fromEntries(pairs);
+    env.NEXT_RUNTIME = 'edge';
+    return env;
+}
+function createProcessPolyfill(options) {
+    const env = buildEnvironmentVariablesFrom(options.env);
+    const processPolyfill = {
+        env
+    };
+    const overridenValue = {};
+    for (const key of Object.keys(process)){
+        if (key === 'env') continue;
+        Object.defineProperty(processPolyfill, key, {
+            get () {
+                emitWarning(`process.${key}`, options);
+                return overridenValue[key];
+            },
+            set (value) {
+                overridenValue[key] = value;
+            },
+            enumerable: false
+        });
+    }
+    return processPolyfill;
+}
+const warnedAlready = new Set();
+function addStub(context, name, contextOptions) {
+    Object.defineProperty(context, name, {
+        get () {
+            emitWarning(name, contextOptions);
+            return undefined;
+        },
+        enumerable: false
+    });
+}
+function emitWarning(name, contextOptions) {
+    if (!warnedAlready.has(name)) {
+        const warning = new Error(`You're using a Node.js API (${name}) which is not supported in the Edge Runtime that Middleware uses.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime`);
+        warning.name = 'NodejsRuntimeApiInMiddlewareWarning';
+        contextOptions.onWarning(warning);
+        console.warn(warning.message);
+        warnedAlready.add(name);
+    }
+}
+function decorateUnhandledError(error) {
+    if (error instanceof Error) {
+        (0, _middleware).decorateServerError(error, 'edge-server');
+    }
 }
 
 //# sourceMappingURL=context.js.map

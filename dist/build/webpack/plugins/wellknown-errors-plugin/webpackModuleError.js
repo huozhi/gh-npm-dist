@@ -68,13 +68,13 @@ function getFileData(compilation, m) {
         null
     ];
 }
-async function getModuleBuildError(compilation, input) {
+async function getModuleBuildError(compilation, input, config) {
     if (!(typeof input === 'object' && ((input === null || input === void 0 ? void 0 : input.name) === 'ModuleBuildError' || (input === null || input === void 0 ? void 0 : input.name) === 'ModuleNotFoundError') && Boolean(input.module) && (0, _isError).default(input.error))) {
         return false;
     }
     const err = input.error;
     const [sourceFilename, sourceContent] = getFileData(compilation, input.module);
-    const notFoundError = await (0, _parseNotFoundError).getNotFoundError(compilation, input, sourceFilename);
+    const notFoundError = await (0, _parseNotFoundError).getNotFoundError(compilation, input, sourceFilename, config);
     if (notFoundError !== false) {
         return notFoundError;
     }

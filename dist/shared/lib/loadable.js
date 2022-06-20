@@ -4,13 +4,13 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 var _react = _interopRequireDefault(require("react"));
-var _useSubscription = require("use-subscription");
 var _loadableContext = require("./loadable-context");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
     };
 }
+const { useSyncExternalStore  } = process.env.__NEXT_REACT_ROOT ? require('react') : require('use-sync-external-store/shim');
 const ALL_INITIALIZERS = [];
 const READY_INITIALIZERS = [];
 let initialized = false;
@@ -48,7 +48,7 @@ function createLoadableComponent(loadFn, options) {
     if (opts.suspense) {
         opts.lazy = _react.default.lazy(opts.loader);
     }
-    let subscription = null;
+    /** @type LoadableSubscription */ let subscription = null;
     function init() {
         if (!subscription) {
             const sub = new LoadableSubscription(loadFn, opts);
@@ -62,11 +62,11 @@ function createLoadableComponent(loadFn, options) {
         return subscription.promise();
     }
     // Server only
-    if (typeof window === 'undefined' && !opts.suspense) {
+    if (typeof window === 'undefined') {
         ALL_INITIALIZERS.push(init);
     }
     // Client only
-    if (!initialized && typeof window !== 'undefined' && !opts.suspense) {
+    if (!initialized && typeof window !== 'undefined') {
         // require.resolveWeak check is needed for environments that don't have it available like Jest
         const moduleIds = opts.webpack && typeof require.resolveWeak === 'function' ? opts.webpack() : opts.modules;
         if (moduleIds) {
@@ -79,19 +79,22 @@ function createLoadableComponent(loadFn, options) {
             });
         }
     }
-    function LoadableImpl(props, ref) {
+    function useLoadableModule() {
         init();
         const context = _react.default.useContext(_loadableContext.LoadableContext);
-        const state = (0, _useSubscription).useSubscription(subscription);
-        _react.default.useImperativeHandle(ref, ()=>({
-                retry: subscription.retry
-            })
-        , []);
         if (context && Array.isArray(opts.modules)) {
             opts.modules.forEach((moduleName)=>{
                 context(moduleName);
             });
         }
+    }
+    function LoadableImpl(props, ref) {
+        useLoadableModule();
+        const state = useSyncExternalStore(subscription.subscribe, subscription.getCurrentValue, subscription.getCurrentValue);
+        _react.default.useImperativeHandle(ref, ()=>({
+                retry: subscription.retry
+            })
+        , []);
         return _react.default.useMemo(()=>{
             if (state.loading || state.error) {
                 return _react.default.createElement(opts.loading, {
@@ -112,13 +115,14 @@ function createLoadableComponent(loadFn, options) {
         ]);
     }
     function LazyImpl(props, ref) {
+        useLoadableModule();
         return _react.default.createElement(opts.lazy, {
             ...props,
             ref
         });
     }
     const LoadableComponent = opts.suspense ? LazyImpl : LoadableImpl;
-    LoadableComponent.preload = ()=>!opts.suspense && init()
+    LoadableComponent.preload = ()=>init()
     ;
     LoadableComponent.displayName = 'LoadableComponent';
     return _react.default.forwardRef(LoadableComponent);

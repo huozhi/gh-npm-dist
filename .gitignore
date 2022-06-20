@@ -1,4 +1,6 @@
 README.md
 node_modules
 *.map
+*.ts
+*.tsx
 

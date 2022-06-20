@@ -57,8 +57,7 @@ async function loadPlugin(dir, pluginName, options) {
         return createLazyPostCssPlugin(()=>require(pluginPath)
         );
     } else {
-        const keys = Object.keys(options);
-        if (keys.length === 0) {
+        if (typeof options === 'object' && Object.keys(options).length === 0) {
             return createLazyPostCssPlugin(()=>require(pluginPath)
             );
         }
@@ -138,7 +137,7 @@ async function getPostCssPlugins(dir, supportedBrowsers, disablePostcssPresetEnv
         } else if (Array.isArray(plugin)) {
             const pluginName = plugin[0];
             const pluginConfig = plugin[1];
-            if (typeof pluginName === 'string' && (typeof pluginConfig === 'boolean' || typeof pluginConfig === 'object')) {
+            if (typeof pluginName === 'string' && (typeof pluginConfig === 'boolean' || typeof pluginConfig === 'object' || typeof pluginConfig === 'string')) {
                 parsed.push([
                     pluginName,
                     pluginConfig

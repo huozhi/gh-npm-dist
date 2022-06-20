@@ -4,46 +4,72 @@ Object.defineProperty(exports, "__esModule", {
 });
 var _webpack = require("next/dist/compiled/webpack/webpack");
 var _constants = require("../../../shared/lib/constants");
+var _utils = require("../loaders/utils");
+var _path = require("path");
 const PLUGIN_NAME = 'FlightManifestPlugin';
 class FlightManifestPlugin {
     constructor(options){
         this.dev = false;
+        this.appDir = false;
         if (typeof options.dev === 'boolean') {
             this.dev = options.dev;
         }
-        this.clientComponentsRegex = options.clientComponentsRegex;
+        this.appDir = options.appDir;
+        this.pageExtensions = options.pageExtensions;
     }
     apply(compiler) {
         compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation, { normalModuleFactory  })=>{
             compilation.dependencyFactories.set(_webpack.webpack.dependencies.ModuleDependency, normalModuleFactory);
             compilation.dependencyTemplates.set(_webpack.webpack.dependencies.ModuleDependency, new _webpack.webpack.dependencies.NullDependency.Template());
         });
-        // Only for webpack 5
         compiler.hooks.make.tap(PLUGIN_NAME, (compilation)=>{
             compilation.hooks.processAssets.tap({
                 name: PLUGIN_NAME,
                 // @ts-ignore TODO: Remove ignore when webpack 5 is stable
                 stage: _webpack.webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS
-            }, (assets)=>this.createAsset(assets, compilation)
+            }, (assets)=>this.createAsset(assets, compilation, compiler.context)
             );
         });
     }
-    createAsset(assets, compilation) {
+    createAsset(assets, compilation, context) {
         const manifest = {};
-        const { clientComponentsRegex  } = this;
+        const appDir = this.appDir;
+        const dev = this.dev;
         compilation.chunkGroups.forEach((chunkGroup)=>{
-            function recordModule(id, _chunk, mod) {
-                var ref;
-                const resource = (ref = mod.resource) === null || ref === void 0 ? void 0 : ref.replace(/\?__sc_client__$/, '');
+            function recordModule(chunk, id, mod) {
+                const resource = mod.resource;
                 // TODO: Hook into deps instead of the target module.
                 // That way we know by the type of dep whether to include.
                 // It also resolves conflicts when the same module is in multiple chunks.
-                const isNextClientComponent = /next[\\/](link|image)/.test(resource);
-                if (!clientComponentsRegex.test(resource) && !isNextClientComponent) {
+                if (!resource || !_utils.clientComponentRegex.test(resource)) {
                     return;
                 }
                 const moduleExports = manifest[resource] || {};
+                const moduleIdMapping = manifest.__ssr_module_mapping__ || {};
+                moduleIdMapping[id] = moduleIdMapping[id] || {};
+                // Note that this isn't that reliable as webpack is still possible to assign
+                // additional queries to make sure there's no conflict even using the `named`
+                // module ID strategy.
+                let ssrNamedModuleId = (0, _path).relative(context, mod.resourceResolveData.path);
+                if (!ssrNamedModuleId.startsWith('.')) ssrNamedModuleId = `./${ssrNamedModuleId}`;
                 const exportsInfo = compilation.moduleGraph.getExportsInfo(mod);
+                const cjsExports = [
+                    ...new Set([].concat(mod.dependencies.map((dep)=>{
+                        // Match CommonJsSelfReferenceDependency
+                        if (dep.type === 'cjs self exports reference') {
+                            // `module.exports = ...`
+                            if (dep.base === 'module.exports') {
+                                return 'default';
+                            }
+                            // `exports.foo = ...`, `exports.default = ...`
+                            if (dep.base === 'exports') {
+                                return dep.names.filter((name)=>name !== '__esModule'
+                                );
+                            }
+                        }
+                        return null;
+                    }))), 
+                ];
                 const moduleExportedKeys = [
                     '',
                     '*'
@@ -54,39 +80,43 @@ class FlightManifestPlugin {
                         return exportInfo.name;
                     }
                     return null;
-                }).filter(Boolean));
+                }), ...cjsExports).filter((name)=>name !== null
+                );
                 moduleExportedKeys.forEach((name)=>{
                     if (!moduleExports[name]) {
                         moduleExports[name] = {
                             id,
                             name,
-                            chunks: []
+                            chunks: appDir ? chunk.ids.map((chunkId)=>{
+                                return chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash);
+                            }) : []
+                        };
+                    }
+                    if (!moduleIdMapping[id][name]) {
+                        moduleIdMapping[id][name] = {
+                            ...moduleExports[name],
+                            id: ssrNamedModuleId
                         };
                     }
                 });
                 manifest[resource] = moduleExports;
+                manifest.__ssr_module_mapping__ = moduleIdMapping;
             }
             chunkGroup.chunks.forEach((chunk)=>{
                 const chunkModules = compilation.chunkGraph.getChunkModulesIterable(chunk);
                 for (const mod of chunkModules){
-                    let modId = compilation.chunkGraph.getModuleId(mod);
-                    // remove resource query on production
-                    if (typeof modId === 'string') {
-                        modId = modId.split('?')[0];
-                    }
-                    recordModule(modId, chunk, mod);
+                    const modId = compilation.chunkGraph.getModuleId(mod);
+                    recordModule(chunk, modId, mod);
                     // If this is a concatenation, register each child to the parent ID.
                     if (mod.modules) {
                         mod.modules.forEach((concatenatedMod)=>{
-                            recordModule(modId, chunk, concatenatedMod);
+                            recordModule(chunk, modId, concatenatedMod);
                         });
                     }
                 }
             });
         });
-        // With switchable runtime, we need to emit the manifest files for both
-        // runtimes.
-        const file = `server/${_constants.MIDDLEWARE_FLIGHT_MANIFEST}`;
+        const file = 'server/' + _constants.MIDDLEWARE_FLIGHT_MANIFEST;
         const json = JSON.stringify(manifest);
         assets[file + '.js'] = new _webpack.sources.RawSource('self.__RSC_MANIFEST=' + json);
         assets[file + '.json'] = new _webpack.sources.RawSource(json);

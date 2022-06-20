@@ -74,9 +74,9 @@ function hasComponentProps(child) {
 function getPreNextWorkerScripts(context, props) {
     const { assetPrefix , scriptLoader , crossOrigin , nextScriptWorkers  } = context;
     // disable `nextScriptWorkers` in edge runtime
-    if (!nextScriptWorkers || process.browser) return null;
+    if (!nextScriptWorkers || process.env.NEXT_RUNTIME === 'edge') return null;
     try {
-        let { partytownSnippet ,  } = require(/* webpackIgnore: true */ '@builder.io/partytown/integration');
+        let { partytownSnippet  } = __non_webpack_require__('@builder.io/partytown/integration');
         const children = Array.isArray(props.children) ? props.children : [
             props.children
         ];
@@ -100,24 +100,44 @@ function getPreNextWorkerScripts(context, props) {
                 __html: partytownSnippet()
             }
         }), (scriptLoader.worker || []).map((file, index)=>{
-            const { strategy , ...scriptProps } = file;
-            return(/*#__PURE__*/ _react.default.createElement("script", Object.assign({}, scriptProps, {
+            const { strategy , src , children: scriptChildren , dangerouslySetInnerHTML , ...scriptProps } = file;
+            let srcProps = {};
+            if (src) {
+                // Use external src if provided
+                srcProps.src = src;
+            } else if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
+                // Embed inline script if provided with dangerouslySetInnerHTML
+                srcProps.dangerouslySetInnerHTML = {
+                    __html: dangerouslySetInnerHTML.__html
+                };
+            } else if (scriptChildren) {
+                // Embed inline script if provided with children
+                srcProps.dangerouslySetInnerHTML = {
+                    __html: typeof scriptChildren === 'string' ? scriptChildren : Array.isArray(scriptChildren) ? scriptChildren.join('') : ''
+                };
+            } else {
+                throw new Error('Invalid usage of next/script. Did you forget to include a src attribute or an inline script? https://nextjs.org/docs/messages/invalid-script');
+            }
+            return(/*#__PURE__*/ _react.default.createElement("script", Object.assign({}, srcProps, scriptProps, {
                 type: "text/partytown",
-                key: scriptProps.src || index,
+                key: src || index,
                 nonce: props.nonce,
                 "data-nscript": "worker",
                 crossOrigin: props.crossOrigin || crossOrigin
             })));
         })));
     } catch (err) {
-        console.warn(`Warning: Partytown could not be instantiated in your application due to an error. ${err}`);
+        if ((0, _isError).default(err) && err.code !== 'MODULE_NOT_FOUND') {
+            console.warn(`Warning: ${err.message}`);
+        }
         return null;
     }
 }
 function getPreNextScripts(context, props) {
     const { scriptLoader , disableOptimizedLoading , crossOrigin  } = context;
     const webWorkerScripts = getPreNextWorkerScripts(context, props);
-    const beforeInteractiveScripts = (scriptLoader.beforeInteractive || []).map((file, index)=>{
+    const beforeInteractiveScripts = (scriptLoader.beforeInteractive || []).filter((script)=>script.src
+    ).map((file, index)=>{
         const { strategy , ...scriptProps } = file;
         var _defer;
         return(/*#__PURE__*/ _react.default.createElement("script", Object.assign({}, scriptProps, {
@@ -177,9 +197,12 @@ class Document extends _react.Component {
     }
 }
 exports.default = Document;
-Document.__next_internal_document = function InternalFunctionDocument() {
+// Add a special property to the built-in `Document` component so later we can
+// identify if a user customized `Document` is used or not.
+const InternalFunctionDocument = function InternalFunctionDocument() {
     return(/*#__PURE__*/ _react.default.createElement(Html, null, /*#__PURE__*/ _react.default.createElement(Head, null), /*#__PURE__*/ _react.default.createElement("body", null, /*#__PURE__*/ _react.default.createElement(Main, null), /*#__PURE__*/ _react.default.createElement(NextScript, null))));
 };
+Document[_constants.NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument;
 function Html(props) {
     const { inAmpMode , docComponentsRendered , locale  } = (0, _react).useContext(_htmlContext.HtmlContext);
     docComponentsRendered.Html = true;
@@ -307,6 +330,29 @@ class Head extends _react.Component {
                 })
             ), 
         ];
+    }
+    getBeforeInteractiveInlineScripts() {
+        const { scriptLoader  } = this.context;
+        const { nonce , crossOrigin  } = this.props;
+        return (scriptLoader.beforeInteractive || []).filter((script)=>!script.src && (script.dangerouslySetInnerHTML || script.children)
+        ).map((file, index)=>{
+            const { strategy , children , dangerouslySetInnerHTML , src , ...scriptProps } = file;
+            let html = '';
+            if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
+                html = dangerouslySetInnerHTML.__html;
+            } else if (children) {
+                html = typeof children === 'string' ? children : Array.isArray(children) ? children.join('') : '';
+            }
+            return(/*#__PURE__*/ _react.default.createElement("script", Object.assign({}, scriptProps, {
+                dangerouslySetInnerHTML: {
+                    __html: html
+                },
+                key: scriptProps.id || index,
+                nonce: nonce,
+                "data-nscript": "beforeInteractive",
+                crossOrigin: crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            })));
+        });
     }
     getDynamicChunks(files) {
         return getDynamicChunks(this.context, this.props, files);
@@ -449,7 +495,7 @@ class Head extends _react.Component {
         });
         const files = getDocumentFiles(this.context.buildManifest, this.context.__NEXT_DATA__.page, inAmpMode);
         var _nonce, _nonce1;
-        return(/*#__PURE__*/ _react.default.createElement("head", Object.assign({}, this.props), this.context.isDevelopment && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("style", {
+        return(/*#__PURE__*/ _react.default.createElement("head", Object.assign({}, getHeadHTMLProps(this.props)), this.context.isDevelopment && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, /*#__PURE__*/ _react.default.createElement("style", {
             "data-next-hide-fouc": true,
             "data-ampdevmode": inAmpMode ? 'true' : undefined,
             dangerouslySetInnerHTML: {
@@ -495,7 +541,7 @@ class Head extends _react.Component {
         })), !inAmpMode && /*#__PURE__*/ _react.default.createElement(_react.default.Fragment, null, !hasAmphtmlRel && hybridAmp && /*#__PURE__*/ _react.default.createElement("link", {
             rel: "amphtml",
             href: canonicalBase + getAmpPath(ampPath, dangerousAsPath)
-        }), !optimizeCss && this.getCssLinks(files), !optimizeCss && /*#__PURE__*/ _react.default.createElement("noscript", {
+        }), this.getBeforeInteractiveInlineScripts(), !optimizeCss && this.getCssLinks(files), !optimizeCss && /*#__PURE__*/ _react.default.createElement("noscript", {
             "data-n-css": (_nonce = this.props.nonce) !== null && _nonce !== void 0 ? _nonce : ''
         }), !disableRuntimeJS && !disableJsPreload && this.getPreloadDynamicChunks(), !disableRuntimeJS && !disableJsPreload && this.getPreloadMainLinks(files), !disableOptimizedLoading && !disableRuntimeJS && this.getPolyfillScripts(), !disableOptimizedLoading && !disableRuntimeJS && this.getPreNextScripts(), !disableOptimizedLoading && !disableRuntimeJS && this.getDynamicChunks(files), !disableOptimizedLoading && !disableRuntimeJS && this.getScripts(files), optimizeCss && this.getCssLinks(files), optimizeCss && /*#__PURE__*/ _react.default.createElement("noscript", {
             "data-n-css": (_nonce1 = this.props.nonce) !== null && _nonce1 !== void 0 ? _nonce1 : ''
@@ -529,15 +575,13 @@ class NextScript extends _react.Component {
         return getPolyfillScripts(this.context, this.props);
     }
     static getInlineScriptSource(context) {
-        const { __NEXT_DATA__  } = context;
+        const { __NEXT_DATA__ , largePageDataBytes  } = context;
         try {
             const data = JSON.stringify(__NEXT_DATA__);
-            if (process.env.NODE_ENV === 'development') {
-                const bytes = Buffer.from(data).byteLength;
-                const prettyBytes = require('../lib/pretty-bytes').default;
-                if (bytes > 128 * 1000) {
-                    console.warn(`Warning: data for page "${__NEXT_DATA__.page}" is ${prettyBytes(bytes)}, this amount of data can reduce performance.\nSee more info here: https://nextjs.org/docs/messages/large-page-data`);
-                }
+            const bytes = Buffer.from(data).byteLength;
+            const prettyBytes = require('../lib/pretty-bytes').default;
+            if (largePageDataBytes && bytes > largePageDataBytes) {
+                console.warn(`Warning: data for page "${__NEXT_DATA__.page}" is ${prettyBytes(bytes)} which exceeds the threshold of ${prettyBytes(largePageDataBytes)}, this amount of data can reduce performance.\nSee more info here: https://nextjs.org/docs/messages/large-page-data`);
             }
             return (0, _htmlescape).htmlEscapeJsonString(data);
         } catch (err) {
@@ -601,9 +645,14 @@ class NextScript extends _react.Component {
 }
 exports.NextScript = NextScript;
 NextScript.contextType = _htmlContext.HtmlContext;
-NextScript.safariNomoduleFix = '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();';
 function getAmpPath(ampPath, asPath) {
     return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`;
+}
+function getHeadHTMLProps(props) {
+    const { crossOrigin , nonce , ...restProps } = props;
+    // This assignment is necessary for additional type checking to avoid unsupported attributes in <head>
+    const headProps = restProps;
+    return headProps;
 }
 
 //# sourceMappingURL=_document.js.map

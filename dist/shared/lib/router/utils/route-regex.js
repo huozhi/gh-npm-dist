@@ -2,61 +2,54 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.getParametrizedRoute = getParametrizedRoute;
 exports.getRouteRegex = getRouteRegex;
+exports.getNamedRouteRegex = getNamedRouteRegex;
+exports.getMiddlewareRegex = getMiddlewareRegex;
+exports.getNamedMiddlewareRegex = getNamedMiddlewareRegex;
 var _escapeRegexp = require("../../escape-regexp");
-function parseParameter(param) {
-    const optional = param.startsWith('[') && param.endsWith(']');
-    if (optional) {
-        param = param.slice(1, -1);
-    }
-    const repeat = param.startsWith('...');
-    if (repeat) {
-        param = param.slice(3);
-    }
+var _removeTrailingSlash = require("./remove-trailing-slash");
+function getRouteRegex(normalizedRoute) {
+    const { parameterizedRoute , groups  } = getParametrizedRoute(normalizedRoute);
     return {
-        key: param,
-        repeat,
-        optional
+        re: new RegExp(`^${parameterizedRoute}(?:/)?$`),
+        groups: groups
+    };
+}
+function getNamedRouteRegex(normalizedRoute) {
+    const result = getNamedParametrizedRoute(normalizedRoute);
+    return {
+        ...getRouteRegex(normalizedRoute),
+        namedRegex: `^${result.namedParameterizedRoute}(?:/)?$`,
+        routeKeys: result.routeKeys
     };
 }
 function getParametrizedRoute(route) {
-    const segments = (route.replace(/\/$/, '') || '/').slice(1).split('/');
+    const segments = (0, _removeTrailingSlash).removeTrailingSlash(route).slice(1).split('/');
     const groups = {};
     let groupIndex = 1;
-    const parameterizedRoute = segments.map((segment)=>{
-        if (segment.startsWith('[') && segment.endsWith(']')) {
-            const { key , optional , repeat  } = parseParameter(segment.slice(1, -1));
-            groups[key] = {
-                pos: groupIndex++,
-                repeat,
-                optional
-            };
-            return repeat ? optional ? '(?:/(.+?))?' : '/(.+?)' : '/([^/]+?)';
-        } else {
-            return `/${(0, _escapeRegexp).escapeStringRegexp(segment)}`;
-        }
-    }).join('');
-    // dead code eliminate for browser since it's only needed
-    // while generating routes-manifest
-    if (typeof window === 'undefined') {
-        let routeKeyCharCode = 97;
-        let routeKeyCharLength = 1;
-        // builds a minimal routeKey using only a-z and minimal number of characters
-        const getSafeRouteKey = ()=>{
-            let routeKey = '';
-            for(let i = 0; i < routeKeyCharLength; i++){
-                routeKey += String.fromCharCode(routeKeyCharCode);
-                routeKeyCharCode++;
-                if (routeKeyCharCode > 122) {
-                    routeKeyCharLength++;
-                    routeKeyCharCode = 97;
-                }
+    return {
+        parameterizedRoute: segments.map((segment)=>{
+            if (segment.startsWith('[') && segment.endsWith(']')) {
+                const { key , optional , repeat  } = parseParameter(segment.slice(1, -1));
+                groups[key] = {
+                    pos: groupIndex++,
+                    repeat,
+                    optional
+                };
+                return repeat ? optional ? '(?:/(.+?))?' : '/(.+?)' : '/([^/]+?)';
+            } else {
+                return `/${(0, _escapeRegexp).escapeStringRegexp(segment)}`;
             }
-            return routeKey;
-        };
-        const routeKeys = {};
-        let namedParameterizedRoute = segments.map((segment)=>{
+        }).join(''),
+        groups
+    };
+}
+function getNamedParametrizedRoute(route) {
+    const segments = (0, _removeTrailingSlash).removeTrailingSlash(route).slice(1).split('/');
+    const getSafeRouteKey = buildGetSafeRouteKey();
+    const routeKeys = {};
+    return {
+        namedParameterizedRoute: segments.map((segment)=>{
             if (segment.startsWith('[') && segment.endsWith(']')) {
                 const { key , optional , repeat  } = parseParameter(segment.slice(1, -1));
                 // replace any non-word characters since they can break
@@ -79,32 +72,79 @@ function getParametrizedRoute(route) {
             } else {
                 return `/${(0, _escapeRegexp).escapeStringRegexp(segment)}`;
             }
-        }).join('');
-        return {
-            parameterizedRoute,
-            namedParameterizedRoute,
-            groups,
-            routeKeys
-        };
-    }
-    return {
-        parameterizedRoute,
-        groups
+        }).join(''),
+        routeKeys
     };
 }
-function getRouteRegex(normalizedRoute) {
-    const result = getParametrizedRoute(normalizedRoute);
-    if ('routeKeys' in result) {
-        return {
-            re: new RegExp(`^${result.parameterizedRoute}(?:/)?$`),
-            groups: result.groups,
-            routeKeys: result.routeKeys,
-            namedRegex: `^${result.namedParameterizedRoute}(?:/)?$`
-        };
+/**
+ * Parses a given parameter from a route to a data structure that can be used
+ * to generate the parametrized route. Examples:
+ *   - `[...slug]` -> `{ name: 'slug', repeat: true, optional: true }`
+ *   - `[foo]` -> `{ name: 'foo', repeat: false, optional: true }`
+ *   - `bar` -> `{ name: 'bar', repeat: false, optional: false }`
+ */ function parseParameter(param) {
+    const optional = param.startsWith('[') && param.endsWith(']');
+    if (optional) {
+        param = param.slice(1, -1);
+    }
+    const repeat = param.startsWith('...');
+    if (repeat) {
+        param = param.slice(3);
     }
     return {
-        re: new RegExp(`^${result.parameterizedRoute}(?:/)?$`),
-        groups: result.groups
+        key: param,
+        repeat,
+        optional
+    };
+}
+/**
+ * Builds a function to generate a minimal routeKey using only a-z and minimal
+ * number of characters.
+ */ function buildGetSafeRouteKey() {
+    let routeKeyCharCode = 97;
+    let routeKeyCharLength = 1;
+    return ()=>{
+        let routeKey = '';
+        for(let i = 0; i < routeKeyCharLength; i++){
+            routeKey += String.fromCharCode(routeKeyCharCode);
+            routeKeyCharCode++;
+            if (routeKeyCharCode > 122) {
+                routeKeyCharLength++;
+                routeKeyCharCode = 97;
+            }
+        }
+        return routeKey;
+    };
+}
+function getMiddlewareRegex(normalizedRoute, options) {
+    const { parameterizedRoute , groups  } = getParametrizedRoute(normalizedRoute);
+    const { catchAll =true  } = options !== null && options !== void 0 ? options : {};
+    if (parameterizedRoute === '/') {
+        let catchAllRegex = catchAll ? '.*' : '';
+        return {
+            groups: {},
+            re: new RegExp(`^/${catchAllRegex}$`)
+        };
+    }
+    let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : '';
+    return {
+        groups: groups,
+        re: new RegExp(`^${parameterizedRoute}${catchAllGroupedRegex}$`)
+    };
+}
+function getNamedMiddlewareRegex(normalizedRoute, options) {
+    const { parameterizedRoute  } = getParametrizedRoute(normalizedRoute);
+    const { catchAll =true  } = options;
+    if (parameterizedRoute === '/') {
+        let catchAllRegex = catchAll ? '.*' : '';
+        return {
+            namedRegex: `^/${catchAllRegex}$`
+        };
+    }
+    const { namedParameterizedRoute  } = getNamedParametrizedRoute(normalizedRoute);
+    let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : '';
+    return {
+        namedRegex: `^${namedParameterizedRoute}${catchAllGroupedRegex}$`
     };
 }
 

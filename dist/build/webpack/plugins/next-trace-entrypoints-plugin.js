@@ -72,18 +72,24 @@ class TraceEntryPointsPlugin {
         await span.traceChild('create-trace-assets').traceAsyncFn(async ()=>{
             const entryFilesMap = new Map();
             const chunksToTrace = new Set();
+            const isTraceable = (file)=>!file.endsWith('.wasm')
+            ;
             for (const entrypoint of compilation.entrypoints.values()){
                 const entryFiles = new Set();
                 for (const chunk of entrypoint.getEntrypointChunk().getAllReferencedChunks()){
                     for (const file of chunk.files){
-                        const filePath = _path.default.join(outputPath, file);
-                        chunksToTrace.add(filePath);
-                        entryFiles.add(filePath);
+                        if (isTraceable(file)) {
+                            const filePath = _path.default.join(outputPath, file);
+                            chunksToTrace.add(filePath);
+                            entryFiles.add(filePath);
+                        }
                     }
                     for (const file2 of chunk.auxiliaryFiles){
-                        const filePath = _path.default.join(outputPath, file2);
-                        chunksToTrace.add(filePath);
-                        entryFiles.add(filePath);
+                        if (isTraceable(file2)) {
+                            const filePath = _path.default.join(outputPath, file2);
+                            chunksToTrace.add(filePath);
+                            entryFiles.add(filePath);
+                        }
                     }
                 }
                 entryFilesMap.set(entrypoint, entryFiles);

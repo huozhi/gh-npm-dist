@@ -7,7 +7,6 @@ var _crypto = _interopRequireDefault(require("crypto"));
 var _fs = _interopRequireDefault(require("fs"));
 var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _jestWorker = require("next/dist/compiled/jest-worker");
-var _amphtmlValidator = _interopRequireDefault(require("next/dist/compiled/amphtml-validator"));
 var _findUp = _interopRequireDefault(require("next/dist/compiled/find-up"));
 var _path = require("path");
 var _react = _interopRequireDefault(require("react"));
@@ -20,26 +19,33 @@ var _loadCustomRoutes = _interopRequireDefault(require("../../lib/load-custom-ro
 var _verifyTypeScriptSetup = require("../../lib/verifyTypeScriptSetup");
 var _verifyPartytownSetup = require("../../lib/verify-partytown-setup");
 var _constants1 = require("../../shared/lib/constants");
-var _utils = require("../../shared/lib/router/utils");
 var _nextServer = _interopRequireWildcard(require("../next-server"));
-var _normalizePagePath = require("../normalize-page-path");
-var _router = _interopRequireWildcard(require("../router"));
-var _routerUtils = require("../router-utils");
+var _routeMatcher = require("../../shared/lib/router/utils/route-matcher");
+var _normalizePagePath = require("../../shared/lib/page-path/normalize-page-path");
+var _absolutePathToPage = require("../../shared/lib/page-path/absolute-path-to-page");
+var _router = _interopRequireDefault(require("../router"));
+var _pathMatch = require("../../shared/lib/router/utils/path-match");
+var _pathHasPrefix = require("../../shared/lib/router/utils/path-has-prefix");
+var _removePathPrefix = require("../../shared/lib/router/utils/remove-path-prefix");
 var _events = require("../../telemetry/events");
 var _storage = require("../../telemetry/storage");
 var _trace = require("../../trace");
 var _hotReloader = _interopRequireDefault(require("./hot-reloader"));
 var _findPageFile = require("../lib/find-page-file");
-var _utils1 = require("../lib/utils");
+var _utils = require("../lib/utils");
 var _coalescedFunction = require("../../lib/coalesced-function");
 var _loadComponents = require("../load-components");
-var _utils2 = require("../../shared/lib/utils");
-var _middleware = require("next/dist/compiled/@next/react-dev-overlay/middleware");
+var _utils1 = require("../../shared/lib/utils");
+var _middleware = require("next/dist/compiled/@next/react-dev-overlay/dist/middleware");
 var Log = _interopRequireWildcard(require("../../build/output/log"));
 var _isError = _interopRequireWildcard(require("../../lib/is-error"));
-var _getMiddlewareRegex = require("../../shared/lib/router/utils/get-middleware-regex");
-var _utils3 = require("../../build/utils");
+var _routeRegex = require("../../shared/lib/router/utils/route-regex");
+var _utils2 = require("../../shared/lib/router/utils");
 var _entries = require("../../build/entries");
+var _getPageStaticInfo = require("../../build/analysis/get-page-static-info");
+var _normalizePathSep = require("../../shared/lib/page-path/normalize-path-sep");
+var _appPaths = require("../../shared/lib/router/utils/app-paths");
+var _utils3 = require("../../build/utils");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -70,7 +76,7 @@ function _interopRequireWildcard(obj) {
 let ReactDevOverlayImpl;
 const ReactDevOverlay = (props)=>{
     if (ReactDevOverlayImpl === undefined) {
-        ReactDevOverlayImpl = require('next/dist/compiled/@next/react-dev-overlay/client').ReactDevOverlay;
+        ReactDevOverlayImpl = require('next/dist/compiled/@next/react-dev-overlay/dist/client').ReactDevOverlay;
     }
     return ReactDevOverlayImpl(props);
 };
@@ -90,7 +96,7 @@ class DevServer extends _nextServer.default {
                     // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
                     // the number of workers Next.js tries to launch. The only worker users are interested in debugging
                     // is the main Next.js one
-                    NODE_OPTIONS: (0, _utils1).getNodeOptionsWithoutInspect()
+                    NODE_OPTIONS: (0, _utils).getNodeOptionsWithoutInspect()
                 }
             }
         });
@@ -114,7 +120,8 @@ class DevServer extends _nextServer.default {
         this.renderOpts.ampSkipValidation = (ref2 = (ref = this.nextConfig.experimental) === null || ref === void 0 ? void 0 : (ref1 = ref.amp) === null || ref1 === void 0 ? void 0 : ref1.skipValidation) !== null && ref2 !== void 0 ? ref2 : false;
         this.renderOpts.ampValidator = (html, pathname)=>{
             const validatorPath = this.nextConfig.experimental && this.nextConfig.experimental.amp && this.nextConfig.experimental.amp.validator;
-            return _amphtmlValidator.default.getInstance(validatorPath).then((validator)=>{
+            const AmpHtmlValidator = require('next/dist/compiled/amphtml-validator');
+            return AmpHtmlValidator.getInstance(validatorPath).then((validator)=>{
                 const result = validator.validateString(html);
                 (0, _output).ampValidation(pathname, result.errors.filter((e)=>e.severity === 'ERROR'
                 ).filter((e)=>this._filterAmpDevelopmentScript(html, e)
@@ -131,7 +138,10 @@ class DevServer extends _nextServer.default {
             this.setupWebSocketHandler(options.httpServer);
         }
         this.isCustomServer = !options.isNextDevCommand;
-        this.pagesDir = (0, _findPagesDir).findPagesDir(this.dir);
+        // TODO: hot-reload root/pages dirs?
+        const { pages: pagesDir , appDir  } = (0, _findPagesDir).findPagesDir(this.dir, this.nextConfig.experimental.appDir);
+        this.pagesDir = pagesDir;
+        this.appDir = appDir;
     }
     getBuildId() {
         return 'development';
@@ -153,7 +163,7 @@ class DevServer extends _nextServer.default {
                 const { page , query ={}  } = exportPathMap[path];
                 // We use unshift so that we're sure the routes is defined before Next's default routes
                 this.router.addFsRoute({
-                    match: (0, _router).route(path),
+                    match: (0, _pathMatch).getPathMatch(path),
                     type: 'route',
                     name: `${path} exportpathmap route`,
                     fn: async (req, res, _params, parsedUrl)=>{
@@ -178,13 +188,11 @@ class DevServer extends _nextServer.default {
         if (this.webpackWatcher) {
             return;
         }
-        const regexMiddleware = new RegExp(`[\\\\/](_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`);
         const regexPageExtension = new RegExp(`\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`);
         let resolved = false;
         return new Promise((resolve, reject)=>{
-            const pagesDir = this.pagesDir;
             // Watchpack doesn't emit an event for an empty directory
-            _fs.default.readdir(pagesDir, (_, files)=>{
+            _fs.default.readdir(this.pagesDir, (_, files)=>{
                 if (files === null || files === void 0 ? void 0 : files.length) {
                     return;
                 }
@@ -193,48 +201,119 @@ class DevServer extends _nextServer.default {
                     resolved = true;
                 }
             });
-            let wp = this.webpackWatcher = new _watchpack.default();
-            wp.watch([], [
-                pagesDir
-            ], 0);
+            const wp = this.webpackWatcher = new _watchpack.default();
+            const pages = [
+                this.pagesDir
+            ];
+            const app = this.appDir ? [
+                this.appDir
+            ] : [];
+            const directories = [
+                ...pages,
+                ...app
+            ];
+            const files1 = (0, _utils3).getPossibleMiddlewareFilenames((0, _path).join(this.pagesDir, '..'), this.nextConfig.pageExtensions);
+            let nestedMiddleware = [];
+            wp.watch(files1, directories, 0);
             wp.on('aggregated', async ()=>{
                 const routedMiddleware = [];
+                let middlewareMatcher;
                 const routedPages = [];
                 const knownFiles = wp.getTimeInfoEntries();
+                const appPaths = {};
                 const ssrMiddleware = new Set();
-                for (const [fileName, { accuracy , safeTime  }] of knownFiles){
-                    if (accuracy === undefined || !regexPageExtension.test(fileName)) {
+                for (const [fileName, meta] of knownFiles){
+                    if ((meta === null || meta === void 0 ? void 0 : meta.accuracy) === undefined || !regexPageExtension.test(fileName)) {
                         continue;
                     }
-                    if (regexMiddleware.test(fileName)) {
-                        routedMiddleware.push(`/${(0, _path).relative(pagesDir, fileName).replace(/\\+/g, '/')}`.replace(/^\/+/g, '/').replace(regexMiddleware, '/'));
+                    const isAppPath = Boolean(this.appDir && (0, _normalizePathSep).normalizePathSep(fileName).startsWith((0, _normalizePathSep).normalizePathSep(this.appDir)));
+                    const rootFile = (0, _absolutePathToPage).absolutePathToPage(fileName, {
+                        pagesDir: this.dir,
+                        extensions: this.nextConfig.pageExtensions
+                    });
+                    const staticInfo = await (0, _getPageStaticInfo).getPageStaticInfo({
+                        pageFilePath: fileName,
+                        nextConfig: this.nextConfig,
+                        page: rootFile
+                    });
+                    if ((0, _utils3).isMiddlewareFile(rootFile)) {
+                        var ref;
+                        this.actualMiddlewareFile = rootFile;
+                        middlewareMatcher = ((ref = staticInfo.middleware) === null || ref === void 0 ? void 0 : ref.pathMatcher) || new RegExp('.*');
+                        routedMiddleware.push('/');
                         continue;
                     }
-                    let pageName = '/' + (0, _path).relative(pagesDir, fileName).replace(/\\+/g, '/');
-                    pageName = pageName.replace(regexPageExtension, '');
-                    pageName = pageName.replace(/\/index$/, '') || '/';
-                    (0, _entries).invalidatePageRuntimeCache(fileName, safeTime);
-                    const pageRuntimeConfig = await (0, _entries).getPageRuntime(fileName, this.nextConfig.experimental.runtime);
-                    const isEdgeRuntime = pageRuntimeConfig === 'edge';
-                    if (isEdgeRuntime && !((0, _utils3).isReservedPage(pageName) || (0, _utils3).isCustomErrorPage(pageName))) {
-                        routedMiddleware.push(pageName);
-                        ssrMiddleware.add(pageName);
+                    let pageName = (0, _absolutePathToPage).absolutePathToPage(fileName, {
+                        pagesDir: isAppPath ? this.appDir : this.pagesDir,
+                        extensions: this.nextConfig.pageExtensions,
+                        keepIndex: isAppPath
+                    });
+                    if (isAppPath) {
+                        // TODO: should only routes ending in /index.js be route-able?
+                        const originalPageName = pageName;
+                        pageName = (0, _appPaths).normalizeAppPath(pageName);
+                        appPaths[pageName] = originalPageName;
+                        if (routedPages.includes(pageName)) {
+                            continue;
+                        }
+                    } else {
+                        // /index is preserved for root folder
+                        pageName = pageName.replace(/\/index$/, '') || '/';
                     }
+                    /**
+           * If there is a middleware that is not declared in the root we will
+           * warn without adding it so it doesn't make its way into the system.
+           */ if (/[\\\\/]_middleware$/.test(pageName)) {
+                        nestedMiddleware.push(pageName);
+                        continue;
+                    }
+                    (0, _entries).runDependingOnPageType({
+                        page: pageName,
+                        pageRuntime: staticInfo.runtime,
+                        onClient: ()=>{},
+                        onServer: ()=>{},
+                        onEdgeServer: ()=>{
+                            if (!pageName.startsWith('/api/')) {
+                                routedMiddleware.push(pageName);
+                            }
+                            ssrMiddleware.add(pageName);
+                        }
+                    });
                     routedPages.push(pageName);
                 }
-                this.middleware = (0, _utils).getSortedRoutes(routedMiddleware).map((page)=>({
-                        match: (0, _utils).getRouteMatcher((0, _getMiddlewareRegex).getMiddlewareRegex(page, !ssrMiddleware.has(page))),
+                if (nestedMiddleware.length > 0) {
+                    Log.error(new _utils3.NestedMiddlewareError(nestedMiddleware, this.dir, this.pagesDir).message);
+                    nestedMiddleware = [];
+                }
+                this.appPathRoutes = appPaths;
+                this.middleware = [];
+                this.edgeFunctions = [];
+                (0, _utils2).getSortedRoutes(routedMiddleware).forEach((page)=>{
+                    const isRootMiddleware = page === '/' && !!middlewareMatcher;
+                    const middlewareRegex = isRootMiddleware ? {
+                        re: middlewareMatcher,
+                        groups: {}
+                    } : (0, _routeRegex).getMiddlewareRegex(page, {
+                        catchAll: !ssrMiddleware.has(page)
+                    });
+                    const routeItem = {
+                        match: (0, _routeMatcher).getRouteMatcher(middlewareRegex),
                         page,
-                        ssr: ssrMiddleware.has(page)
-                    })
-                );
+                        re: middlewareRegex.re,
+                        ssr: !isRootMiddleware
+                    };
+                    this.middleware.push(routeItem);
+                    if (!isRootMiddleware) {
+                        this.edgeFunctions.push(routeItem);
+                    }
+                });
                 try {
-                    var ref;
+                    var ref3;
                     // we serve a separate manifest with all pages for the client in
                     // dev mode so that we can match a page after a rewrite on the client
                     // before it has been built and is populated in the _buildManifest
-                    const sortedRoutes = (0, _utils).getSortedRoutes(routedPages);
-                    if (!((ref = this.sortedRoutes) === null || ref === void 0 ? void 0 : ref.every((val, idx)=>val === sortedRoutes[idx]
+                    const sortedRoutes = (0, _utils2).getSortedRoutes(routedPages);
+                    if (!((ref3 = this.sortedRoutes) === null || ref3 === void 0 ? void 0 : ref3.every((val, idx)=>val === sortedRoutes[idx]
                     ))) {
                         // emit the change so clients fetch the update
                         this.hotReloader.send(undefined, {
@@ -242,12 +321,13 @@ class DevServer extends _nextServer.default {
                         });
                     }
                     this.sortedRoutes = sortedRoutes;
-                    this.dynamicRoutes = this.sortedRoutes.filter(_utils.isDynamicRoute).map((page)=>({
+                    this.dynamicRoutes = this.sortedRoutes.filter(_utils2.isDynamicRoute).map((page)=>({
                             page,
-                            match: (0, _utils).getRouteMatcher((0, _utils).getRouteRegex(page))
+                            match: (0, _routeMatcher).getRouteMatcher((0, _routeRegex).getRouteRegex(page))
                         })
                     );
                     this.router.setDynamicRoutes(this.dynamicRoutes);
+                    this.router.setCatchallMiddleware(this.generateCatchAllMiddlewareRoute(true));
                     if (!resolved) {
                         resolve();
                         resolved = true;
@@ -273,7 +353,10 @@ class DevServer extends _nextServer.default {
     async prepare() {
         (0, _trace).setGlobal('distDir', this.distDir);
         (0, _trace).setGlobal('phase', _constants1.PHASE_DEVELOPMENT_SERVER);
-        await (0, _verifyTypeScriptSetup).verifyTypeScriptSetup(this.dir, this.pagesDir, false, this.nextConfig);
+        await (0, _verifyTypeScriptSetup).verifyTypeScriptSetup(this.dir, [
+            this.pagesDir,
+            this.appDir
+        ].filter(Boolean), false, this.nextConfig.typescript.tsconfigPath, this.nextConfig.images.disableStaticImages);
         this.customRoutes = await (0, _loadCustomRoutes).default(this.nextConfig);
         // reload router
         const { redirects , rewrites , headers  } = this.customRoutes;
@@ -286,7 +369,8 @@ class DevServer extends _nextServer.default {
             config: this.nextConfig,
             previewProps: this.getPreviewProps(),
             buildId: this.buildId,
-            rewrites
+            rewrites,
+            appDir: this.appDir
         });
         await super.prepare();
         await this.addExportPathMapRoutes();
@@ -335,6 +419,14 @@ class DevServer extends _nextServer.default {
             // to ensure we return 404 instead of 500
             return false;
         }
+        if ((0, _utils3).isMiddlewareFile(normalizedPath)) {
+            return (0, _findPageFile).findPageFile(this.dir, normalizedPath, this.nextConfig.pageExtensions).then(Boolean);
+        }
+        // check appDir first if enabled
+        if (this.appDir) {
+            const pageFile = await (0, _findPageFile).findPageFile(this.appDir, normalizedPath, this.nextConfig.pageExtensions);
+            if (pageFile) return true;
+        }
         const pageFile = await (0, _findPageFile).findPageFile(this.pagesDir, normalizedPath, this.nextConfig.pageExtensions);
         return !!pageFile;
     }
@@ -348,7 +440,7 @@ class DevServer extends _nextServer.default {
         try {
             decodedPath = decodeURIComponent(path);
         } catch (_) {
-            throw new _utils2.DecodeError('failed to decode param');
+            throw new _utils1.DecodeError('failed to decode param');
         }
         if (await this.hasPublicFile(decodedPath)) {
             if (await this.hasPage(pathname)) {
@@ -364,9 +456,9 @@ class DevServer extends _nextServer.default {
     }
     setupWebSocketHandler(server, _req) {
         if (!this.addedUpgradeListener) {
-            var ref4;
+            var ref5;
             this.addedUpgradeListener = true;
-            server = server || ((ref4 = _req === null || _req === void 0 ? void 0 : _req.originalRequest.socket) === null || ref4 === void 0 ? void 0 : ref4.server);
+            server = server || ((ref5 = _req === null || _req === void 0 ? void 0 : _req.originalRequest.socket) === null || ref5 === void 0 ? void 0 : ref5.server);
             if (!server) {
                 // this is very unlikely to happen but show an error in case
                 // it does somehow
@@ -385,8 +477,8 @@ class DevServer extends _nextServer.default {
                         assetPrefix = `/${assetPrefix}`;
                     }
                     if ((ref = req.url) === null || ref === void 0 ? void 0 : ref.startsWith(`${basePath || assetPrefix || ''}/_next/webpack-hmr`)) {
-                        var ref3;
-                        (ref3 = this.hotReloader) === null || ref3 === void 0 ? void 0 : ref3.onHMR(req, socket, head);
+                        var ref4;
+                        (ref4 = this.hotReloader) === null || ref4 === void 0 ? void 0 : ref4.onHMR(req, socket, head);
                     }
                 });
             }
@@ -397,21 +489,52 @@ class DevServer extends _nextServer.default {
             const result = await super.runMiddleware({
                 ...params,
                 onWarning: (warn)=>{
-                    this.logErrorWithOriginalStack(warn, 'warning', 'client');
+                    this.logErrorWithOriginalStack(warn, 'warning');
                 }
             });
-            result === null || result === void 0 ? void 0 : result.waitUntil.catch((error)=>this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
-            );
+            if ('finished' in result) {
+                return result;
+            }
+            result.waitUntil.catch((error)=>{
+                this.logErrorWithOriginalStack(error, 'unhandledRejection');
+            });
             return result;
         } catch (error) {
-            this.logErrorWithOriginalStack(error, undefined, 'client');
-            const preflight = params.request.method === 'HEAD' && params.request.headers['x-middleware-preflight'];
-            if (preflight) throw error;
+            if (error instanceof _utils1.DecodeError) {
+                throw error;
+            }
+            this.logErrorWithOriginalStack(error);
             const err = (0, _isError).getProperError(error);
             err.middleware = true;
             const { request , response , parsedUrl  } = params;
+            /**
+       * When there is a failure for an internal Next.js request from
+       * middleware we bypass the error without finishing the request
+       * so we can serve the required chunks to render the error.
+       */ if (request.url.includes('/_next/static') || request.url.includes('/__nextjs_original-stack-frame')) {
+                return {
+                    finished: false
+                };
+            }
             response.statusCode = 500;
             this.renderError(err, request, response, parsedUrl.pathname);
+            return {
+                finished: true
+            };
+        }
+    }
+    async runEdgeFunction(params) {
+        try {
+            return super.runEdgeFunction(params);
+        } catch (error) {
+            if (error instanceof _utils1.DecodeError) {
+                throw error;
+            }
+            this.logErrorWithOriginalStack(error, 'warning');
+            const err = (0, _isError).getProperError(error);
+            const { req , res , page  } = params;
+            res.statusCode = 500;
+            this.renderError(err, req, res, page);
             return null;
         }
     }
@@ -420,11 +543,11 @@ class DevServer extends _nextServer.default {
         this.setupWebSocketHandler(undefined, req);
         const { basePath  } = this.nextConfig;
         let originalPathname = null;
-        if (basePath && (0, _routerUtils).hasBasePath(parsedUrl.pathname || '/', basePath)) {
+        if (basePath && (0, _pathHasPrefix).pathHasPrefix(parsedUrl.pathname || '/', basePath)) {
             // strip basePath before handling dev bundles
             // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
             originalPathname = parsedUrl.pathname;
-            parsedUrl.pathname = (0, _routerUtils).replaceBasePath(parsedUrl.pathname || '/', basePath);
+            parsedUrl.pathname = (0, _removePathPrefix).removePathPrefix(parsedUrl.pathname || '/', basePath);
         }
         const { pathname  } = parsedUrl;
         if (pathname.startsWith('/_next')) {
@@ -457,17 +580,27 @@ class DevServer extends _nextServer.default {
             }
         }
     }
-    async logErrorWithOriginalStack(err, type, stats = 'server') {
+    async logErrorWithOriginalStack(err, type) {
         let usedOriginalStack = false;
-        if ((0, _isError).default(err) && err.name && err.stack && err.message) {
+        if ((0, _isError).default(err) && err.stack) {
             try {
                 const frames = (0, _middleware).parseStack(err.stack);
-                const frame = frames[0];
+                const frame = frames.find(({ file  })=>{
+                    return !(file === null || file === void 0 ? void 0 : file.startsWith('eval'));
+                });
                 if (frame.lineNumber && (frame === null || frame === void 0 ? void 0 : frame.file)) {
-                    var ref, ref6, ref7, ref8, ref9, ref10;
-                    const compilation = stats === 'client' ? (ref = this.hotReloader) === null || ref === void 0 ? void 0 : (ref6 = ref.clientStats) === null || ref6 === void 0 ? void 0 : ref6.compilation : (ref7 = this.hotReloader) === null || ref7 === void 0 ? void 0 : (ref8 = ref7.serverStats) === null || ref8 === void 0 ? void 0 : ref8.compilation;
+                    var ref, ref7;
                     const moduleId = frame.file.replace(/^(webpack-internal:\/\/\/|file:\/\/)/, '');
-                    const source = await (0, _middleware).getSourceById(!!((ref9 = frame.file) === null || ref9 === void 0 ? void 0 : ref9.startsWith(_path.sep)) || !!((ref10 = frame.file) === null || ref10 === void 0 ? void 0 : ref10.startsWith('file:')), moduleId, compilation);
+                    let compilation;
+                    const src = (0, _middleware).getErrorSource(err);
+                    if (src === 'edge-server') {
+                        var ref8, ref9;
+                        compilation = (ref8 = this.hotReloader) === null || ref8 === void 0 ? void 0 : (ref9 = ref8.edgeServerStats) === null || ref9 === void 0 ? void 0 : ref9.compilation;
+                    } else {
+                        var ref10, ref11;
+                        compilation = (ref10 = this.hotReloader) === null || ref10 === void 0 ? void 0 : (ref11 = ref10.serverStats) === null || ref11 === void 0 ? void 0 : ref11.compilation;
+                    }
+                    const source = await (0, _middleware).getSourceById(!!((ref = frame.file) === null || ref === void 0 ? void 0 : ref.startsWith(_path.sep)) || !!((ref7 = frame.file) === null || ref7 === void 0 ? void 0 : ref7.startsWith('file:')), moduleId, compilation);
                     const originalFrame = await (0, _middleware).createOriginalStackFrame({
                         line: frame.lineNumber,
                         column: frame.column,
@@ -491,14 +624,13 @@ class DevServer extends _nextServer.default {
             // internal error and only show the provided stack
             }
         }
-        console.error(err);
         if (!usedOriginalStack) {
             if (type === 'warning') {
-                Log.warn(err + '');
+                Log.warn(err);
             } else if (type) {
-                Log.error(`${type}:`, err + '');
+                Log.error(`${type}:`, err);
             } else {
-                Log.error(err + '');
+                Log.error(err);
             }
         }
     }
@@ -528,27 +660,32 @@ class DevServer extends _nextServer.default {
     getPagesManifest() {
         return undefined;
     }
-    getMiddleware() {
-        return [];
-    }
-    getMiddlewareManifest() {
+    getAppPathsManifest() {
         return undefined;
+    }
+    getMiddleware() {
+        var _middleware1;
+        return (_middleware1 = this.middleware) !== null && _middleware1 !== void 0 ? _middleware1 : [];
+    }
+    getEdgeFunctions() {
+        var _edgeFunctions;
+        return (_edgeFunctions = this.edgeFunctions) !== null && _edgeFunctions !== void 0 ? _edgeFunctions : [];
     }
     getServerComponentManifest() {
         return undefined;
     }
     async hasMiddleware(pathname, isSSR) {
-        return this.hasPage(isSSR ? pathname : getMiddlewareFilepath(pathname));
+        return this.hasPage(isSSR ? pathname : this.actualMiddlewareFile);
     }
     async ensureMiddleware(pathname, isSSR) {
-        return this.hotReloader.ensurePage(isSSR ? pathname : getMiddlewareFilepath(pathname));
+        return this.hotReloader.ensurePage(isSSR ? pathname : this.actualMiddlewareFile);
     }
     generateRoutes() {
         const { fsRoutes , ...otherRoutes } = super.generateRoutes();
         // In development we expose all compiled files for react-error-overlay's line show feature
         // We use unshift so that we're sure the routes is defined before Next's default routes
         fsRoutes.unshift({
-            match: (0, _router).route('/_next/development/:path*'),
+            match: (0, _pathMatch).getPathMatch('/_next/development/:path*'),
             type: 'route',
             name: '_next/development catchall',
             fn: async (req, res, params)=>{
@@ -560,7 +697,7 @@ class DevServer extends _nextServer.default {
             }
         });
         fsRoutes.unshift({
-            match: (0, _router).route(`/_next/${_constants1.CLIENT_STATIC_FILES_PATH}/${this.buildId}/${_constants1.DEV_CLIENT_PAGES_MANIFEST}`),
+            match: (0, _pathMatch).getPathMatch(`/_next/${_constants1.CLIENT_STATIC_FILES_PATH}/${this.buildId}/${_constants1.DEV_CLIENT_PAGES_MANIFEST}`),
             type: 'route',
             name: `_next/${_constants1.CLIENT_STATIC_FILES_PATH}/${this.buildId}/${_constants1.DEV_CLIENT_PAGES_MANIFEST}`,
             fn: async (_req, res)=>{
@@ -575,27 +712,25 @@ class DevServer extends _nextServer.default {
             }
         });
         fsRoutes.unshift({
-            match: (0, _router).route(`/_next/${_constants1.CLIENT_STATIC_FILES_PATH}/${this.buildId}/${_constants1.DEV_MIDDLEWARE_MANIFEST}`),
+            match: (0, _pathMatch).getPathMatch(`/_next/${_constants1.CLIENT_STATIC_FILES_PATH}/${this.buildId}/${_constants1.DEV_MIDDLEWARE_MANIFEST}`),
             type: 'route',
             name: `_next/${_constants1.CLIENT_STATIC_FILES_PATH}/${this.buildId}/${_constants1.DEV_MIDDLEWARE_MANIFEST}`,
             fn: async (_req, res)=>{
-                var ref;
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'application/json; charset=utf-8');
-                res.body(JSON.stringify(((ref = this.middleware) === null || ref === void 0 ? void 0 : ref.map((middleware)=>[
-                        middleware.page,
+                res.body(JSON.stringify(this.getMiddleware().map((middleware)=>[
+                        middleware.re.source,
                         !!middleware.ssr, 
                     ]
-                )) || [])).send();
+                ))).send();
                 return {
                     finished: true
                 };
             }
         });
         fsRoutes.push({
-            match: (0, _router).route('/:path*'),
+            match: (0, _pathMatch).getPathMatch('/:path*'),
             type: 'route',
-            requireBasePath: false,
             name: 'catchall public directory route',
             fn: async (req, res, params, parsedUrl)=>{
                 const { pathname  } = parsedUrl;
@@ -670,9 +805,10 @@ class DevServer extends _nextServer.default {
         }
         try {
             await this.hotReloader.ensurePage(pathname);
+            const serverComponents = this.nextConfig.experimental.serverComponents;
             // When the new page is compiled, we need to reload the server component
             // manifest.
-            if (this.nextConfig.experimental.serverComponents) {
+            if (serverComponents) {
                 this.serverComponentManifest = super.getServerComponentManifest();
             }
             return super.findPageComponents(pathname, query, params);
@@ -742,8 +878,5 @@ class DevServer extends _nextServer.default {
     }
 }
 exports.default = DevServer;
-function getMiddlewareFilepath(pathname) {
-    return pathname.endsWith('/') ? `${pathname}_middleware` : `${pathname}/_middleware`;
-}
 
 //# sourceMappingURL=next-dev-server.js.map

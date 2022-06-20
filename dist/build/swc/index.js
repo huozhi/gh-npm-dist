@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.loadBindings = loadBindings;
 exports.isWasm = isWasm;
 exports.transform = transform;
 exports.transformSync = transformSync;
@@ -10,10 +11,22 @@ exports.minifySync = minifySync;
 exports.bundle = bundle;
 exports.parse = parse;
 exports.getBinaryMetadata = getBinaryMetadata;
+exports.teardownTraceSubscriber = exports.initCustomTraceSubscriber = exports.lockfilePatchPromise = void 0;
+var _path = _interopRequireDefault(require("path"));
+var _url = require("url");
 var _os = require("os");
 var _triples = require("next/dist/compiled/@napi-rs/triples");
 var Log = _interopRequireWildcard(require("../output/log"));
 var _options = require("./options");
+var _swcLoadFailure = require("../../telemetry/events/swc-load-failure");
+var _patchIncorrectLockfile = require("../../lib/patch-incorrect-lockfile");
+var _downloadWasmSwc = require("../../lib/download-wasm-swc");
+var _packageJson = require("next/package.json");
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
 function _interopRequireWildcard(obj) {
     if (obj && obj.__esModule) {
         return obj;
@@ -40,20 +53,62 @@ const PlatformName = (0, _os).platform();
 const triples = _triples.platformArchTriples[PlatformName][ArchName] || [];
 let nativeBindings;
 let wasmBindings;
+let downloadWasmPromise;
+let pendingBindings;
+let swcTraceFlushGuard;
+const lockfilePatchPromise = {};
+exports.lockfilePatchPromise = lockfilePatchPromise;
 async function loadBindings() {
-    let attempts = [];
-    try {
-        return loadNative();
-    } catch (a) {
-        attempts = attempts.concat(a);
+    if (pendingBindings) {
+        return pendingBindings;
     }
-    try {
-        let bindings = await loadWasm();
-        return bindings;
-    } catch (a1) {
-        attempts = attempts.concat(a1);
-    }
-    logLoadFailure(attempts);
+    pendingBindings = new Promise(async (resolve, reject)=>{
+        if (!lockfilePatchPromise.cur) {
+            // always run lockfile check once so that it gets patched
+            // even if it doesn't fail to load locally
+            lockfilePatchPromise.cur = (0, _patchIncorrectLockfile).patchIncorrectLockfile(process.cwd()).catch(console.error);
+        }
+        let attempts = [];
+        try {
+            return resolve(loadNative());
+        } catch (a) {
+            attempts = attempts.concat(a);
+        }
+        try {
+            let bindings = await loadWasm();
+            (0, _swcLoadFailure).eventSwcLoadFailure({
+                wasm: 'enabled'
+            });
+            return resolve(bindings);
+        } catch (a1) {
+            attempts = attempts.concat(a1);
+        }
+        try {
+            // if not installed already download wasm package on-demand
+            // we download to a custom directory instead of to node_modules
+            // as node_module import attempts are cached and can't be re-attempted
+            // x-ref: https://github.com/nodejs/modules/issues/307
+            const wasmDirectory = _path.default.join(_path.default.dirname(require.resolve('next/package.json')), 'wasm');
+            if (!downloadWasmPromise) {
+                downloadWasmPromise = (0, _downloadWasmSwc).downloadWasmSwc(_packageJson.version, wasmDirectory);
+            }
+            await downloadWasmPromise;
+            let bindings = await loadWasm((0, _url).pathToFileURL(wasmDirectory).href);
+            (0, _swcLoadFailure).eventSwcLoadFailure({
+                wasm: 'fallback'
+            });
+            // still log native load attempts so user is
+            // aware it failed and should be fixed
+            for (const attempt of attempts){
+                Log.warn(attempt);
+            }
+            return resolve(bindings);
+        } catch (a2) {
+            attempts = attempts.concat(a2);
+        }
+        logLoadFailure(attempts, true);
+    });
+    return pendingBindings;
 }
 function loadBindingsSync() {
     let attempts = [];
@@ -62,16 +117,30 @@ function loadBindingsSync() {
     } catch (a) {
         attempts = attempts.concat(a);
     }
+    // we can leverage the wasm bindings if they are already
+    // loaded
+    if (wasmBindings) {
+        return wasmBindings;
+    }
     logLoadFailure(attempts);
 }
-function logLoadFailure(attempts) {
+let loggingLoadFailure = false;
+function logLoadFailure(attempts, triedWasm = false) {
+    // make sure we only emit the event and log the failure once
+    if (loggingLoadFailure) return;
+    loggingLoadFailure = true;
     for (let attempt of attempts){
-        Log.info(attempt);
+        Log.warn(attempt);
     }
-    Log.error(`Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`);
-    process.exit(1);
+    (0, _swcLoadFailure).eventSwcLoadFailure({
+        wasm: triedWasm ? 'failed' : undefined
+    }).then(()=>lockfilePatchPromise.cur || Promise.resolve()
+    ).finally(()=>{
+        Log.error(`Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`);
+        process.exit(1);
+    });
 }
-async function loadWasm() {
+async function loadWasm(importPath = '') {
     if (wasmBindings) {
         return wasmBindings;
     }
@@ -81,7 +150,12 @@ async function loadWasm() {
         '@next/swc-wasm-web'
     ]){
         try {
-            let bindings = await import(pkg);
+            let pkgPath = pkg;
+            if (importPath) {
+                // the import path must be exact when not in node_modules
+                pkgPath = _path.default.join(importPath, pkg, 'wasm.js');
+            }
+            let bindings = await import(pkgPath);
             if (pkg === '@next/swc-wasm-web') {
                 bindings = await bindings.default();
             }
@@ -89,13 +163,24 @@ async function loadWasm() {
             wasmBindings = {
                 isWasm: true,
                 transform (src, options) {
-                    return Promise.resolve(bindings.transformSync(src.toString(), options));
+                    return bindings.transformSync(src.toString(), options);
+                },
+                transformSync (src, options) {
+                    return bindings.transformSync(src.toString(), options);
                 },
                 minify (src, options) {
-                    return Promise.resolve(bindings.minifySync(src.toString(), options));
+                    return bindings.minifySync(src.toString(), options);
+                },
+                minifySync (src, options) {
+                    return bindings.minifySync(src.toString(), options);
                 },
                 parse (src, options) {
-                    return Promise.resolve(bindings.parse(src.toString(), options));
+                    const astStr = bindings.parseSync(src.toString(), options);
+                    return astStr;
+                },
+                parseSync (src, options) {
+                    const astStr = bindings.parseSync(src.toString(), options);
+                    return astStr;
                 },
                 getTargetTriple () {
                     return undefined;
@@ -103,14 +188,15 @@ async function loadWasm() {
             };
             return wasmBindings;
         } catch (e) {
-        // Do not report attempts to load wasm when it is still experimental
-        // if (e?.code === 'ERR_MODULE_NOT_FOUND') {
-        //   attempts.push(`Attempted to load ${pkg}, but it was not installed`)
-        // } else {
-        //   attempts.push(
-        //     `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
-        //   )
-        // }
+            // Only log attempts for loading wasm when loading as fallback
+            if (importPath) {
+                if ((e === null || e === void 0 ? void 0 : e.code) === 'ERR_MODULE_NOT_FOUND') {
+                    attempts.push(`Attempted to load ${pkg}, but it was not installed`);
+                } else {
+                    var _message;
+                    attempts.push(`Attempted to load ${pkg}, but an error occurred: ${(_message = e.message) !== null && _message !== void 0 ? _message : e}`);
+                }
+            }
         }
     }
     throw attempts;
@@ -184,7 +270,9 @@ function loadNative() {
             parse (src, options) {
                 return bindings.parse(src, toBuffer(options !== null && options !== void 0 ? options : {}));
             },
-            getTargetTriple: bindings.getTargetTriple
+            getTargetTriple: bindings.getTargetTriple,
+            initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
+            teardownTraceSubscriber: bindings.teardownTraceSubscriber
         };
         return nativeBindings;
     }
@@ -235,5 +323,32 @@ function getBinaryMetadata() {
         target: bindings === null || bindings === void 0 ? void 0 : (ref = bindings.getTargetTriple) === null || ref === void 0 ? void 0 : ref.call(bindings)
     };
 }
+const initCustomTraceSubscriber = (()=>{
+    return (filename)=>{
+        if (!swcTraceFlushGuard) {
+            // Wasm binary doesn't support trace emission
+            let bindings = loadNative();
+            swcTraceFlushGuard = bindings.initCustomTraceSubscriber(filename);
+        }
+    };
+})();
+exports.initCustomTraceSubscriber = initCustomTraceSubscriber;
+const teardownTraceSubscriber = (()=>{
+    let flushed = false;
+    return ()=>{
+        if (!flushed) {
+            flushed = true;
+            try {
+                let bindings = loadNative();
+                if (swcTraceFlushGuard) {
+                    bindings.teardownTraceSubscriber(swcTraceFlushGuard);
+                }
+            } catch (e) {
+            // Suppress exceptions, this fn allows to fail to load native bindings
+            }
+        }
+    };
+})();
+exports.teardownTraceSubscriber = teardownTraceSubscriber;
 
 //# sourceMappingURL=index.js.map

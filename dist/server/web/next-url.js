@@ -2,14 +2,10 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-var _getLocaleMetadata = require("../../shared/lib/i18n/get-locale-metadata");
-var _cookie = _interopRequireDefault(require("next/dist/compiled/cookie"));
-var _routerUtils = require("../router-utils");
-function _interopRequireDefault(obj) {
-    return obj && obj.__esModule ? obj : {
-        default: obj
-    };
-}
+var _detectDomainLocale = require("../../shared/lib/i18n/detect-domain-locale");
+var _formatNextPathnameInfo = require("../../shared/lib/router/utils/format-next-pathname-info");
+var _getHostname = require("../../shared/lib/get-hostname");
+var _getNextPathnameInfo = require("../../shared/lib/router/utils/get-next-pathname-info");
 const Internal = Symbol('NextURLInternal');
 class NextURL {
     constructor(input, baseOrOpts, opts){
@@ -29,67 +25,54 @@ class NextURL {
         this.analyzeUrl();
     }
     analyzeUrl() {
-        const { headers ={} , basePath , i18n  } = this[Internal].options;
-        if (basePath && this[Internal].url.pathname.startsWith(basePath)) {
-            this[Internal].url.pathname = (0, _routerUtils).replaceBasePath(this[Internal].url.pathname, basePath);
-            this[Internal].basePath = basePath;
-        } else {
-            this[Internal].basePath = '';
-        }
-        if (i18n) {
-            var ref;
-            this[Internal].locale = (0, _getLocaleMetadata).getLocaleMetadata({
-                cookies: ()=>{
-                    const value = headers['cookie'];
-                    return value ? _cookie.default.parse(Array.isArray(value) ? value.join(';') : value) : {};
-                },
-                headers: headers,
-                nextConfig: {
-                    basePath: basePath,
-                    i18n: i18n
-                },
-                url: {
-                    hostname: this[Internal].url.hostname || null,
-                    pathname: this[Internal].url.pathname
-                }
-            });
-            if ((ref = this[Internal].locale) === null || ref === void 0 ? void 0 : ref.path.detectedLocale) {
-                this[Internal].url.pathname = this[Internal].locale.path.pathname;
-            }
-        }
+        var ref, ref1, ref2, ref3, ref4;
+        const pathnameInfo = (0, _getNextPathnameInfo).getNextPathnameInfo(this[Internal].url.pathname, {
+            nextConfig: this[Internal].options.nextConfig,
+            parseData: true
+        });
+        this[Internal].domainLocale = (0, _detectDomainLocale).detectDomainLocale((ref = this[Internal].options.nextConfig) === null || ref === void 0 ? void 0 : (ref1 = ref.i18n) === null || ref1 === void 0 ? void 0 : ref1.domains, (0, _getHostname).getHostname(this[Internal].url, this[Internal].options.headers));
+        const defaultLocale = ((ref2 = this[Internal].domainLocale) === null || ref2 === void 0 ? void 0 : ref2.defaultLocale) || ((ref3 = this[Internal].options.nextConfig) === null || ref3 === void 0 ? void 0 : (ref4 = ref3.i18n) === null || ref4 === void 0 ? void 0 : ref4.defaultLocale);
+        this[Internal].url.pathname = pathnameInfo.pathname;
+        this[Internal].defaultLocale = defaultLocale;
+        var _basePath;
+        this[Internal].basePath = (_basePath = pathnameInfo.basePath) !== null && _basePath !== void 0 ? _basePath : '';
+        this[Internal].buildId = pathnameInfo.buildId;
+        var _locale;
+        this[Internal].locale = (_locale = pathnameInfo.locale) !== null && _locale !== void 0 ? _locale : defaultLocale;
+        this[Internal].trailingSlash = pathnameInfo.trailingSlash;
     }
     formatPathname() {
-        var ref, ref1;
-        const { i18n  } = this[Internal].options;
-        let pathname = this[Internal].url.pathname;
-        if (((ref = this[Internal].locale) === null || ref === void 0 ? void 0 : ref.locale) && (i18n === null || i18n === void 0 ? void 0 : i18n.defaultLocale) !== ((ref1 = this[Internal].locale) === null || ref1 === void 0 ? void 0 : ref1.locale)) {
-            var ref2;
-            pathname = `/${(ref2 = this[Internal].locale) === null || ref2 === void 0 ? void 0 : ref2.locale}${pathname}`;
-        }
-        if (this[Internal].basePath) {
-            pathname = `${this[Internal].basePath}${pathname}`;
-        }
-        return pathname;
+        return (0, _formatNextPathnameInfo).formatNextPathnameInfo({
+            basePath: this[Internal].basePath,
+            buildId: this[Internal].buildId,
+            defaultLocale: !this[Internal].options.forceLocale ? this[Internal].defaultLocale : undefined,
+            locale: this[Internal].locale,
+            pathname: this[Internal].url.pathname,
+            trailingSlash: this[Internal].trailingSlash
+        });
+    }
+    get buildId() {
+        return this[Internal].buildId;
+    }
+    set buildId(buildId) {
+        this[Internal].buildId = buildId;
     }
     get locale() {
-        var ref;
-        var ref3;
-        return (ref3 = (ref = this[Internal].locale) === null || ref === void 0 ? void 0 : ref.locale) !== null && ref3 !== void 0 ? ref3 : '';
+        var _locale;
+        return (_locale = this[Internal].locale) !== null && _locale !== void 0 ? _locale : '';
     }
     set locale(locale) {
-        var ref;
-        if (!this[Internal].locale || !((ref = this[Internal].options.i18n) === null || ref === void 0 ? void 0 : ref.locales.includes(locale))) {
+        var ref, ref5;
+        if (!this[Internal].locale || !((ref = this[Internal].options.nextConfig) === null || ref === void 0 ? void 0 : (ref5 = ref.i18n) === null || ref5 === void 0 ? void 0 : ref5.locales.includes(locale))) {
             throw new TypeError(`The NextURL configuration includes no locale "${locale}"`);
         }
-        this[Internal].locale.locale = locale;
+        this[Internal].locale = locale;
     }
     get defaultLocale() {
-        var ref;
-        return (ref = this[Internal].locale) === null || ref === void 0 ? void 0 : ref.defaultLocale;
+        return this[Internal].defaultLocale;
     }
     get domainLocale() {
-        var ref;
-        return (ref = this[Internal].locale) === null || ref === void 0 ? void 0 : ref.domain;
+        return this[Internal].domainLocale;
     }
     get searchParams() {
         return this[Internal].url.searchParams;
@@ -170,6 +153,22 @@ class NextURL {
     }
     toJSON() {
         return this.href;
+    }
+    [Symbol.for('edge-runtime.inspect.custom')]() {
+        return {
+            href: this.href,
+            origin: this.origin,
+            protocol: this.protocol,
+            username: this.username,
+            password: this.password,
+            host: this.host,
+            hostname: this.hostname,
+            port: this.port,
+            pathname: this.pathname,
+            search: this.search,
+            searchParams: this.searchParams,
+            hash: this.hash
+        };
     }
     clone() {
         return new NextURL(String(this), this[Internal].options);

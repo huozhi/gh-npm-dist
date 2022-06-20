@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.handleClientScriptLoad = handleClientScriptLoad;
 exports.initScriptLoader = initScriptLoader;
 exports.default = void 0;
 var _react = _interopRequireWildcard(require("react"));
@@ -149,13 +150,13 @@ const loadScript = (props)=>{
 };
 function handleClientScriptLoad(props) {
     const { strategy ='afterInteractive'  } = props;
-    if (strategy === 'afterInteractive') {
-        loadScript(props);
-    } else if (strategy === 'lazyOnload') {
+    if (strategy === 'lazyOnload') {
         window.addEventListener('load', ()=>{
             (0, _requestIdleCallback).requestIdleCallback(()=>loadScript(props)
             );
         });
+    } else {
+        loadScript(props);
     }
 }
 function loadLazyScript(props) {
@@ -169,14 +170,24 @@ function loadLazyScript(props) {
         });
     }
 }
+function addBeforeInteractiveToCache() {
+    const scripts = [
+        ...document.querySelectorAll('[data-nscript="beforeInteractive"]'),
+        ...document.querySelectorAll('[data-nscript="beforePageRender"]'), 
+    ];
+    scripts.forEach((script)=>{
+        const cacheKey = script.id || script.getAttribute('src');
+        LoadCache.add(cacheKey);
+    });
+}
 function initScriptLoader(scriptLoaderItems) {
     scriptLoaderItems.forEach(handleClientScriptLoad);
+    addBeforeInteractiveToCache();
 }
 function Script(props) {
-    const { src ='' , onLoad =()=>{} , dangerouslySetInnerHTML , strategy ='afterInteractive' , onError  } = props, restProps = _objectWithoutProperties(props, [
+    const { src ='' , onLoad =()=>{} , strategy ='afterInteractive' , onError  } = props, restProps = _objectWithoutProperties(props, [
         "src",
         "onLoad",
-        "dangerouslySetInnerHTML",
         "strategy",
         "onError"
     ]);
@@ -213,5 +224,11 @@ function Script(props) {
 }
 var _default = Script;
 exports.default = _default;
+
+if ((typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) && typeof exports.default.__esModule === 'undefined') {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
+  Object.assign(exports.default, exports);
+  module.exports = exports.default;
+}
 
 //# sourceMappingURL=script.js.map

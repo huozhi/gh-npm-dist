@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.renderScriptError = renderScriptError;
 exports.default = void 0;
-var _middleware = require("next/dist/compiled/@next/react-dev-overlay/middleware");
+var _middleware = require("next/dist/compiled/@next/react-dev-overlay/dist/middleware");
 var _hotMiddleware = require("./hot-middleware");
 var _path = require("path");
 var _webpack = require("next/dist/compiled/webpack/webpack");
@@ -14,46 +14,26 @@ var _webpackConfig = _interopRequireDefault(require("../../build/webpack-config"
 var _constants = require("../../lib/constants");
 var _recursiveDelete = require("../../lib/recursive-delete");
 var _constants1 = require("../../shared/lib/constants");
-var _router = require("../router");
+var _pathMatch = require("../../shared/lib/router/utils/path-match");
 var _findPageFile = require("../lib/find-page-file");
-var _onDemandEntryHandler = _interopRequireWildcard(require("./on-demand-entry-handler"));
-var _normalizePagePath = require("../normalize-page-path");
+var _onDemandEntryHandler = require("./on-demand-entry-handler");
+var _denormalizePagePath = require("../../shared/lib/page-path/denormalize-page-path");
+var _normalizePathSep = require("../../shared/lib/page-path/normalize-path-sep");
 var _getRouteFromEntrypoint = _interopRequireDefault(require("../get-route-from-entrypoint"));
 var _fileExists = require("../../lib/file-exists");
-var _middlewarePlugin = require("../../build/webpack/plugins/middleware-plugin");
-var _querystring = require("querystring");
 var _utils = require("../../build/utils");
 var _utils1 = require("../../shared/lib/utils");
 var _trace = require("../../trace");
 var _isError = require("../../lib/is-error");
 var _ws = _interopRequireDefault(require("next/dist/compiled/ws"));
 var _fs = require("fs");
-var _config = require("../config");
+var _getPageStaticInfo = require("../../build/analysis/get-page-static-info");
+var _utils2 = require("../../build/webpack/loaders/utils");
+var _querystring = require("querystring");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
     };
-}
-function _interopRequireWildcard(obj) {
-    if (obj && obj.__esModule) {
-        return obj;
-    } else {
-        var newObj = {};
-        if (obj != null) {
-            for(var key in obj){
-                if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {};
-                    if (desc.get || desc.set) {
-                        Object.defineProperty(newObj, key, desc);
-                    } else {
-                        newObj[key] = obj[key];
-                    }
-                }
-            }
-        }
-        newObj.default = obj;
-        return newObj;
-    }
 }
 const wsServer = new _ws.default.Server({
     noServer: true
@@ -102,13 +82,14 @@ function addCorsSupport(req, res) {
         preflight: false
     };
 }
-const matchNextPageBundleRequest = (0, _router).route('/_next/static/chunks/pages/:path*.js(\\.map|)');
+const matchNextPageBundleRequest = (0, _pathMatch).getPathMatch('/_next/static/chunks/pages/:path*.js(\\.map|)');
 // Recursively look up the issuer till it ends up at the root
-function findEntryModule(issuer) {
-    if (issuer.issuer) {
-        return findEntryModule(issuer.issuer);
+function findEntryModule(compilation, issuerModule) {
+    const issuer = compilation.moduleGraph.getIssuer(issuerModule);
+    if (issuer) {
+        return findEntryModule(compilation, issuer);
     }
-    return issuer;
+    return issuerModule;
 }
 function erroredPages(compilation) {
     const failedPages = {};
@@ -116,7 +97,7 @@ function erroredPages(compilation) {
         if (!error.module) {
             continue;
         }
-        const entryModule = findEntryModule(error.module);
+        const entryModule = findEntryModule(compilation, error.module);
         const { name  } = entryModule;
         if (!name) {
             continue;
@@ -134,7 +115,7 @@ function erroredPages(compilation) {
     return failedPages;
 }
 class HotReloader {
-    constructor(dir, { config , pagesDir , distDir , buildId , previewProps , rewrites  }){
+    constructor(dir, { config , pagesDir , distDir , buildId , previewProps , rewrites , appDir  }){
         this.clientError = null;
         this.serverError = null;
         this.pagesMapping = {};
@@ -142,18 +123,19 @@ class HotReloader {
         this.dir = dir;
         this.middlewares = [];
         this.pagesDir = pagesDir;
+        this.appDir = appDir;
         this.distDir = distDir;
         this.clientStats = null;
         this.serverStats = null;
+        this.edgeServerStats = null;
         this.serverPrevDocumentHash = null;
         this.config = config;
-        this.runtime = config.experimental.runtime;
-        this.hasReactRoot = (0, _config).shouldUseReactRoot();
+        this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT;
         this.hasServerComponents = this.hasReactRoot && !!config.experimental.serverComponents;
         this.previewProps = previewProps;
         this.rewrites = rewrites;
         this.hotReloaderSpan = (0, _trace).trace('hot-reloader', undefined, {
-            version: "12.1.1"
+            version: "12.1.7-canary.41"
         });
         // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
         // of the current `next dev` invocation.
@@ -185,7 +167,7 @@ class HotReloader {
             } catch (_) {
                 throw new _utils1.DecodeError('failed to decode param');
             }
-            const page = (0, _normalizePagePath).denormalizePagePath(decodedPagePath);
+            const page = (0, _denormalizePagePath).denormalizePagePath(decodedPagePath);
             if (page === '/_error' || _constants1.BLOCKED_PAGES.indexOf(page) === -1) {
                 try {
                     await this.ensurePage(page, true);
@@ -225,6 +207,75 @@ class HotReloader {
             var ref, ref1;
             (ref = this.webpackHotMiddleware) === null || ref === void 0 ? void 0 : ref.onHMR(client);
             (ref1 = this.onDemandEntries) === null || ref1 === void 0 ? void 0 : ref1.onHMR(client);
+            client.addEventListener('message', ({ data  })=>{
+                data = typeof data !== 'string' ? data.toString() : data;
+                try {
+                    const payload = JSON.parse(data);
+                    let traceChild;
+                    switch(payload.event){
+                        case 'client-hmr-latency':
+                            {
+                                traceChild = {
+                                    name: payload.event,
+                                    startTime: BigInt(payload.startTime * 1000 * 1000),
+                                    endTime: BigInt(payload.endTime * 1000 * 1000)
+                                };
+                                break;
+                            }
+                        case 'client-reload-page':
+                        case 'client-success':
+                            {
+                                traceChild = {
+                                    name: payload.event
+                                };
+                                break;
+                            }
+                        case 'client-error':
+                            {
+                                traceChild = {
+                                    name: payload.event,
+                                    attrs: {
+                                        errorCount: payload.errorCount
+                                    }
+                                };
+                                break;
+                            }
+                        case 'client-warning':
+                            {
+                                traceChild = {
+                                    name: payload.event,
+                                    attrs: {
+                                        warningCount: payload.warningCount
+                                    }
+                                };
+                                break;
+                            }
+                        case 'client-removed-page':
+                        case 'client-added-page':
+                            {
+                                traceChild = {
+                                    name: payload.event,
+                                    attrs: {
+                                        page: payload.page || ''
+                                    }
+                                };
+                                break;
+                            }
+                        default:
+                            {
+                                break;
+                            }
+                    }
+                    if (traceChild) {
+                        this.hotReloaderSpan.manualTraceChild(traceChild.name, traceChild.startTime || process.hrtime.bigint(), traceChild.endTime || process.hrtime.bigint(), {
+                            ...traceChild.attrs,
+                            clientId: payload.id
+                        });
+                    }
+                } catch (_) {
+                // invalid WebSocket message
+                }
+            });
         });
     }
     async clean(span) {
@@ -233,57 +284,62 @@ class HotReloader {
     }
     async getWebpackConfig(span) {
         const webpackConfigSpan = span.traceChild('get-webpack-config');
+        const rawPageExtensions = this.hasServerComponents ? (0, _utils).withoutRSCExtensions(this.config.pageExtensions) : this.config.pageExtensions;
         return webpackConfigSpan.traceAsyncFn(async ()=>{
             const pagePaths = await webpackConfigSpan.traceChild('get-page-paths').traceAsyncFn(()=>Promise.all([
-                    (0, _findPageFile).findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
-                    (0, _findPageFile).findPageFile(this.pagesDir, '/_document', this.config.pageExtensions), 
+                    (0, _findPageFile).findPageFile(this.pagesDir, '/_app', rawPageExtensions),
+                    (0, _findPageFile).findPageFile(this.pagesDir, '/_document', rawPageExtensions), 
                 ])
             );
-            this.pagesMapping = webpackConfigSpan.traceChild('create-pages-mapping').traceFn(()=>(0, _entries).createPagesMapping(pagePaths.filter((i)=>i !== null
-                ), this.config.pageExtensions, {
+            this.pagesMapping = webpackConfigSpan.traceChild('create-pages-mapping').traceFn(()=>(0, _entries).createPagesMapping({
+                    hasServerComponents: this.hasServerComponents,
                     isDev: true,
-                    hasServerComponents: this.hasServerComponents
+                    pageExtensions: this.config.pageExtensions,
+                    pagesType: 'pages',
+                    pagePaths: pagePaths.filter((i)=>typeof i === 'string'
+                    )
                 })
             );
-            const entrypoints = await webpackConfigSpan.traceChild('create-entrypoints').traceAsyncFn(()=>(0, _entries).createEntrypoints(this.pagesMapping, 'server', this.buildId, this.previewProps, this.config, [], this.pagesDir)
+            const entrypoints = await webpackConfigSpan.traceChild('create-entrypoints').traceAsyncFn(()=>(0, _entries).createEntrypoints({
+                    buildId: this.buildId,
+                    config: this.config,
+                    envFiles: [],
+                    isDev: true,
+                    pages: this.pagesMapping,
+                    pagesDir: this.pagesDir,
+                    previewMode: this.previewProps,
+                    rootDir: this.dir,
+                    target: 'server',
+                    pageExtensions: this.config.pageExtensions
+                })
             );
+            const commonWebpackOptions = {
+                dev: true,
+                buildId: this.buildId,
+                config: this.config,
+                hasReactRoot: this.hasReactRoot,
+                pagesDir: this.pagesDir,
+                rewrites: this.rewrites,
+                runWebpackSpan: this.hotReloaderSpan,
+                appDir: this.appDir
+            };
             return webpackConfigSpan.traceChild('generate-webpack-config').traceAsyncFn(()=>Promise.all([
                     (0, _webpackConfig).default(this.dir, {
-                        dev: true,
-                        isServer: false,
-                        config: this.config,
-                        buildId: this.buildId,
-                        pagesDir: this.pagesDir,
-                        rewrites: this.rewrites,
-                        entrypoints: entrypoints.client,
-                        runWebpackSpan: this.hotReloaderSpan,
-                        hasReactRoot: this.hasReactRoot
+                        ...commonWebpackOptions,
+                        compilerType: 'client',
+                        entrypoints: entrypoints.client
                     }),
                     (0, _webpackConfig).default(this.dir, {
-                        dev: true,
-                        isServer: true,
-                        config: this.config,
-                        buildId: this.buildId,
-                        pagesDir: this.pagesDir,
-                        rewrites: this.rewrites,
-                        entrypoints: entrypoints.server,
-                        runWebpackSpan: this.hotReloaderSpan,
-                        hasReactRoot: this.hasReactRoot
+                        ...commonWebpackOptions,
+                        compilerType: 'server',
+                        entrypoints: entrypoints.server
                     }),
-                    // The edge runtime is only supported with React root.
-                    this.hasReactRoot ? (0, _webpackConfig).default(this.dir, {
-                        dev: true,
-                        isServer: true,
-                        isEdgeRuntime: true,
-                        config: this.config,
-                        buildId: this.buildId,
-                        pagesDir: this.pagesDir,
-                        rewrites: this.rewrites,
-                        entrypoints: entrypoints.edgeServer,
-                        runWebpackSpan: this.hotReloaderSpan,
-                        hasReactRoot: this.hasReactRoot
-                    }) : null, 
-                ].filter(Boolean))
+                    (0, _webpackConfig).default(this.dir, {
+                        ...commonWebpackOptions,
+                        compilerType: 'edge-server',
+                        entrypoints: entrypoints.edgeServer
+                    }), 
+                ])
             );
         });
     }
@@ -292,7 +348,7 @@ class HotReloader {
         const fallbackConfig = await (0, _webpackConfig).default(this.dir, {
             runWebpackSpan: this.hotReloaderSpan,
             dev: true,
-            isServer: false,
+            compilerType: 'client',
             config: this.config,
             buildId: this.buildId,
             pagesDir: this.pagesDir,
@@ -303,9 +359,20 @@ class HotReloader {
             },
             isDevFallback: true,
             entrypoints: (await (0, _entries).createEntrypoints({
-                '/_app': 'next/dist/pages/_app',
-                '/_error': 'next/dist/pages/_error'
-            }, 'server', this.buildId, this.previewProps, this.config, [], this.pagesDir)).client,
+                buildId: this.buildId,
+                config: this.config,
+                envFiles: [],
+                isDev: true,
+                pages: {
+                    '/_app': 'next/dist/pages/_app',
+                    '/_error': 'next/dist/pages/_error'
+                },
+                pagesDir: this.pagesDir,
+                previewMode: this.previewProps,
+                rootDir: this.dir,
+                target: 'server',
+                pageExtensions: this.config.pageExtensions
+            })).client,
             hasReactRoot: this.hasReactRoot
         });
         const fallbackCompiler = (0, _webpack).webpack(fallbackConfig);
@@ -344,103 +411,97 @@ class HotReloader {
                 const isNodeServerCompilation = config1.name === 'server';
                 const isEdgeServerCompilation = config1.name === 'edge-server';
                 await Promise.all(Object.keys(_onDemandEntryHandler.entries).map(async (pageKey)=>{
-                    const isClientKey = pageKey.startsWith('client');
-                    const isEdgeServerKey = pageKey.startsWith('edge-server');
-                    if (isClientKey !== isClientCompilation) return;
-                    if (isEdgeServerKey !== isEdgeServerCompilation) return;
-                    const page = pageKey.slice(isClientKey ? 'client'.length : isEdgeServerKey ? 'edge-server'.length : 'server'.length);
-                    const isMiddleware = !!page.match(_constants.MIDDLEWARE_ROUTE);
-                    if (isClientCompilation && page.match(_constants.API_ROUTE) && !isMiddleware) {
-                        return;
-                    }
-                    if (!isClientCompilation && isMiddleware) {
-                        return;
-                    }
                     const { bundlePath , absolutePagePath , dispose  } = _onDemandEntryHandler.entries[pageKey];
+                    // @FIXME
+                    const { clientLoader  } = _onDemandEntryHandler.entries[pageKey];
+                    const result = /^(client|server|edge-server)(.*)/g.exec(pageKey);
+                    const [, key, page] = result// this match should always happen
+                    ;
+                    if (key === 'client' && !isClientCompilation) return;
+                    if (key === 'server' && !isNodeServerCompilation) return;
+                    if (key === 'edge-server' && !isEdgeServerCompilation) return;
+                    // Check if the page was removed or disposed and remove it
                     const pageExists = !dispose && await (0, _fileExists).fileExists(absolutePagePath);
                     if (!pageExists) {
-                        // page was removed or disposed
                         delete _onDemandEntryHandler.entries[pageKey];
                         return;
                     }
-                    const isApiRoute = page.match(_constants.API_ROUTE);
-                    const isCustomError = (0, _utils).isCustomErrorPage(page);
-                    const isReserved = (0, _utils).isReservedPage(page);
-                    const isServerComponent = this.hasServerComponents && (0, _utils).isFlightPage(this.config, absolutePagePath);
-                    const pageRuntimeConfig = await (0, _entries).getPageRuntime(absolutePagePath, this.runtime);
-                    const isEdgeSSRPage = pageRuntimeConfig === 'edge' && !isApiRoute;
-                    if (isNodeServerCompilation && isEdgeSSRPage && !isCustomError) {
-                        return;
-                    }
-                    if (isEdgeServerCompilation && !isEdgeSSRPage) {
-                        return;
-                    }
-                    _onDemandEntryHandler.entries[pageKey].status = _onDemandEntryHandler.BUILDING;
-                    const pageLoaderOpts = {
+                    const isServerComponent = _utils2.serverComponentRegex.test(absolutePagePath);
+                    const isInsideAppDir = this.appDir && absolutePagePath.startsWith(this.appDir);
+                    const staticInfo = await (0, _getPageStaticInfo).getPageStaticInfo({
+                        pageFilePath: absolutePagePath,
+                        nextConfig: this.config
+                    });
+                    (0, _entries).runDependingOnPageType({
                         page,
-                        absolutePagePath
-                    };
-                    if (isClientCompilation) {
-                        if (isMiddleware) {
-                            // Middleware
+                        pageRuntime: staticInfo.runtime,
+                        onEdgeServer: ()=>{
+                            if (!isEdgeServerCompilation) return;
+                            _onDemandEntryHandler.entries[pageKey].status = _onDemandEntryHandler.BUILDING;
                             entrypoints[bundlePath] = (0, _entries).finalizeEntrypoint({
+                                compilerType: 'edge-server',
                                 name: bundlePath,
-                                value: `next-middleware-loader?${(0, _querystring).stringify(pageLoaderOpts)}!`,
-                                isServer: false,
-                                isMiddleware: true
-                            });
-                        } else {
-                            // A page route
-                            entrypoints[bundlePath] = (0, _entries).finalizeEntrypoint({
-                                name: bundlePath,
-                                value: `next-client-pages-loader?${(0, _querystring).stringify(pageLoaderOpts)}!`,
-                                isServer: false
-                            });
-                            // Tell the middleware plugin of the client compilation
-                            // that this route is a page.
-                            if (isEdgeSSRPage) {
-                                if (isServerComponent) {
-                                    _middlewarePlugin.ssrEntries.set(bundlePath, {
-                                        requireFlightManifest: true
-                                    });
-                                } else if (!isCustomError && !isReserved) {
-                                    _middlewarePlugin.ssrEntries.set(bundlePath, {
-                                        requireFlightManifest: false
-                                    });
-                                }
-                            }
-                        }
-                    } else if (isEdgeServerCompilation) {
-                        if (!isReserved) {
-                            entrypoints[bundlePath] = (0, _entries).finalizeEntrypoint({
-                                name: '[name].js',
-                                value: `next-middleware-ssr-loader?${(0, _querystring).stringify({
-                                    dev: true,
-                                    page,
-                                    stringifiedConfig: JSON.stringify(this.config),
-                                    absoluteAppPath: this.pagesMapping['/_app'],
-                                    absoluteDocumentPath: this.pagesMapping['/_document'],
-                                    absoluteErrorPath: this.pagesMapping['/_error'],
-                                    absolute404Path: this.pagesMapping['/404'] || '',
+                                value: (0, _entries).getEdgeServerEntry({
                                     absolutePagePath,
-                                    isServerComponent,
-                                    buildId: this.buildId
-                                })}!`,
-                                isServer: false,
-                                isEdgeServer: true
+                                    buildId: this.buildId,
+                                    bundlePath,
+                                    config: this.config,
+                                    isDev: true,
+                                    page,
+                                    pages: this.pagesMapping,
+                                    isServerComponent
+                                }),
+                                appDir: this.config.experimental.appDir
+                            });
+                        },
+                        onClient: ()=>{
+                            if (!isClientCompilation) return;
+                            if (isServerComponent || isInsideAppDir) {
+                                _onDemandEntryHandler.entries[pageKey].status = _onDemandEntryHandler.BUILDING;
+                                entrypoints[bundlePath] = (0, _entries).finalizeEntrypoint({
+                                    name: bundlePath,
+                                    compilerType: 'client',
+                                    value: `next-client-pages-loader?${(0, _querystring).stringify({
+                                        isServerComponent,
+                                        page: (0, _denormalizePagePath).denormalizePagePath(bundlePath.replace(/^pages/, '')),
+                                        absolutePagePath: clientLoader
+                                    })}!` + clientLoader,
+                                    appDir: this.config.experimental.appDir
+                                });
+                            } else {
+                                _onDemandEntryHandler.entries[pageKey].status = _onDemandEntryHandler.BUILDING;
+                                entrypoints[bundlePath] = (0, _entries).finalizeEntrypoint({
+                                    name: bundlePath,
+                                    compilerType: 'client',
+                                    value: (0, _entries).getClientEntry({
+                                        absolutePagePath,
+                                        page
+                                    }),
+                                    appDir: this.config.experimental.appDir
+                                });
+                            }
+                        },
+                        onServer: ()=>{
+                            if (!isNodeServerCompilation) return;
+                            _onDemandEntryHandler.entries[pageKey].status = _onDemandEntryHandler.BUILDING;
+                            let request = (0, _path).relative(config1.context, absolutePagePath);
+                            if (!(0, _path).isAbsolute(request) && !request.startsWith('../')) {
+                                request = `./${request}`;
+                            }
+                            entrypoints[bundlePath] = (0, _entries).finalizeEntrypoint({
+                                compilerType: 'server',
+                                name: bundlePath,
+                                isServerComponent,
+                                value: this.appDir && bundlePath.startsWith('app/') ? (0, _entries).getAppEntry({
+                                    name: bundlePath,
+                                    pagePath: (0, _path).join(_constants.APP_DIR_ALIAS, (0, _path).relative(this.appDir, absolutePagePath)),
+                                    appDir: this.appDir,
+                                    pageExtensions: this.config.pageExtensions
+                                }) : request,
+                                appDir: this.config.experimental.appDir
                             });
                         }
-                    } else if (isNodeServerCompilation) {
-                        let request = (0, _path).relative(config1.context, absolutePagePath);
-                        if (!(0, _path).isAbsolute(request) && !request.startsWith('../')) {
-                            request = `./${request}`;
-                        }
-                        entrypoints[bundlePath] = (0, _entries).finalizeEntrypoint({
-                            name: bundlePath,
-                            value: request,
-                            isServer: true
-                        });
-                    }
+                    });
                 }));
                 return entrypoints;
             };
@@ -449,17 +510,19 @@ class HotReloader {
         // @ts-ignore webpack 5
         configs.parallelism = 1;
         const multiCompiler = (0, _webpack).webpack(configs);
-        (0, _output).watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1], multiCompiler.compilers[2] || null);
+        (0, _output).watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1], multiCompiler.compilers[2]);
         // Watch for changes to client/server page files so we can tell when just
         // the server file changes and trigger a reload for GS(S)P pages
         const changedClientPages = new Set();
         const changedServerPages = new Set();
+        const changedEdgeServerPages = new Set();
         const prevClientPageHashes = new Map();
         const prevServerPageHashes = new Map();
+        const prevEdgeServerPageHashes = new Map();
         const trackPageChanges = (pageHashMap, changedItems)=>(stats)=>{
                 try {
                     stats.entrypoints.forEach((entry, key)=>{
-                        if (key.startsWith('pages/')) {
+                        if (key.startsWith('pages/') || (0, _utils).isMiddlewareFilename(key)) {
                             // TODO this doesn't handle on demand loaded chunks
                             entry.chunks.forEach((chunk)=>{
                                 if (chunk.id === key) {
@@ -496,10 +559,15 @@ class HotReloader {
         ;
         multiCompiler.compilers[0].hooks.emit.tap('NextjsHotReloaderForClient', trackPageChanges(prevClientPageHashes, changedClientPages));
         multiCompiler.compilers[1].hooks.emit.tap('NextjsHotReloaderForServer', trackPageChanges(prevServerPageHashes, changedServerPages));
+        multiCompiler.compilers[2].hooks.emit.tap('NextjsHotReloaderForServer', trackPageChanges(prevEdgeServerPageHashes, changedEdgeServerPages));
         // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
         multiCompiler.compilers[1].hooks.failed.tap('NextjsHotReloaderForServer', (err)=>{
             this.serverError = err;
             this.serverStats = null;
+        });
+        multiCompiler.compilers[2].hooks.done.tap('NextjsHotReloaderForServer', (stats)=>{
+            this.serverError = null;
+            this.edgeServerStats = stats;
         });
         multiCompiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats)=>{
             this.serverError = null;
@@ -528,10 +596,11 @@ class HotReloader {
         });
         multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', ()=>{
             const serverOnlyChanges = (0, _utils).difference(changedServerPages, changedClientPages);
-            const middlewareChanges = Array.from(changedClientPages).filter((name)=>name.match(_constants.MIDDLEWARE_ROUTE)
+            const middlewareChanges = Array.from(changedEdgeServerPages).filter((name)=>(0, _utils).isMiddlewareFilename(name)
             );
             changedClientPages.clear();
             changedServerPages.clear();
+            changedEdgeServerPages.clear();
             if (middlewareChanges.length > 0) {
                 this.send({
                     event: 'middlewareChanges'
@@ -540,7 +609,7 @@ class HotReloader {
             if (serverOnlyChanges.length > 0) {
                 this.send({
                     event: 'serverOnlyChanges',
-                    pages: serverOnlyChanges.map((pg)=>(0, _normalizePagePath).denormalizePagePath(pg.slice('pages'.length))
+                    pages: serverOnlyChanges.map((pg)=>(0, _denormalizePagePath).denormalizePagePath(pg.slice('pages'.length))
                     )
                 });
             }
@@ -590,8 +659,12 @@ class HotReloader {
                 }
             });
         });
-        this.onDemandEntries = (0, _onDemandEntryHandler).default(this.watcher, multiCompiler, {
+        this.onDemandEntries = (0, _onDemandEntryHandler).onDemandEntryHandler({
+            multiCompiler,
+            watcher: this.watcher,
             pagesDir: this.pagesDir,
+            appDir: this.appDir,
+            rootDir: this.dir,
             nextConfig: this.config,
             ...this.config.onDemandEntries
         });
@@ -601,6 +674,8 @@ class HotReloader {
                 stats: ()=>this.clientStats
                 ,
                 serverStats: ()=>this.serverStats
+                ,
+                edgeServerStats: ()=>this.edgeServerStats
             }), 
         ];
     }
@@ -617,32 +692,27 @@ class HotReloader {
         }
     }
     async getCompilationErrors(page) {
-        var ref, ref2;
-        const normalizedPage = (0, _normalizePagePath).normalizePathSep(page);
+        var ref4, ref2, ref3;
+        const getErrors = ({ compilation  })=>{
+            var ref;
+            const failedPages = erroredPages(compilation);
+            const normalizedPage = (0, _normalizePathSep).normalizePathSep(page);
+            // If there is an error related to the requesting page we display it instead of the first error
+            return ((ref = failedPages[normalizedPage]) === null || ref === void 0 ? void 0 : ref.length) > 0 ? failedPages[normalizedPage] : compilation.errors;
+        };
         if (this.clientError || this.serverError) {
             return [
                 this.clientError || this.serverError
             ];
-        } else if ((ref = this.clientStats) === null || ref === void 0 ? void 0 : ref.hasErrors()) {
-            const { compilation  } = this.clientStats;
-            const failedPages = erroredPages(compilation);
-            // If there is an error related to the requesting page we display it instead of the first error
-            if (failedPages[normalizedPage] && failedPages[normalizedPage].length > 0) {
-                return failedPages[normalizedPage];
-            }
-            // If none were found we still have to show the other errors
-            return this.clientStats.compilation.errors;
+        } else if ((ref4 = this.clientStats) === null || ref4 === void 0 ? void 0 : ref4.hasErrors()) {
+            return getErrors(this.clientStats);
         } else if ((ref2 = this.serverStats) === null || ref2 === void 0 ? void 0 : ref2.hasErrors()) {
-            const { compilation  } = this.serverStats;
-            const failedPages = erroredPages(compilation);
-            // If there is an error related to the requesting page we display it instead of the first error
-            if (failedPages[normalizedPage] && failedPages[normalizedPage].length > 0) {
-                return failedPages[normalizedPage];
-            }
-            // If none were found we still have to show the other errors
-            return this.serverStats.compilation.errors;
+            return getErrors(this.serverStats);
+        } else if ((ref3 = this.edgeServerStats) === null || ref3 === void 0 ? void 0 : ref3.hasErrors()) {
+            return getErrors(this.edgeServerStats);
+        } else {
+            return [];
         }
-        return [];
     }
     send(action, ...args) {
         this.webpackHotMiddleware.publish(action && typeof action === 'object' ? action : {

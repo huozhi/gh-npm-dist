@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.ESLINT_PROMPT_VALUES = exports.ESLINT_DEFAULT_DIRS = exports.SSG_FALLBACK_EXPORT_ERROR = exports.NON_STANDARD_NODE_ENV = exports.GSSP_COMPONENT_MEMBER_ERROR = exports.UNSTABLE_REVALIDATE_RENAME_ERROR = exports.GSSP_NO_RETURNED_VALUE = exports.GSP_NO_RETURNED_VALUE = exports.SERVER_PROPS_EXPORT_ERROR = exports.STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR = exports.SERVER_PROPS_SSG_CONFLICT = exports.SERVER_PROPS_GET_INIT_PROPS_CONFLICT = exports.SSG_GET_INITIAL_PROPS_CONFLICT = exports.PUBLIC_DIR_MIDDLEWARE_CONFLICT = exports.DOT_NEXT_ALIAS = exports.PAGES_DIR_ALIAS = exports.MIDDLEWARE_ROUTE = exports.API_ROUTE = exports.NEXT_PROJECT_ROOT_DIST_SERVER = exports.NEXT_PROJECT_ROOT_DIST_CLIENT = exports.NEXT_PROJECT_ROOT_NODE_MODULES = exports.NEXT_PROJECT_ROOT_DIST = exports.NEXT_PROJECT_ROOT = void 0;
-var _path = require("path");
+exports.ESLINT_PROMPT_VALUES = exports.ESLINT_DEFAULT_DIRS = exports.SSG_FALLBACK_EXPORT_ERROR = exports.NON_STANDARD_NODE_ENV = exports.GSSP_COMPONENT_MEMBER_ERROR = exports.UNSTABLE_REVALIDATE_RENAME_ERROR = exports.GSSP_NO_RETURNED_VALUE = exports.GSP_NO_RETURNED_VALUE = exports.SERVER_PROPS_EXPORT_ERROR = exports.STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR = exports.SERVER_PROPS_SSG_CONFLICT = exports.SERVER_PROPS_GET_INIT_PROPS_CONFLICT = exports.SSG_GET_INITIAL_PROPS_CONFLICT = exports.PUBLIC_DIR_MIDDLEWARE_CONFLICT = exports.APP_DIR_ALIAS = exports.ROOT_DIR_ALIAS = exports.DOT_NEXT_ALIAS = exports.PAGES_DIR_ALIAS = exports.MIDDLEWARE_LOCATION_REGEXP = exports.MIDDLEWARE_FILENAME = exports.API_ROUTE = exports.NEXT_PROJECT_ROOT_DIST_SERVER = exports.NEXT_PROJECT_ROOT_DIST_CLIENT = exports.NEXT_PROJECT_ROOT_NODE_MODULES = exports.NEXT_PROJECT_ROOT_DIST = exports.NEXT_PROJECT_ROOT = void 0;
+var _path = require("../shared/lib/isomorphic/path");
 const NEXT_PROJECT_ROOT = (0, _path).join(__dirname, '..', '..');
 exports.NEXT_PROJECT_ROOT = NEXT_PROJECT_ROOT;
 const NEXT_PROJECT_ROOT_DIST = (0, _path).join(NEXT_PROJECT_ROOT, 'dist');
@@ -16,12 +16,18 @@ const NEXT_PROJECT_ROOT_DIST_SERVER = (0, _path).join(NEXT_PROJECT_ROOT_DIST, 's
 exports.NEXT_PROJECT_ROOT_DIST_SERVER = NEXT_PROJECT_ROOT_DIST_SERVER;
 const API_ROUTE = /^\/api(?:\/|$)/;
 exports.API_ROUTE = API_ROUTE;
-const MIDDLEWARE_ROUTE = /_middleware$/;
-exports.MIDDLEWARE_ROUTE = MIDDLEWARE_ROUTE;
+const MIDDLEWARE_FILENAME = 'middleware';
+exports.MIDDLEWARE_FILENAME = MIDDLEWARE_FILENAME;
+const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`;
+exports.MIDDLEWARE_LOCATION_REGEXP = MIDDLEWARE_LOCATION_REGEXP;
 const PAGES_DIR_ALIAS = 'private-next-pages';
 exports.PAGES_DIR_ALIAS = PAGES_DIR_ALIAS;
 const DOT_NEXT_ALIAS = 'private-dot-next';
 exports.DOT_NEXT_ALIAS = DOT_NEXT_ALIAS;
+const ROOT_DIR_ALIAS = 'private-next-root-dir';
+exports.ROOT_DIR_ALIAS = ROOT_DIR_ALIAS;
+const APP_DIR_ALIAS = 'private-next-app-dir';
+exports.APP_DIR_ALIAS = APP_DIR_ALIAS;
 const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://nextjs.org/docs/messages/public-next-folder-conflict`;
 exports.PUBLIC_DIR_MIDDLEWARE_CONFLICT = PUBLIC_DIR_MIDDLEWARE_CONFLICT;
 const SSG_GET_INITIAL_PROPS_CONFLICT = `You can not use getInitialProps with getStaticProps. To use SSG, please remove your getInitialProps`;

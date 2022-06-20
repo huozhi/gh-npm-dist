@@ -7,7 +7,8 @@ exports.eventLintCheckCompleted = eventLintCheckCompleted;
 exports.eventBuildCompleted = eventBuildCompleted;
 exports.eventBuildOptimize = eventBuildOptimize;
 exports.eventBuildFeatureUsage = eventBuildFeatureUsage;
-exports.EVENT_BUILD_FEATURE_USAGE = void 0;
+exports.eventPackageUsedInGetServerSideProps = eventPackageUsedInGetServerSideProps;
+exports.EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS = exports.EVENT_BUILD_FEATURE_USAGE = void 0;
 const REGEXP_DIRECTORY_DUNDER = /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i;
 const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/i;
 const REGEXP_FILE_TEST = /\.(?:spec|test)\.[^.]+$/i;
@@ -61,6 +62,17 @@ function eventBuildFeatureUsage(telemetryPlugin) {
             payload: {
                 featureName,
                 invocationCount
+            }
+        })
+    );
+}
+const EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS = 'NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS';
+exports.EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS = EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS;
+function eventPackageUsedInGetServerSideProps(telemetryPlugin) {
+    return telemetryPlugin.packagesUsedInServerSideProps().map((packageName)=>({
+            eventName: EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS,
+            payload: {
+                package: packageName
             }
         })
     );
