@@ -1225,7 +1225,7 @@ class Server {
             }
             return response;
         }
-        if (this.router.catchAllMiddleware[1] && !!ctx.req.headers['x-nextjs-data'] && (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)) {
+        if (this.router.catchAllMiddleware[0] && !!ctx.req.headers['x-nextjs-data'] && (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)) {
             res.setHeader('x-nextjs-matched-path', `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`);
             res.statusCode = 200;
             res.setHeader('content-type', 'application/json');
@@ -1235,46 +1235,6 @@ class Server {
         }
         res.statusCode = 404;
         return this.renderErrorToResponse(ctx, null);
-    }
-    async renderPage(ctx, params, page, bubbleNoFallback) {
-        // map the route to the actual bundle name
-        const getOriginalAppPath = (appPath)=>{
-            if (this.nextConfig.experimental.appDir) {
-                var ref;
-                const originalAppPath = (ref = this.appPathRoutes) === null || ref === void 0 ? void 0 : ref[appPath];
-                if (!originalAppPath) {
-                    return null;
-                }
-                return originalAppPath;
-            }
-            return null;
-        };
-        const { query  } = ctx;
-        const appPath1 = getOriginalAppPath(page);
-        if (typeof appPath1 === 'string') {
-            page = appPath1;
-        }
-        const result = await this.findPageComponents(page, query, params);
-        if (result) {
-            try {
-                return await this.renderToResponseWithComponents({
-                    ...ctx,
-                    pathname: page,
-                    renderOpts: {
-                        ...ctx.renderOpts,
-                        ...params && {
-                            params
-                        }
-                    }
-                }, result);
-            } catch (err) {
-                const isNoFallbackError = err instanceof NoFallbackError;
-                if (!isNoFallbackError || isNoFallbackError && bubbleNoFallback) {
-                    throw err;
-                }
-            }
-        }
-        return null;
     }
     async renderToHTML(req, res, pathname, query = {}) {
         return this.getStaticHTML((ctx)=>this.renderToResponse(ctx)

@@ -795,7 +795,9 @@ class NextNodeServer extends _baseServer.default {
         let result = null;
         const method = (params.request.method || 'GET').toUpperCase();
         let originalBody = method !== 'GET' && method !== 'HEAD' ? (0, _bodyStreams).clonableBodyForRequest(params.request.body) : undefined;
-        for (const middleware of this.getMiddleware()){
+        const middlewareList = this.getMiddleware().filter((m)=>!m.ssr
+        );
+        for (const middleware of middlewareList){
             if (middleware.match(normalizedPathname)) {
                 if (!await this.hasMiddleware(middleware.page, middleware.ssr)) {
                     console.warn(`The Edge Function for ${middleware.page} was not found`);
@@ -1038,8 +1040,8 @@ class NextNodeServer extends _baseServer.default {
         };
         const routes = [];
         if (!this.renderOpts.dev || devReady) {
-            if (this.getEdgeFunctions().length) routes[0] = edgeCatchAllRoute;
-            if (this.getMiddleware().length) routes[1] = middlewareCatchAllRoute;
+            if (this.getMiddleware().length) routes[0] = middlewareCatchAllRoute;
+            if (this.getEdgeFunctions().length) routes[1] = edgeCatchAllRoute;
         }
         return routes;
     }
@@ -1056,6 +1058,7 @@ class NextNodeServer extends _baseServer.default {
     async runEdgeFunction(params) {
         let middlewareInfo;
         try {
+            await this.ensureMiddleware(params.page, true);
             middlewareInfo = this.getEdgeFunctionInfo({
                 page: params.page,
                 middleware: false

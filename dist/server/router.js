@@ -102,7 +102,7 @@ class Router {
         - redirects
         - Check filesystem (including pages), if nothing found continue
         - User rewrites (checking filesystem and pages each match)
-      */ const [edgeSSRCatchAllRoute, middlewareCatchAllRoute] = this.catchAllMiddleware;
+      */ const [middlewareCatchAllRoute, edgeSSRCatchAllRoute] = this.catchAllMiddleware;
             const allRoutes = [
                 ...middlewareCatchAllRoute ? this.fsRoutes.filter((r)=>r.name === '_next/data catchall'
                 ) : [],
