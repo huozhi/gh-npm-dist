@@ -353,6 +353,32 @@ function tryToParseAsJSON(text) {
 function createKey() {
     return Math.random().toString(36).slice(2, 10);
 }
+function handleHardNavigation({ url  }) {
+    // ensure we don't trigger a hard navigation to the same
+    // URL as this can end up with an infinite refresh
+    const parsedUrl = new URL(url, location.href);
+    if (parsedUrl.hostname === location.hostname && parsedUrl.pathname === location.pathname && parsedUrl.protocol === location.protocol) {
+        throw new Error(`Invariant: attempted to hard navigate to the same URL ${url} ${location.href}`);
+    }
+    window.location.href = url;
+}
+const getCancelledHandler = ({ route , router  })=>{
+    let cancelled = false;
+    const cancel = router.clc = ()=>{
+        cancelled = true;
+    };
+    const handleCancelled = ()=>{
+        if (cancelled) {
+            const error = new Error(`Abort fetching component for route: "${route}"`);
+            error.cancelled = true;
+            throw error;
+        }
+        if (cancel === router.clc) {
+            router.clc = null;
+        }
+    };
+    return handleCancelled;
+};
 class Router {
     constructor(pathname1, query1, as1, { initialProps , pageLoader , App , wrapApp , Component , err , subscription , isFallback , locale , locales , defaultLocale , domainLocales , isPreview , isRsc  }){
         // Server Data Cache
@@ -557,17 +583,31 @@ class Router {
     }
     async change(method, url, as, options, forcedScroll) {
         if (!isLocalURL(url)) {
-            window.location.href = url;
+            handleHardNavigation({
+                url
+            });
             return false;
         }
-        const shouldResolveHref = options._h || options._shouldResolveHref || (0, _parsePath).parsePath(url).pathname === (0, _parsePath).parsePath(as).pathname;
+        // WARNING: `_h` is an internal option for handing Next.js client-side
+        // hydration. Your app should _never_ use this property. It may change at
+        // any time without notice.
+        const isQueryUpdating = options._h;
+        const shouldResolveHref = isQueryUpdating || options._shouldResolveHref || (0, _parsePath).parsePath(url).pathname === (0, _parsePath).parsePath(as).pathname;
         const nextState = {
             ...this.state
         };
         // for static pages with query params in the URL we delay
         // marking the router ready until after the query is updated
-        if (options._h) {
-            this.isReady = true;
+        // or a navigation has occurred
+        this.isReady = true;
+        const isSsr = this.isSsr;
+        if (!isQueryUpdating) {
+            this.isSsr = false;
+        }
+        // if a route transition is already in progress before
+        // the query updating is triggered ignore query updating
+        if (isQueryUpdating && this.clc) {
+            return false;
         }
         const prevLocale = nextState.locale;
         if (process.env.__NEXT_I18N_SUPPORT) {
@@ -591,7 +631,9 @@ class Router {
                 // if the locale isn't configured hard navigate to show 404 page
                 if (!((ref = this.locales) === null || ref === void 0 ? void 0 : ref.includes(nextState.locale))) {
                     parsedAs.pathname = (0, _addLocale).addLocale(parsedAs.pathname, nextState.locale);
-                    window.location.href = (0, _formatUrl).formatWithValidation(parsedAs);
+                    handleHardNavigation({
+                        url: (0, _formatUrl).formatWithValidation(parsedAs)
+                    });
                     // this was previously a return but was removed in favor
                     // of better dead code elimination with regenerator runtime
                     didNavigate = true;
@@ -605,7 +647,9 @@ class Router {
                 // correct domain
                 if (!didNavigate && detectedDomain && this.isLocaleDomain && self.location.hostname !== detectedDomain.domain) {
                     const asNoBasePath = (0, _removeBasePath).removeBasePath(as);
-                    window.location.href = `http${detectedDomain.http ? '' : 's'}://${detectedDomain.domain}${(0, _addBasePath).addBasePath(`${nextState.locale === detectedDomain.defaultLocale ? '' : `/${nextState.locale}`}${asNoBasePath === '/' ? '' : asNoBasePath}` || '/')}`;
+                    handleHardNavigation({
+                        url: `http${detectedDomain.http ? '' : 's'}://${detectedDomain.domain}${(0, _addBasePath).addBasePath(`${nextState.locale === detectedDomain.defaultLocale ? '' : `/${nextState.locale}`}${asNoBasePath === '/' ? '' : asNoBasePath}` || '/')}`
+                    });
                     // this was previously a return but was removed in favor
                     // of better dead code elimination with regenerator runtime
                     didNavigate = true;
@@ -615,9 +659,6 @@ class Router {
                 return new Promise(()=>{});
             }
         }
-        if (!options._h) {
-            this.isSsr = false;
-        }
         // marking route changes as a navigation start entry
         if (_utils.ST) {
             performance.mark('routeChange');
@@ -626,8 +667,12 @@ class Router {
         const routeProps = {
             shallow
         };
-        if (this._inFlightRoute) {
-            this.abortComponentLoad(this._inFlightRoute, routeProps);
+        if (this._inFlightRoute && this.clc) {
+            if (!isSsr) {
+                Router.events.emit('routeChangeError', buildCancellationError(), this._inFlightRoute, routeProps);
+            }
+            this.clc();
+            this.clc = null;
         }
         as = (0, _addBasePath).addBasePath((0, _addLocale).addLocale((0, _hasBasePath).hasBasePath(as) ? (0, _removeBasePath).removeBasePath(as) : as, options.locale, this.defaultLocale));
         const cleanedAs = (0, _removeLocale).removeLocale((0, _hasBasePath).hasBasePath(as) ? (0, _removeBasePath).removeBasePath(as) : as, nextState.locale);
@@ -635,10 +680,7 @@ class Router {
         let localeChange = prevLocale !== nextState.locale;
         // If the url change is only related to a hash change
         // We should not proceed. We should only change the state.
-        // WARNING: `_h` is an internal option for handing Next.js client-side
-        // hydration. Your app should _never_ use this property. It may change at
-        // any time without notice.
-        if (!options._h && this.onlyAHashChange(cleanedAs) && !localeChange) {
+        if (!isQueryUpdating && this.onlyAHashChange(cleanedAs) && !localeChange) {
             nextState.asPath = cleanedAs;
             Router.events.emit('hashChangeStart', as, routeProps);
             // TODO: do we need the resolved href when only a hash change?
@@ -675,7 +717,9 @@ class Router {
         } catch (err) {
             // If we fail to resolve the page list or client-build manifest, we must
             // do a server-side transition:
-            window.location.href = as;
+            handleHardNavigation({
+                url: as
+            });
             return false;
         }
         // If asked to change the current URL we should reload the current page
@@ -706,7 +750,9 @@ class Router {
                 const rewritesResult = (0, _resolveRewrites).default((0, _addBasePath).addBasePath((0, _addLocale).addLocale(cleanedAs, nextState.locale), true), pages, rewrites, query, (p)=>resolveDynamicRoute(p, pages)
                 , this.locales);
                 if (rewritesResult.externalDest) {
-                    location.href = as;
+                    handleHardNavigation({
+                        url: as
+                    });
                     return true;
                 }
                 resolvedAs = rewritesResult.asPath;
@@ -730,7 +776,9 @@ class Router {
             if (process.env.NODE_ENV !== 'production') {
                 throw new Error(`Invalid href: "${url}" and as: "${as}", received relative href and external as` + `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`);
             }
-            window.location.href = as;
+            handleHardNavigation({
+                url: as
+            });
             return false;
         }
         resolvedAs = (0, _removeLocale).removeLocale((0, _removeBasePath).removeBasePath(resolvedAs), nextState.locale);
@@ -761,7 +809,9 @@ class Router {
                 Object.assign(query, routeMatch);
             }
         }
-        Router.events.emit('routeChangeStart', as, routeProps);
+        if (!isQueryUpdating) {
+            Router.events.emit('routeChangeStart', as, routeProps);
+        }
         try {
             var ref2, ref3;
             let routeInfo = await this.getRouteInfo({
@@ -802,7 +852,9 @@ class Router {
                 if (routeInfo.type === 'redirect-internal') {
                     return this.change(method, routeInfo.newUrl, routeInfo.newAs, options);
                 } else {
-                    window.location.href = routeInfo.destination;
+                    handleHardNavigation({
+                        url: routeInfo.destination
+                    });
                     return new Promise(()=>{});
                 }
             }
@@ -829,7 +881,9 @@ class Router {
                         const { url: newUrl , as: newAs  } = prepareUrlAs(this, destination, destination);
                         return this.change(method, newUrl, newAs, options);
                     }
-                    window.location.href = destination;
+                    handleHardNavigation({
+                        url: destination
+                    });
                     return new Promise(()=>{});
                 }
                 nextState.isPreview = !!props.__N_PREVIEW;
@@ -861,7 +915,7 @@ class Router {
             }
             Router.events.emit('beforeHistoryChange', as, routeProps);
             this.changeState(method, url, as, options);
-            if (options._h && pathname === '/_error' && ((ref2 = self.__NEXT_DATA__.props) === null || ref2 === void 0 ? void 0 : (ref3 = ref2.pageProps) === null || ref3 === void 0 ? void 0 : ref3.statusCode) === 500 && (props === null || props === void 0 ? void 0 : props.pageProps)) {
+            if (isQueryUpdating && pathname === '/_error' && ((ref2 = self.__NEXT_DATA__.props) === null || ref2 === void 0 ? void 0 : (ref3 = ref2.pageProps) === null || ref3 === void 0 ? void 0 : ref3.statusCode) === 500 && (props === null || props === void 0 ? void 0 : props.pageProps)) {
                 // ensure statusCode is still correct for static 500 page
                 // when updating query information
                 props.pageProps.statusCode = 500;
@@ -887,7 +941,9 @@ class Router {
                 else throw e;
             });
             if (error) {
-                Router.events.emit('routeChangeError', error, cleanedAs, routeProps);
+                if (!isQueryUpdating) {
+                    Router.events.emit('routeChangeError', error, cleanedAs, routeProps);
+                }
                 throw error;
             }
             if (process.env.__NEXT_I18N_SUPPORT) {
@@ -895,7 +951,9 @@ class Router {
                     document.documentElement.lang = nextState.locale;
                 }
             }
-            Router.events.emit('routeChangeComplete', as, routeProps);
+            if (!isQueryUpdating) {
+                Router.events.emit('routeChangeComplete', as, routeProps);
+            }
             // A hash mark # is the optional last part of a URL
             const hashRegex = /#.+$/;
             if (shouldScroll && hashRegex.test(as)) {
@@ -935,6 +993,7 @@ class Router {
         }
     }
     async handleRouteInfoError(err, pathname, query, as, routeProps, loadErrorFail) {
+        console.error(err);
         if (err.cancelled) {
             // bubble up cancellation errors
             throw err;
@@ -946,7 +1005,9 @@ class Router {
             //  2. Page does exist in a different zone
             //  3. Internal error while loading the page
             // So, doing a hard reload is the proper way to deal with this.
-            window.location.href = as;
+            handleHardNavigation({
+                url: as
+            });
             // Changing the URL doesn't block executing the current code path.
             // So let's throw a cancellation error stop the routing logic.
             throw buildCancellationError();
@@ -991,6 +1052,10 @@ class Router {
      */ let route = requestedRoute;
         try {
             var ref, ref4, ref5;
+            const handleCancelled = getCancelledHandler({
+                route,
+                router: this
+            });
             let existingInfo = this.components[route];
             if (!hasMiddleware && routeProps.shallow && existingInfo && this.route === route) {
                 return existingInfo;
@@ -1020,6 +1085,7 @@ class Router {
                 locale: locale,
                 router: this
             });
+            handleCancelled();
             if ((data === null || data === void 0 ? void 0 : (ref = data.effect) === null || ref === void 0 ? void 0 : ref.type) === 'redirect-internal' || (data === null || data === void 0 ? void 0 : (ref4 = data.effect) === null || ref4 === void 0 ? void 0 : ref4.type) === 'redirect-external') {
                 return data.effect;
             }
@@ -1316,20 +1382,10 @@ class Router {
         ]);
     }
     async fetchComponent(route) {
-        let cancelled = false;
-        const cancel = this.clc = ()=>{
-            cancelled = true;
-        };
-        const handleCancelled = ()=>{
-            if (cancelled) {
-                const error = new Error(`Abort fetching component for route: "${route}"`);
-                error.cancelled = true;
-                throw error;
-            }
-            if (cancel === this.clc) {
-                this.clc = null;
-            }
-        };
+        const handleCancelled = getCancelledHandler({
+            route,
+            router: this
+        });
         try {
             const componentResult = await this.pageLoader.loadPage(route);
             handleCancelled();
@@ -1381,13 +1437,6 @@ class Router {
             router: this,
             ctx
         });
-    }
-    abortComponentLoad(as, routeProps) {
-        if (this.clc) {
-            Router.events.emit('routeChangeError', buildCancellationError(), as, routeProps);
-            this.clc();
-            this.clc = null;
-        }
     }
     get route() {
         return this.state.route;
@@ -1470,7 +1519,7 @@ function getMiddlewareData(source, response, options) {
                 options.router.pageLoader.getPageList(),
                 (0, _routeLoader).getClientBuildManifest(), 
             ]).then(([pages, { __rewrites: rewrites  }])=>{
-                let as = parsedRewriteTarget.pathname;
+                let as = (0, _addLocale).addLocale(pathnameInfo.pathname, pathnameInfo.locale);
                 if ((0, _isDynamic).isDynamicRoute(as) || !rewriteHeader && pages.includes((0, _normalizeLocalePath).normalizeLocalePath((0, _removeBasePath).removeBasePath(as), options.router.locales).pathname)) {
                     const parsedSource = (0, _getNextPathnameInfo).getNextPathnameInfo((0, _parseRelativeUrl).parseRelativeUrl(source).pathname, {
                         parseData: true

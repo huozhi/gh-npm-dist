@@ -7,11 +7,11 @@ var _fs = require("fs");
 var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _path = _interopRequireDefault(require("path"));
 var _hasNecessaryDependencies = require("./has-necessary-dependencies");
-var _isYarn = require("./is-yarn");
 var _fileExists = require("./file-exists");
 var _fatalError = require("./fatal-error");
 var _recursiveDelete = require("./recursive-delete");
 var Log = _interopRequireWildcard(require("../build/output/log"));
+var _getPkgManager = require("./helpers/get-pkg-manager");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -39,7 +39,8 @@ function _interopRequireWildcard(obj) {
     }
 }
 async function missingDependencyError(dir) {
-    throw new _fatalError.FatalError(_chalk.default.bold.red("It looks like you're trying to use Partytown with next/script but do not have the required package(s) installed.") + '\n\n' + _chalk.default.bold(`Please install Partytown by running:`) + '\n\n' + `\t${_chalk.default.bold.cyan(await (0, _isYarn).isYarn(dir) ? 'yarn add @builder.io/partytown' : 'npm install @builder.io/partytown')}` + '\n\n' + _chalk.default.bold(`If you are not trying to use Partytown, please disable the experimental ${_chalk.default.cyan('"nextScriptWorkers"')} flag in next.config.js.`) + '\n');
+    const packageManager = (0, _getPkgManager).getPkgManager(dir);
+    throw new _fatalError.FatalError(_chalk.default.bold.red("It looks like you're trying to use Partytown with next/script but do not have the required package(s) installed.") + '\n\n' + _chalk.default.bold(`Please install Partytown by running:`) + '\n\n' + `\t${_chalk.default.bold.cyan((packageManager === 'yarn' ? 'yarn add --dev' : packageManager === 'pnpm' ? 'pnpm install --save-dev' : 'npm install --save-dev') + ' @builder.io/partytown')}` + '\n\n' + _chalk.default.bold(`If you are not trying to use Partytown, please disable the experimental ${_chalk.default.cyan('"nextScriptWorkers"')} flag in next.config.js.`) + '\n');
 }
 async function copyPartytownStaticFiles(deps, staticDir) {
     const partytownLibDir = _path.default.join(staticDir, '~partytown');

@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.installDependencies = installDependencies;
 var _chalk = _interopRequireDefault(require("next/dist/compiled/chalk"));
 var _path = _interopRequireDefault(require("path"));
-var _shouldUseYarn = require("./helpers/should-use-yarn");
+var _getPkgManager = require("./helpers/get-pkg-manager");
 var _install = require("./helpers/install");
 var _getOnline = require("./helpers/get-online");
 function _interopRequireDefault(obj) {
@@ -14,24 +14,21 @@ function _interopRequireDefault(obj) {
     };
 }
 async function installDependencies(baseDir, deps, dev = false) {
-    const useYarn = (0, _shouldUseYarn).shouldUseYarn(baseDir);
-    const isOnline = !useYarn || await (0, _getOnline).getOnline();
+    const packageManager = (0, _getPkgManager).getPkgManager(baseDir);
+    const isOnline = await (0, _getOnline).getOnline();
     if (deps.length) {
         console.log();
-        console.log(`Installing ${dev ? 'devDependencies' : 'dependencies'}:`);
+        console.log(`Installing ${dev ? 'devDependencies' : 'dependencies'} (${packageManager}):`);
         for (const dep1 of deps){
             console.log(`- ${_chalk.default.cyan(dep1.pkg)}`);
         }
         console.log();
-        const devInstallFlags = {
-            devDependencies: dev,
-            ...{
-                useYarn,
-                isOnline
-            }
-        };
         await (0, _install).install(_path.default.resolve(baseDir), deps.map((dep)=>dep.pkg
-        ), devInstallFlags);
+        ), {
+            devDependencies: dev,
+            isOnline,
+            packageManager
+        });
         console.log();
     }
 }

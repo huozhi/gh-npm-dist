@@ -795,8 +795,7 @@ class NextNodeServer extends _baseServer.default {
         let result = null;
         const method = (params.request.method || 'GET').toUpperCase();
         let originalBody = method !== 'GET' && method !== 'HEAD' ? (0, _bodyStreams).clonableBodyForRequest(params.request.body) : undefined;
-        const middlewareList = this.getMiddleware().filter((m)=>!m.ssr
-        );
+        const middlewareList = this.getMiddleware();
         for (const middleware of middlewareList){
             if (middleware.match(normalizedPathname)) {
                 if (!await this.hasMiddleware(middleware.page, middleware.ssr)) {
@@ -1071,6 +1070,7 @@ class NextNodeServer extends _baseServer.default {
         if (!url.startsWith('http')) {
             throw new Error('To use middleware you must provide a `hostname` and `port` to the Next.js Server');
         }
+        const nodeReq = params.req;
         const result = await (0, _sandbox).run({
             name: middlewareInfo.name,
             paths: middlewareInfo.paths,
@@ -1090,7 +1090,11 @@ class NextNodeServer extends _baseServer.default {
                     ...params.params && {
                         params: params.params
                     }
-                }
+                },
+                body: [
+                    'GET',
+                    'HEAD'
+                ].includes(params.req.method) || !nodeReq.originalRequest ? undefined : (0, _bodyStreams).requestToBodyStream(nodeReq.originalRequest)
             },
             useCache: !this.nextConfig.experimental.runtime,
             onWarning: (_warning)=>{

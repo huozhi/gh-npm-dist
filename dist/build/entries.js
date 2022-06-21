@@ -199,6 +199,9 @@ async function createEntrypoints(params) {
             if ((0, _utils1).isMiddlewareFile(page)) {
                 var ref, ref1;
                 middlewareRegex = ((ref = staticInfo.middleware) === null || ref === void 0 ? void 0 : (ref1 = ref.pathMatcher) === null || ref1 === void 0 ? void 0 : ref1.source) || '.*';
+                if (target === 'serverless') {
+                    throw new _utils1.MiddlewareInServerlessTargetError();
+                }
             }
             runDependingOnPageType({
                 page,

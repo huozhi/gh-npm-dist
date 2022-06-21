@@ -16,9 +16,9 @@ var _constants = require("../constants");
 var _findPagesDir = require("../find-pages-dir");
 var _installDependencies = require("../install-dependencies");
 var _hasNecessaryDependencies = require("../has-necessary-dependencies");
-var _isYarn = require("../is-yarn");
 var Log = _interopRequireWildcard(require("../../build/output/log"));
 var _isError = _interopRequireWildcard(require("../is-error"));
+var _getPkgManager = require("../helpers/get-pkg-manager");
 function _interopRequireDefault(obj) {
     return obj && obj.__esModule ? obj : {
         default: obj
@@ -93,9 +93,10 @@ async function lint(baseDir, lintDirs, eslintrcFile, pkgJsonPath, lintDuringBuil
         var ref, ref1;
         // Load ESLint after we're sure it exists:
         const deps = await (0, _hasNecessaryDependencies).hasNecessaryDependencies(baseDir, requiredPackages);
+        const packageManager = (0, _getPkgManager).getPkgManager(baseDir);
         if (deps.missing.some((dep)=>dep.pkg === 'eslint'
         )) {
-            Log.error(`ESLint must be installed${lintDuringBuild ? ' in order to run during builds:' : ':'} ${_chalk.default.bold.cyan(await (0, _isYarn).isYarn(baseDir) ? 'yarn add --dev eslint' : 'npm install --save-dev eslint')}`);
+            Log.error(`ESLint must be installed${lintDuringBuild ? ' in order to run during builds:' : ':'} ${_chalk.default.bold.cyan((packageManager === 'yarn' ? 'yarn add --dev' : packageManager === 'pnpm' ? 'pnpm install --save-dev' : 'npm install --save-dev') + ' eslint')}`);
             return null;
         }
         const mod = await Promise.resolve(require(deps.resolved.get('eslint')));

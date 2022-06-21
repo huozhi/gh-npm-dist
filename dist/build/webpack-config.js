@@ -37,7 +37,7 @@ var _browserslist = _interopRequireDefault(require("next/dist/compiled/browsersl
 var _loadJsconfig = _interopRequireDefault(require("./load-jsconfig"));
 var _swc = require("./swc");
 async function getBaseWebpackConfig(dir, { buildId , config , compilerType , dev =false , entrypoints , hasReactRoot , isDevFallback =false , pagesDir , reactProductionProfiling =false , rewrites , runWebpackSpan , target ='server' , appDir , middlewareRegex  }) {
-    var ref44, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, ref10, ref11, ref12, ref13, ref14, ref15, ref16, ref17, ref18, ref19, ref20, ref21, ref22, ref23, ref24, ref25, ref26;
+    var ref44, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, ref10, ref11, ref12, ref13, ref14, ref15, ref16, ref17, ref18, ref19, ref20, ref21, ref22, ref23, ref24;
     const isClient = compilerType === 'client';
     const isEdgeServer = compilerType === 'edge-server';
     const isNodeServer = compilerType === 'server';
@@ -91,9 +91,9 @@ async function getBaseWebpackConfig(dir, { buildId , config , compilerType , dev
     let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms;
     let SWCBinaryTarget = undefined;
     if (useSWCLoader) {
-        var ref27, ref28, ref29;
+        var ref25, ref26, ref27;
         // TODO: we do not collect wasm target yet
-        const binaryTarget = (ref27 = require('./swc')) === null || ref27 === void 0 ? void 0 : (ref28 = ref27.getBinaryMetadata) === null || ref28 === void 0 ? void 0 : (ref29 = ref28.call(ref27)) === null || ref29 === void 0 ? void 0 : ref29.target;
+        const binaryTarget = (ref25 = require('./swc')) === null || ref25 === void 0 ? void 0 : (ref26 = ref25.getBinaryMetadata) === null || ref26 === void 0 ? void 0 : (ref27 = ref26.call(ref25)) === null || ref27 === void 0 ? void 0 : ref27.target;
         SWCBinaryTarget = binaryTarget ? [
             `swc/target/${binaryTarget}`,
             true
@@ -1009,7 +1009,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , compilerType , dev
             }),
             isClient && new _copyFilePlugin.CopyFilePlugin({
                 filePath: require.resolve('./polyfills/polyfill-nomodule'),
-                cacheKey: "12.1.7-canary.41",
+                cacheKey: "12.1.7-canary.42",
                 name: `static/chunks/polyfills${dev ? '' : '-[hash]'}.js`,
                 minimize: false,
                 info: {
@@ -1069,21 +1069,23 @@ async function getBaseWebpackConfig(dir, { buildId , config , compilerType , dev
     };
     // Support tsconfig and jsconfig baseUrl
     if (resolvedBaseUrl) {
-        var ref30, ref31;
-        (ref30 = webpackConfig.resolve) === null || ref30 === void 0 ? void 0 : (ref31 = ref30.modules) === null || ref31 === void 0 ? void 0 : ref31.push(resolvedBaseUrl);
+        var ref28, ref29;
+        (ref28 = webpackConfig.resolve) === null || ref28 === void 0 ? void 0 : (ref29 = ref28.modules) === null || ref29 === void 0 ? void 0 : ref29.push(resolvedBaseUrl);
     }
     if ((jsConfig === null || jsConfig === void 0 ? void 0 : (ref15 = jsConfig.compilerOptions) === null || ref15 === void 0 ? void 0 : ref15.paths) && resolvedBaseUrl) {
-        var ref32, ref33;
-        (ref32 = webpackConfig.resolve) === null || ref32 === void 0 ? void 0 : (ref33 = ref32.plugins) === null || ref33 === void 0 ? void 0 : ref33.unshift(new _jsconfigPathsPlugin.JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl));
+        var ref30, ref31;
+        (ref30 = webpackConfig.resolve) === null || ref30 === void 0 ? void 0 : (ref31 = ref30.plugins) === null || ref31 === void 0 ? void 0 : ref31.unshift(new _jsconfigPathsPlugin.JsConfigPathsPlugin(jsConfig.compilerOptions.paths, resolvedBaseUrl));
     }
     const webpack5Config = webpackConfig;
-    (ref16 = webpack5Config.module) === null || ref16 === void 0 ? void 0 : (ref17 = ref16.rules) === null || ref17 === void 0 ? void 0 : ref17.unshift({
-        test: /\.wasm$/,
-        issuerLayer: 'middleware',
-        loader: 'next-middleware-wasm-loader',
-        type: 'javascript/auto',
-        resourceQuery: /module/i
-    });
+    if (isEdgeServer) {
+        var ref32, ref33;
+        (ref32 = webpack5Config.module) === null || ref32 === void 0 ? void 0 : (ref33 = ref32.rules) === null || ref33 === void 0 ? void 0 : ref33.unshift({
+            test: /\.wasm$/,
+            loader: 'next-middleware-wasm-loader',
+            type: 'javascript/auto',
+            resourceQuery: /module/i
+        });
+    }
     webpack5Config.experiments = {
         layers: true,
         cacheUnaffected: true,
@@ -1180,20 +1182,20 @@ async function getBaseWebpackConfig(dir, { buildId , config , compilerType , dev
         runtime: config.experimental.runtime,
         swcMinify: config.swcMinify,
         swcLoader: useSWCLoader,
-        removeConsole: (ref18 = config.compiler) === null || ref18 === void 0 ? void 0 : ref18.removeConsole,
-        reactRemoveProperties: (ref19 = config.compiler) === null || ref19 === void 0 ? void 0 : ref19.reactRemoveProperties,
-        styledComponents: (ref20 = config.compiler) === null || ref20 === void 0 ? void 0 : ref20.styledComponents,
-        relay: (ref21 = config.compiler) === null || ref21 === void 0 ? void 0 : ref21.relay,
-        emotion: (ref22 = config.compiler) === null || ref22 === void 0 ? void 0 : ref22.emotion,
-        modularizeImports: (ref23 = config.experimental) === null || ref23 === void 0 ? void 0 : ref23.modularizeImports,
-        legacyBrowsers: (ref24 = config.experimental) === null || ref24 === void 0 ? void 0 : ref24.legacyBrowsers
+        removeConsole: (ref16 = config.compiler) === null || ref16 === void 0 ? void 0 : ref16.removeConsole,
+        reactRemoveProperties: (ref17 = config.compiler) === null || ref17 === void 0 ? void 0 : ref17.reactRemoveProperties,
+        styledComponents: (ref18 = config.compiler) === null || ref18 === void 0 ? void 0 : ref18.styledComponents,
+        relay: (ref19 = config.compiler) === null || ref19 === void 0 ? void 0 : ref19.relay,
+        emotion: (ref20 = config.compiler) === null || ref20 === void 0 ? void 0 : ref20.emotion,
+        modularizeImports: (ref21 = config.experimental) === null || ref21 === void 0 ? void 0 : ref21.modularizeImports,
+        legacyBrowsers: (ref22 = config.experimental) === null || ref22 === void 0 ? void 0 : ref22.legacyBrowsers
     });
     const cache = {
         type: 'filesystem',
         // Includes:
         //  - Next.js version
         //  - next.config.js keys that affect compilation
-        version: `${"12.1.7-canary.41"}|${configVars}`,
+        version: `${"12.1.7-canary.42"}|${configVars}`,
         cacheDirectory: _path.default.join(distDir, 'cache', 'webpack')
     };
     // Adds `next.config.js` as a buildDependency when custom webpack config is provided
@@ -1316,7 +1318,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , compilerType , dev
             nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$/i;
         }
     }
-    if (config.experimental.craCompat && ((ref25 = webpackConfig.module) === null || ref25 === void 0 ? void 0 : ref25.rules) && webpackConfig.plugins) {
+    if (config.experimental.craCompat && ((ref23 = webpackConfig.module) === null || ref23 === void 0 ? void 0 : ref23.rules) && webpackConfig.plugins) {
         // CRA allows importing non-webpack handled files with file-loader
         // these need to be the last rule to prevent catching other items
         // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L594
@@ -1394,7 +1396,7 @@ async function getBaseWebpackConfig(dir, { buildId , config , compilerType , dev
         return false;
     }
     var ref37;
-    const hasUserCssConfig = (ref37 = (ref26 = webpackConfig.module) === null || ref26 === void 0 ? void 0 : ref26.rules.some((rule)=>canMatchCss(rule.test) || canMatchCss(rule.include)
+    const hasUserCssConfig = (ref37 = (ref24 = webpackConfig.module) === null || ref24 === void 0 ? void 0 : ref24.rules.some((rule)=>canMatchCss(rule.test) || canMatchCss(rule.include)
     )) !== null && ref37 !== void 0 ? ref37 : false;
     if (hasUserCssConfig) {
         var ref38, ref39, ref40, ref41;

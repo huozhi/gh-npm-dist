@@ -57,7 +57,7 @@ var _flatReaddir = require("../lib/flat-readdir");
 async function build(dir, conf = null, reactProductionProfiling = false, debugOutput = false, runLint = true) {
     try {
         const nextBuildSpan = (0, _trace).trace('next-build', undefined, {
-            version: "12.1.7-canary.41"
+            version: "12.1.7-canary.42"
         });
         const buildResult = await nextBuildSpan.traceAsyncFn(async ()=>{
             var ref9, ref1, ref2;

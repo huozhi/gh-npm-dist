@@ -153,6 +153,14 @@ const experimentalWarning = (0, _utils).execOnce((configFileName, features)=>{
     Log.warn(`Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` + `Use at your own risk.`);
     console.warn();
 });
+const missingExperimentalWarning = (0, _utils).execOnce((configFileName, features)=>{
+    const s = features.length > 1 ? 's' : '';
+    const dont = features.length > 1 ? 'do not' : 'does not';
+    const them = features.length > 1 ? 'them' : 'it';
+    Log.warn(_chalk.default.bold(`You have defined experimental feature${s} (${features.join(', ')}) in ${configFileName} that ${dont} exist in this version of Next.js.`));
+    Log.warn(`Please remove ${them} from your configuration.`);
+    console.warn();
+});
 function assignDefaults(userConfig) {
     var ref13, ref1, ref2, ref3, ref4, ref5;
     const configFileName = userConfig.configFileName;
@@ -179,8 +187,26 @@ function assignDefaults(userConfig) {
         if (value === undefined || value === null) {
             return currentConfig;
         }
-        if (key === 'experimental' && value !== _configShared.defaultConfig[key] && typeof value === 'object' && Object.keys(value).length > 0) {
-            experimentalWarning(configFileName, Object.keys(value));
+        if (key === 'experimental' && typeof value === 'object') {
+            const enabledMissingExperiments = [];
+            const enabledExperiments = [];
+            // defaultConfig.experimental is predefined and will never be undefined
+            // This is only a type guard for the typescript
+            if (_configShared.defaultConfig.experimental) {
+                for (const featureName of Object.keys(value)){
+                    if (!(featureName in _configShared.defaultConfig.experimental)) {
+                        enabledMissingExperiments.push(featureName);
+                    } else if (value[featureName] !== _configShared.defaultConfig.experimental[featureName]) {
+                        enabledExperiments.push(featureName);
+                    }
+                }
+            }
+            if (enabledMissingExperiments.length > 0) {
+                missingExperimentalWarning(configFileName, enabledMissingExperiments);
+            }
+            if (enabledExperiments.length > 0) {
+                experimentalWarning(configFileName, enabledExperiments);
+            }
         }
         if (key === 'distDir') {
             if (typeof value !== 'string') {

@@ -10,9 +10,9 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
-function install(root, dependencies, { useYarn , isOnline , devDependencies  }) {
+function install(root, dependencies, { packageManager , isOnline , devDependencies  }) {
     /**
-   * NPM-specific command-line flags.
+   * (p)npm-specific command-line flags.
    */ const npmFlags = [];
     /**
    * Yarn-specific command-line flags.
@@ -21,10 +21,11 @@ function install(root, dependencies, { useYarn , isOnline , devDependencies  }) 
    * Return a Promise that resolves once the installation is finished.
    */ return new Promise((resolve, reject)=>{
         let args;
-        let command = useYarn ? 'yarnpkg' : 'npm';
+        let command = packageManager;
+        const useYarn = packageManager === 'yarn';
         if (dependencies && dependencies.length) {
             /**
-       * If there are dependencies, run a variation of `{displayCommand} add`.
+       * If there are dependencies, run a variation of `{packageManager} add`.
        */ if (useYarn) {
                 /**
          * Call `yarn add --exact (--offline)? (-D)? ...`.
@@ -38,7 +39,7 @@ function install(root, dependencies, { useYarn , isOnline , devDependencies  }) 
                 args.push(...dependencies);
             } else {
                 /**
-         * Call `npm install [--save|--save-dev] ...`.
+         * Call `(p)npm install [--save|--save-dev] ...`.
          */ args = [
                     'install',
                     '--save-exact'
@@ -48,7 +49,7 @@ function install(root, dependencies, { useYarn , isOnline , devDependencies  }) 
             }
         } else {
             /**
-       * If there are no dependencies, run a variation of `{displayCommand}
+       * If there are no dependencies, run a variation of `{packageManager}
        * install`.
        */ args = [
                 'install'
@@ -77,7 +78,6 @@ function install(root, dependencies, { useYarn , isOnline , devDependencies  }) 
             stdio: 'inherit',
             env: {
                 ...process.env,
-                NODE_ENV: devDependencies ? 'development' : 'production',
                 ADBLOCK: '1',
                 DISABLE_OPENCOLLECTIVE: '1'
             }

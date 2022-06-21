@@ -75,7 +75,7 @@ const args = (0, _indexJs).default({
 });
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
-    console.log(`Next.js v${"12.1.7-canary.41"}`);
+    console.log(`Next.js v${"12.1.7-canary.42"}`);
     process.exit(0);
 }
 // Check if we are running `next <subcommand>` or `next`

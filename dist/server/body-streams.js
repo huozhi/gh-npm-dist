@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+exports.requestToBodyStream = requestToBodyStream;
 exports.bodyStreamToNodeStream = bodyStreamToNodeStream;
 exports.clonableBodyForRequest = clonableBodyForRequest;
 var _primitives = _interopRequireDefault(require("next/dist/compiled/@edge-runtime/primitives"));
@@ -11,9 +12,7 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
-/**
- * Creates a ReadableStream from a Node.js HTTP request
- */ function requestToBodyStream(request) {
+function requestToBodyStream(request) {
     const transform = new _primitives.default.TransformStream({
         start (controller) {
             request.on('data', (chunk)=>controller.enqueue(chunk)

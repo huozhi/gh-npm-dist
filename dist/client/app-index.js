@@ -13,7 +13,7 @@ function _interopRequireDefault(obj) {
         default: obj
     };
 }
-const version = "12.1.7-canary.41";
+const version = "12.1.7-canary.42";
 exports.version = version;
 // History replace has to happen on bootup to ensure `state` is always populated in popstate event
 window.history.replaceState({

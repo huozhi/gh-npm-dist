@@ -20,6 +20,9 @@ async function adapter(params) {
     const buildId = requestUrl.buildId;
     requestUrl.buildId = '';
     const isDataReq = params.request.headers['x-nextjs-data'];
+    if (isDataReq && requestUrl.pathname === '/index') {
+        requestUrl.pathname = '/';
+    }
     // clean-up any internal query params
     for (const key of [
         ...requestUrl.searchParams.keys()

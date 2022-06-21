@@ -907,6 +907,13 @@ function getPossibleMiddlewareFilenames(folder, extensions) {
     return extensions.map((extension)=>_path.default.join(folder, `${_constants.MIDDLEWARE_FILENAME}.${extension}`)
     );
 }
+class MiddlewareInServerlessTargetError extends Error {
+    constructor(){
+        super('Next.js Middleware is not supported in the deprecated serverless target.\n' + 'Please remove `target: "serverless" from your next.config.js to use Middleware.');
+        this.name = 'MiddlewareInServerlessTargetError';
+    }
+}
+exports.MiddlewareInServerlessTargetError = MiddlewareInServerlessTargetError;
 class NestedMiddlewareError extends Error {
     constructor(nestedFileNames, mainDir, pagesDir){
         super(`Nested Middleware is not allowed, found:\n` + `${nestedFileNames.map((file)=>`pages${file}`

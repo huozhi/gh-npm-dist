@@ -71,6 +71,10 @@ const webpackHMR = (0, _webpackHotMiddlewareClient).default();
                     ;
                     _.router.replace(_.router.pathname + '?' + String((0, _querystring).assign((0, _querystring).urlQueryToSearchParams(_.router.query), new URLSearchParams(location.search))), _.router.asPath, {
                         scroll: false
+                    }).catch(()=>{
+                        // trigger hard reload when failing to refresh data
+                        // to show error overlay properly
+                        location.reload();
                     }).finally(clearIndicator);
                 }
             }
